@@ -4,6 +4,43 @@
 
 ---
 
+## Phase 10 — Article Classification
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `backend/ai/prompts/classification.py`: `CLASSIFY_ARTICLE`, `EXTRACT_ENTITIES` (نسخه‌دار)
+- `domains/news/classifier_schema.py`: `CLASSIFY_SCHEMA`, `EXTRACT_SCHEMA`, `Entity`,
+  `ImportanceInputs`, `ClassificationResult`
+- `domains/news/classifier.py`: `ArticleClassifier` + `compute_importance` (deterministic)
+- API: `POST /api/classify/run`, `GET /api/classify/articles`
+- CLI: `domains/news/run_classify.py`
+- `tests/test_classification.py` (۷ تست)
+
+### Files changed
+- `backend/ai/prompts/classification.py`
+- `domains/news/{classifier,classifier_schema,run_classify}.py`
+- `backend/api/routers/classify.py`, `backend/main.py`
+- `tests/test_classification.py`
+
+### Tests
+- `python -m pytest tests -q` → **45 passed** ✅
+- `compute_importance`: ورودی مهم → ۱..۳ ، ورودی عادی → ۷..۱۰ ✅
+- `ClassificationResult.from_dict` پارس درست ✅
+- `ArticleClassifier.classify_pending` با Mock → classified=1 ✅
+- API زنده: ۳ مقاله طبقه‌بندی شد ✅
+
+### Known issues
+- با Mock Provider مقادیر نمایشی‌اند (topics=["mock"]، importance=10 چون ابعاد صفرند).
+  با Provider واقعی، مقادیر معنادار می‌شوند.
+- فیلد `country` روی Article ذخیره نمی‌شود (مدل فیلد country ندارد)؛ در فاز بعدی یا با
+  استفاده از Entity می‌توان اضافه کرد.
+
+### Next step
+- Phase 11 — Event Extraction: چند مقاله مرتبط → یک Event
+
+---
+
 ## Phase 9 — Deduplication (exact / near / repost / same-story)
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

@@ -86,8 +86,13 @@
 - آستانه‌ی قابل تنظیم (`DEDUP_NEAR_THRESHOLD`)
 - تست شد: repost بین دو منبع تشخیص داده شد
 
-## Phase 10 — Article Classification
-- topic، language، country، importance، entities (با AI)
+## Phase 10 — Article Classification ✅ (این مرحله)
+- prompt نسخه‌دار طبقه‌بندی/استخراج + JSON Schema
+- `ArticleClassifier` با AI Gateway (نقش fast_extraction)
+- محاسبه‌ی deterministic Importance Score (بند 22)
+- استخراج topics/entities/country/sentiment/stance/summary
+- API `/api/classify/*` + CLI
+- تست شد: ۳ مقاله طبقه‌بندی شدند
 
 ## Phase 11 — Event Extraction
 - چند مقاله مرتبط → یک Event

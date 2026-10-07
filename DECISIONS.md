@@ -55,6 +55,16 @@
 
 ---
 
+## ADR-0015 — Importance ترکیبی ولی Deterministic
+**Date:** 2026-10-08
+**Context:** بند 22 می‌گوید Importance نباید فقط بر اساس نظر LLM باشد.
+**Decision:** LLM ابعاد (impact/scope/novelty/…) را در خروجی structured تخمین می‌زند، اما **محاسبه‌ی نهایی importance از ترکیب وزنی deterministic** در `compute_importance` انجام می‌شود و به بازه‌ی ۱..۱۰ نگاشت می‌شود.
+**Alternatives:** واگذاری کامل importance به LLM؛ فرمول صرفاً rule-based بدون ورودی LLM
+**Why selected:** تفکیک «compute» از «interpret» (ADR-0004)، تکرارپذیری، اجتناب از No Fake Precision.
+**Consequences:** پارامترهای وزن قابل تنظیم‌اند؛ در Phase 51 می‌توان وزن‌ها را از داده‌ی واقعی یاد گرفت.
+
+---
+
 ## ADR-0014 — Dedup بدون وابستگی خارجی (MinHash/LSH دست‌ساز)
 **Date:** 2026-10-08
 **Context:** بند 18 (Source Independence) و Phase 9 نیازمند تشخیص near-duplicate هستند. کتابخانه‌هایی مثل datasketch/minhashlsh وجود دارند اما وابستگی جدید می‌آورند.

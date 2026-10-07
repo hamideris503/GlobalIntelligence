@@ -19,6 +19,7 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 10: Article classification (topics/entities/sentiment) + deterministic importance
 - [x] Phase 9: dedup (MinHash/LSH/Union-Find) + service + CLI + API + ingest hook
 - [x] Phase 8: News ingestion pipeline + fetchers + normalizer + API + CLI worker
 - [x] Phase 8: dedup سبک بر اساس content_hash

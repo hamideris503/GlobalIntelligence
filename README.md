@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 9 — Deduplication**
+**Phase فعلی: 10 — Article Classification**
 **Status: DONE**
 
-> ⚠️ خوشه‌بندی تکراری‌ها ساخته شد: MinHash/LSH/Union-Find، تشخیص exact/near/repost، API و CLI. مرحله‌ی بعد طبقه‌بندی مقالات است.
+> ⚠️ طبقه‌بندی مقالات ساخته شد: topics/entities/sentiment/stance و Importance Score ترکیبی (deterministic). مرحله‌ی بعد Event Extraction است.
 
 ---
 
