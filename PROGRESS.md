@@ -4,6 +4,44 @@
 
 ---
 
+## Phase 7 — Data Source Registry
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- سرویس دامنه `SourceRegistry` در `domains/news/source_registry.py`
+  - list (با فیلتر active/country/type)، get، get_by_name، create، update، set_active
+  - `record_success` / `record_error` برای پیگیری سلامت (بند 17)
+- API `/api/sources`: GET (list)، POST (create)، GET/{id}، PATCH/{id}، POST/{id}/health
+- schemas: `SourceCreate/Update/Read/HealthUpdate`
+- seed بازنویسی‌شده: ۱۴ منبع معتبر رایگان + امتیاز اولیه + تکمیل رکوردهای موجود
+- Docker build حالا پوشه‌ی `domains/` را هم کپی می‌کند
+- تست‌ها: `tests/test_sources.py` (۶ تست)
+
+### Files changed
+- `domains/__init__.py`, `domains/news/__init__.py`, `domains/news/source_registry.py`
+- `backend/api/routers/sources.py`, `backend/api/schemas/sources.py`, `backend/main.py`
+- `db/seed/sources.py`, `docker/backend.Dockerfile`, `tests/test_sources.py`
+- `DATA_SOURCES.md` (جدول منابع پیاده‌سازی‌شده)
+
+### Tests
+- `python -m pytest tests -q` → **22 passed** ✅
+- seed → «seeded 9 new source(s)» سپس «enriched 17 field(s)» ✅
+- `GET /api/sources` → ۱۴ منبع ✅
+- `GET /api/sources?country=IR` → ۲ منبع ✅
+- `POST /api/sources` → 201 ✅
+- `POST /api/sources/{id}/health` → `last_success` ثبت شد ✅
+- رفع تکرار نام‌ها (ECB) ✅
+
+### Known issues
+- امتیازهای credibility/independence اولیه‌اند و باید در فازهای بعدی از عملکرد واقعی به‌روز شوند (بند 56).
+- فصل `terms`/`license` برخی منابع نیازمند بررسی نهایی است.
+
+### Next step
+- Phase 8 — News Ingestion: SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE
+
+---
+
 ## Phase 5 — AI Gateway (Provider-Agnostic, Mock-First)
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

@@ -32,6 +32,40 @@
 
 ---
 
+## منابع پیاده‌سازی‌شده (Seed — Phase 7)
+
+این منابع در `db/seed/sources.py` ثبت شده‌اند و از طریق `/api/sources` قابل مدیریت‌اند.
+مقادیر credibility/independence **اولیه و محافظه‌کارانه** هستند و بعداً از عملکرد واقعی
+(بند 56-58) به‌روزرسانی می‌شوند.
+
+| Name | Domain | Country | Type | Language |
+|---|---|---|---|---|
+| IMF World Economic Outlook | imf.org | — | dataset | en |
+| World Bank Open Data | worldbank.org | — | dataset | en |
+| US FRED | stlouisfed.org | US | api | en |
+| ECB Data Portal | ecb.europa.eu | — | official | en |
+| OECD Data | oecd.org | — | dataset | en |
+| US BLS | bls.gov | US | official | en |
+| Stooq | stooq.com | — | dataset | en |
+| Yahoo Finance | finance.yahoo.com | — | api | en |
+| World Gold Council | gold.org | — | official | en |
+| CoinGecko | coingecko.com | — | api | en |
+| GDELT | gdeltproject.org | — | dataset | en |
+| ACLED | acleddata.com | — | dataset | en |
+| Central Bank of Iran | cbi.ir | IR | official | fa |
+| Statistical Center of Iran | amar.org.ir | IR | official | fa |
+
+### API رجیستری منابع
+| متد | مسیر | کار |
+|---|---|---|
+| GET | `/api/sources` | لیست (فیلتر: active, country, type) |
+| POST | `/api/sources` | افزودن منبع |
+| GET | `/api/sources/{id}` | جزئیات |
+| PATCH | `/api/sources/{id}` | به‌روزرسانی |
+| POST | `/api/sources/{id}/health` | ثبت موفقیت/خطا |
+
+---
+
 ## منابع کاندید (بررسی‌نشده — Proposed)
 
 ### رسمی / بین‌المللی

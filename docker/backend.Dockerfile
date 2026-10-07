@@ -23,8 +23,9 @@ WORKDIR /app
 COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install -r backend/requirements.txt
 
-# کپی سورس backend + تنظیمات alembic + migrations
+# کپی سورس backend + domains + تنظیمات alembic + migrations
 COPY backend ./backend
+COPY domains ./domains
 COPY alembic.ini ./alembic.ini
 COPY db ./db
 

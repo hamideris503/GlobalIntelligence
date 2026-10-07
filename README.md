@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 5 — AI Gateway (Provider-Agnostic, Mock-First)**
+**Phase فعلی: 7 — Data Source Registry**
 **Status: DONE**
 
-> ⚠️ AI Gateway ساخته شد: اینترفیس یکسان Provider، Mock Provider (پیش‌فرض، بدون هزینه)، adapterهای OpenAI/Anthropic/Gemini/OpenRouter، و fallback/retry. هیچ Providerی در منطق اصلی hard-code نشده است.
+> ⚠️ رجیستری منابع ساخته شد: مدل Source، سرویس SourceRegistry، API کامل `/api/sources` و seed ۱۴ منبع معتبر رایگان. مرحله‌ی بعد News Ingestion است.
 
 ---
 

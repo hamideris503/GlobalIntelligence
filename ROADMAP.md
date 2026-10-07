@@ -61,8 +61,11 @@
 
 ## Phase 6 — Mock AI
 
-## Phase 7 — Data Source Registry
-- جدول Source + اولین منابع معتبر
+## Phase 7 — Data Source Registry ✅ (این مرحله)
+- مدل `Source` (از Phase 3) + سرویس `SourceRegistry` (CRUD + health tracking)
+- API کامل `/api/sources` (list/create/get/update/health)
+- seed ۱۴ منبع معتبر رایگان با امتیاز اولیه
+- تست شد: ۱۵ منبع، فیلتر، ساخت، ثبت سلامت
 
 ## Phase 8 — News Ingestion
 - SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE
