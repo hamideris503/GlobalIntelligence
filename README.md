@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 7 — Data Source Registry**
+**Phase فعلی: 8 — News Ingestion (SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE)**
 **Status: DONE**
 
-> ⚠️ رجیستری منابع ساخته شد: مدل Source، سرویس SourceRegistry، API کامل `/api/sources` و seed ۱۴ منبع معتبر رایگان. مرحله‌ی بعد News Ingestion است.
+> ⚠️ خط لوله‌ی دریافت خبر ساخته شد: fetcher (RSS/Mock)، normalizer، pipeline با dedup سبک، API و worker CLI. مرحله‌ی بعد Deduplication پیشرفته است.
 
 ---
 

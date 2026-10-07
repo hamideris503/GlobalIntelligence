@@ -1,0 +1,57 @@
+{
+  "name": "GI — Scheduled News Ingestion",
+  "id": "gi-scheduled-ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-ingest",
+      "name": "Schedule Trigger (30m)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/ingest/all?limit=20",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "trigger-ingest-job",
+      "name": "Run news ingestion (backend)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (30m)": {
+      "main": [
+        [
+          {
+            "node": "Run news ingestion (backend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

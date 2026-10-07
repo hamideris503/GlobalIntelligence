@@ -4,6 +4,42 @@
 
 ---
 
+## Phase 8 — News Ingestion (SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE)
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/news/fetchers.py`: `BaseFetcher`, `RSSFetcher` (RSS2.0 + Atom با stdlib)، `MockFetcher` (آفلاین)
+- `domains/news/normalizer.py`: clean_text، detect_language، hash/content_hash، Point-in-Time
+- `domains/news/ingestion.py`: `NewsIngestionPipeline` (async + sync)، dedup بر اساس content_hash
+- `domains/news/run_ingest.py`: worker CLI برای همه‌ی منابع فعال
+- API: `POST /api/ingest`, `POST /api/ingest/all`, `GET /api/ingest/documents`
+- workflow n8n: `phase8-scheduled-ingestion.json` (هر ۳۰ دقیقه → `/api/ingest/all`)
+- `tests/conftest.py` (رفع مشکل isolation تست‌ها) + `tests/test_ingestion.py`
+
+### Files changed
+- `domains/news/{fetchers,normalizer,ingestion,run_ingest}.py`
+- `backend/api/routers/ingestion.py`, `backend/api/schemas/ingestion.py`, `backend/main.py`
+- `integrations/n8n/workflows/phase8-scheduled-ingestion.json`
+- `tests/conftest.py`, `tests/test_ingestion.py`, `tests/test_jobs.py`, `tests/test_sources.py`
+
+### Tests
+- `python -m pytest tests -q` → **31 passed** ✅
+- `POST /api/ingest` (منبع CBI) → `fetched=3 stored=3` ✅
+- اجرای دوباره → `stored=0 duplicates=3` (dedup) ✅
+- `POST /api/ingest/all` → ۱۴ منبع پردازش شد ✅
+- `python -m domains.news.run_ingest` → اجرا شد ✅
+- import workflow در n8n → موفق ✅
+
+### Known issues
+- در MOCK_MODE همه‌ی منابع داده‌ی نمونه‌ی یکسان می‌گیرند، بنابراین dedup بین منابع هم فعال است (رفتار درست برای نمونه).
+- `RSSFetcher` به URL واقعی فید نیاز دارد؛ در Phase 8 آدرس فید هنوز در Source ذخیره نمی‌شود (فاز بعدی می‌تواند فیلد feed_url اضافه کند).
+
+### Next step
+- Phase 9 — Deduplication: near-duplicate، repost، same-story clustering
+
+---
+
 ## Phase 7 — Data Source Registry
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

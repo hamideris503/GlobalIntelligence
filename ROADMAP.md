@@ -67,8 +67,15 @@
 - seed ۱۴ منبع معتبر رایگان با امتیاز اولیه
 - تست شد: ۱۵ منبع، فیلتر، ساخت، ثبت سلامت
 
-## Phase 8 — News Ingestion
-- SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE
+## Phase 8 — News Ingestion ✅ (این مرحله)
+- fetcherها: RSS/Atom (stdlib) + Mock (آفلاین)
+- normalizer: پاک‌سازی، تشخیص زبان، hash/content_hash، Point-in-Time
+- pipeline: SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE
+- dedup سبک بر اساس content_hash
+- API: `/api/ingest`, `/api/ingest/all`, `/api/ingest/documents`
+- CLI worker: `python -m domains.news.run_ingest`
+- workflow n8n زمان‌بندی‌شده برای ingestion
+- تست شد: ۳ سند ذخیره، اجرای دوباره dedup شد
 
 ## Phase 9 — Deduplication
 - duplicate، near duplicate، repost، same story

@@ -55,6 +55,20 @@
 
 ---
 
+## ADR-0013 — Raw-first و Point-in-Time در Ingestion
+**Date:** 2026-10-08
+**Context:** بند 19 (ذخیره raw) و بند 45 (Point-in-Time Integrity) در ingestion حیاتی‌اند.
+**Decision:**
+- Document (خام) همیشه پیش از هر پردازش ذخیره می‌شود.
+- هنگام normalize، زمان‌های `published_at / retrieved_at / available_at / observed_at` ثبت می‌شوند.
+- `content_hash` (title+body) و `hash` (url) برای dedup محاسبه می‌شوند.
+- dedup سبک بر اساس content_hash؛ خوشه‌بندی کامل در Phase 9.
+**Alternatives:** ذخیره فقط Article پردازش‌شده، dedup در سطح API
+**Why selected:** جلوگیری از ازدست‌رفتن داده، Reproducibility، آمادگی برای backtest بدون look-ahead.
+**Consequences:** جدول documents حجم بیشتری می‌گیرد؛ در فازهای بعدی می‌توان سیاست نگهداری raw اضافه کرد.
+
+---
+
 ## ADR-0012 — Gateway-First و رفتار بدون API Key
 **Date:** 2026-10-08
 **Context:** پروژه نباید به هیچ Provider خاصی وابسته باشد و بدون API پولی هم باید اجرا شود.

@@ -1,49 +1,13 @@
 """Tests for the Source Registry API & service (Phase 7)."""
 from __future__ import annotations
 
-from collections.abc import Generator
-
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from backend.database import models as _models  # noqa: F401 — ثبت مدل‌ها
-from backend.database.base import Base
-from backend.database.session import get_db
-from backend.main import app
-
-engine = create_engine(
-    "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-)
-TestingSession = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-Base.metadata.create_all(bind=engine)
+from backend.database import models as _models
+from tests.conftest import TestingSession
 
 
-def _override_get_db() -> Generator[Session, None, None]:
-    session = TestingSession()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-app.dependency_overrides[get_db] = _override_get_db
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _clean() -> None:
-    session = TestingSession()
-    try:
-        session.query(_models.Source).delete()
-        session.commit()
-    finally:
-        session.close()
-
-
-def test_create_and_get_source() -> None:
+def test_create_and_get_source(client: TestClient) -> None:
     res = client.post(
         "/api/sources",
         json={"name": "Test Source", "domain": "test.example", "country": "US",
@@ -59,13 +23,13 @@ def test_create_and_get_source() -> None:
     assert got.json()["domain"] == "test.example"
 
 
-def test_duplicate_name_conflict() -> None:
+def test_duplicate_name_conflict(client: TestClient) -> None:
     payload = {"name": "Dup Source", "type": "api"}
     assert client.post("/api/sources", json=payload).status_code == 201
     assert client.post("/api/sources", json=payload).status_code == 409
 
 
-def test_list_and_filter() -> None:
+def test_list_and_filter(client: TestClient) -> None:
     client.post("/api/sources", json={"name": "A", "type": "api", "country": "IR"})
     client.post("/api/sources", json={"name": "B", "type": "rss", "country": "US"})
     all_sources = client.get("/api/sources").json()
@@ -74,7 +38,7 @@ def test_list_and_filter() -> None:
     assert len(ir) == 1 and ir[0]["name"] == "A"
 
 
-def test_update_and_health() -> None:
+def test_update_and_health(client: TestClient) -> None:
     sid = client.post("/api/sources", json={"name": "H", "type": "api"}).json()["id"]
 
     upd = client.patch(f"/api/sources/{sid}", json={"credibility_score": 0.9})
@@ -90,7 +54,7 @@ def test_update_and_health() -> None:
     assert err.json()["last_error"] == "timeout"
 
 
-def test_get_missing_source_404() -> None:
+def test_get_missing_source_404(client: TestClient) -> None:
     res = client.get("/api/sources/00000000-0000-0000-0000-000000000000")
     assert res.status_code == 404
 

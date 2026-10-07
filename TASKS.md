@@ -19,6 +19,9 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 8: News ingestion pipeline + fetchers + normalizer + API + CLI worker
+- [x] Phase 8: dedup سبک بر اساس content_hash
+- [x] Phase 8: workflow n8n زمان‌بندی‌شده برای ingestion
 - [x] Phase 7: Source Registry service + API (`/api/sources`) + seed ۱۴ منبع
 - [x] Phase 5: AI Gateway (Provider interface + Mock + HTTP adapters + fallback/retry)
 - [x] Phase 5: Mock Provider (به‌نوعی Phase 6 هم پوشش داده شد)
