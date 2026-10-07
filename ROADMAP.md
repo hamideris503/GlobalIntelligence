@@ -25,9 +25,9 @@
 - Free-first rules، Goals، Non-goals
 - ساخت اسناد پایه (README, ARCHITECTURE, ROADMAP, TASKS, PROGRESS, DECISIONS, LICENSES, DATA_SOURCES, AI_MODELS)
 
-## Phase 1 — آماده‌سازی محیط
-- Git، Python، Node.js، Docker، Docker Compose
-- Repository، `.gitignore`، `.env.example`
+## Phase 1 — آماده‌سازی محیط ✅ (این مرحله)
+- Git، Python، Node.js، Docker، Docker Compose (بررسی و تأیید شد)
+- Repository، `.gitignore`، `.env.example`، اسکلت اجرایی (dependency files)
 
 ## Phase 2 — Skeleton
 - Backend، Frontend، Database، Health endpoint

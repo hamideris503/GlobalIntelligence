@@ -1,0 +1,13 @@
+# ============================================================
+# GlobalIntelligence — Backend dependencies
+# فقط وابستگی‌های ضروری و تأییدشده. هر افزودن نیازمند دلیل است (Rule 9).
+# ============================================================
+fastapi>=0.115,<0.116
+uvicorn[standard]>=0.30,<0.35
+pydantic>=2.7,<3
+pydantic-settings>=2.3,<3
+sqlalchemy>=2.0,<3
+alembic>=1.13,<2
+psycopg[binary]>=3.2,<4
+python-dotenv>=1.0,<2
+httpx>=0.27,<1

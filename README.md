@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 0 — Project Specification & Architecture**
-**Status: در حال انجام (DONE برای اسناد پایه)**
+**Phase فعلی: 1 — Environment Preparation & Repository Skeleton**
+**Status: DONE**
 
-> ⚠️ این پروژه در مراحل بسیار ابتدایی است. هنوز هیچ کد اجرایی (Backend/Frontend/DB) پیاده‌سازی نشده است. در Phase 0 فقط اسناد معماری و برنامه‌ریزی ساخته می‌شوند.
+> ⚠️ این پروژه در مراحل بسیار ابتدایی است. هنوز کد اجرایی (Backend/Frontend) پیاده‌سازی نشده است. در Phase 0 اسناد معماری و برنامه‌ریزی ساخته شد و در Phase 1 محیط توسعه و اسکلت اجرایی ریپازیتوری آماده شد.
 
 ---
 
@@ -86,13 +86,15 @@ WORLD
 
 ## شروع سریع (بعد از Phase 2)
 
-> در حال حاضر فقط اسناد موجود است. دستورات اجرایی در فازهای بعدی اضافه می‌شوند.
+> در حال حاضر اسکلت اجرایی (dependency files) موجود است اما Backend/Frontend کد اجرایی ندارند.
 
 ```bash
 git clone <repo-url>
 cd GlobalIntelligence
-cp .env.example .env
-# مقادیر .env را برای محیط محلی تنظیم کنید (MOCK_MODE=true)
+cp .env.example .env          # مقادیر محلی را تنظیم کنید (MOCK_MODE=true)
+
+# بررسی محیط (بدون وابستگی خارجی)
+python scripts/check_env.py
 ```
 
 ---
