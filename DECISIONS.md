@@ -55,6 +55,20 @@
 
 ---
 
+## ADR-0012 — Gateway-First و رفتار بدون API Key
+**Date:** 2026-10-08
+**Context:** پروژه نباید به هیچ Provider خاصی وابسته باشد و بدون API پولی هم باید اجرا شود.
+**Decision:**
+- تمام فراخوانی‌های AI از `AIGateway` عبور می‌کنند؛ Providerها فقط در `registry.py` شناخته می‌شوند.
+- نام Provider در منطق اصلی hard-code نمی‌شود.
+- زنجیره‌ی هر route همیشه با `mock` پایان می‌یابد تا سیستم هرگز کاملاً از کار نیفتد.
+- Provider بدون API Key → `not configured` (نه crash).
+**Alternatives:** اتصال مستقیم به یک SDK، وابستگی به یک Provider، خطای سخت هنگام نبود کلید
+**Why selected:** Free-First (بند 71)، API Key Independence (بند 72)، Provider-Agnostic (بند 11).
+**Consequences:** هر task جدید باید نقش (role) خود را در routing تعریف کند.
+
+---
+
 ## ADR-0011 — مرز n8n و Backend
 **Date:** 2026-10-08
 **Context:** n8n می‌تواند convert به مغز سیستم شود، که خلاف بند 8 است.

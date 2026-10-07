@@ -21,11 +21,11 @@ Model
 
 | Provider | Env Key | Base URL Env | Status |
 |---|---|---|---|
-| Mock | — | — | **پیش‌فرض (Mock-First)** |
-| Gemini | `GEMINI_API_KEY` | `GEMINI_BASE_URL` | Planned |
-| OpenAI | `OPENAI_API_KEY` | `OPENAI_BASE_URL` | Planned |
-| Anthropic | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` | Planned |
-| OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_BASE_URL` | Planned |
+| Mock | — | — | **پیاده‌سازی‌شده (پیش‌فرض)** |
+| Gemini | `GEMINI_API_KEY` | `GEMINI_BASE_URL` | پیاده‌سازی‌شده |
+| OpenAI | `OPENAI_API_KEY` | `OPENAI_BASE_URL` | پیاده‌سازی‌شده |
+| Anthropic | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` | پیاده‌سازی‌شده |
+| OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_BASE_URL` | پیاده‌سازی‌شده |
 
 > اگر کلید یک Provider نبود یا خطا داد: Provider غیرفعال می‌شود، سیستم Crash نمی‌کند، به fallback می‌رود.
 

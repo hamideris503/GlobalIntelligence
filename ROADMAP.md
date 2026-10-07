@@ -51,12 +51,15 @@
 - import/publish خودکار workflow با اسکریپت
 - تست شد: اجرای زمان‌بندی‌شده‌ی واقعی n8n رکورد در PostgreSQL ثبت کرد
 
-## Phase 5 — AI Gateway
-- Provider interface: `generate`, `structured_generate`, `classify`, `extract`
-- Adapterها (معماری Multi-provider؛ در ابتدا یک Provider کافی است)
+## Phase 5 — AI Gateway ✅ (این مرحله)
+- اینترفیس یکسان Provider (`generate`, `structured_generate`, `classify`, `extract`, `health`)
+- Mock Provider (پیش‌فرض، بدون هزینه) + Providerهای HTTP (openai, anthropic, gemini, openrouter)
+- Registry + routing مبتنی بر نقش/وظیفه
+- Gateway با fallback/retry/timeout/logging/usage tracking
+- endpointهای `/api/ai/generate` و `/api/ai/providers`
+- تست شد: mock پاسخ داد، Providerهای بدون کلید → `not configured` (بدون crash)
 
 ## Phase 6 — Mock AI
-- Mock Provider برای توسعه بدون هزینه
 
 ## Phase 7 — Data Source Registry
 - جدول Source + اولین منابع معتبر

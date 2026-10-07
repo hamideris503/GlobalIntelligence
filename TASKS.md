@@ -19,6 +19,9 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 5: AI Gateway (Provider interface + Mock + HTTP adapters + fallback/retry)
+- [x] Phase 5: Mock Provider (به‌نوعی Phase 6 هم پوشش داده شد)
+- [x] Phase 5: endpointهای `/api/ai/generate` و `/api/ai/providers`
 - [x] Phase 4: n8n workflow (Trigger → Backend → Database) import و فعال شد
 - [x] Phase 4: jobs API (`POST /api/jobs/trigger`, `GET /api/jobs`) + جدول `job_runs`
 - [x] Phase 4: اجرای زمان‌بندی‌شده‌ی واقعی n8n تأیید شد (رکورد در DB)

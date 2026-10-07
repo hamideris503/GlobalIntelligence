@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routers import health, jobs
+from backend.api.routers import ai, health, jobs
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
 
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(jobs.router)
+    app.include_router(ai.router)
     return app
 
 

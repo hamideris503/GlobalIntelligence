@@ -4,6 +4,45 @@
 
 ---
 
+## Phase 5 — AI Gateway (Provider-Agnostic, Mock-First)
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `backend/ai/schemas/types.py`: AIRequest/AIResponse/AIUsage/AIError/Message/ProviderHealth
+- `backend/ai/providers/`:
+  - `base.py`: اینترفیس `AIProvider` (Protocol) + `BaseProvider` با `generate/structured_generate/classify/extract/health`
+  - `mock.py`: Mock Provider (deterministic، بدون هزینه) — Phase 6 نیز پوشش داده شد
+  - `http_base.py`: پایه‌ی مشترک HTTP با timeout/retry/error mapping
+  - `openai.py`, `anthropic.py`, `gemini.py`, `openrouter.py`: adapterهای واقعی
+  - `registry.py`: نگاشت نام → Provider (تنها نقطه‌ی شناخت نام‌ها)
+- `backend/ai/routing/router.py`: نگاشت نقش/وظیفه → زنجیره‌ی Provider
+- `backend/ai/gateway/gateway.py`: Gateway با fallback/retry/timeout/logging/usage tracking
+- `backend/ai/prompts/`: قالب‌های نسخه‌دار prompt
+- `backend/ai/evaluation/`: ساختار پایه‌ی ثبت عملکرد مدل
+- API: `POST /api/ai/generate`, `GET /api/ai/providers`
+- config: افزودن کلیدهای Provider (همه Optional)
+
+### Files changed
+- `backend/ai/**` (schemas, providers, routing, gateway, prompts, evaluation)
+- `backend/api/routers/ai.py`, `backend/api/schemas/ai.py`, `backend/main.py`
+- `backend/core/config.py`, `tests/test_ai_gateway.py`
+
+### Tests
+- `python -m pytest tests -q` → **16 passed** ✅
+- `POST /api/ai/generate` (mock) → پاسخ با provider=mock ✅
+- `GET /api/ai/providers` → mock سالم؛ بقیه `not configured` بدون crash ✅
+- fallback تست شد: Provider شکست‌خورده → mock ✅
+
+### Known issues
+- Providerهای واقعی بدون API Key غیرفعال‌اند (طبق قانون 72) — این رفتار مورد انتظار است.
+- Providerها async هستند؛ در endpointهای sync باید با async تعریف شوند (انجام شد).
+
+### Next step
+- Phase 6 (Mock AI) عملاً پوشش داده شد؛ در ادامه Phase 7 — Data Source Registry
+
+---
+
 ## Phase 4 — n8n orchestration (Trigger → Backend → Database)
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

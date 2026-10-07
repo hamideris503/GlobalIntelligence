@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 4 — n8n orchestration (Trigger → Backend → Database)**
+**Phase فعلی: 5 — AI Gateway (Provider-Agnostic, Mock-First)**
 **Status: DONE**
 
-> ⚠️ مسیر orchestration فعال شد: n8n به‌صورت زمان‌بندی‌شده به Backend درخواست می‌دهد و backend داده را در PostgreSQL ثبت می‌کند. موتور AI و ingestion در فازهای بعدی اضافه می‌شوند.
+> ⚠️ AI Gateway ساخته شد: اینترفیس یکسان Provider، Mock Provider (پیش‌فرض، بدون هزینه)، adapterهای OpenAI/Anthropic/Gemini/OpenRouter، و fallback/retry. هیچ Providerی در منطق اصلی hard-code نشده است.
 
 ---
 

@@ -53,6 +53,23 @@ class Settings(BaseSettings):
     ai_max_retries: int = 2
     ai_enable_cost_tracking: bool = True
 
+    # Provider credentials (همه Optional — بدون آن Provider غیرفعال می‌شود)
+    gemini_api_key: str | None = None
+    gemini_base_url: str = "https://generativelanguage.googleapis.com"
+    gemini_model: str = "gemini-1.5-flash"
+
+    openai_api_key: str | None = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o-mini"
+
+    anthropic_api_key: str | None = None
+    anthropic_base_url: str = "https://api.anthropic.com"
+    anthropic_model: str = "claude-3-5-haiku-latest"
+
+    openrouter_api_key: str | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "openai/gpt-4o-mini"
+
     # --- Frontend ---
     vite_api_base_url: str = "http://localhost:8000"
 
