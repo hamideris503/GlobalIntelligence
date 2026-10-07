@@ -55,6 +55,16 @@
 
 ---
 
+## ADR-0009 — مقاوم‌سازی Docker build در برابر شبکه‌ی محدود
+**Date:** 2026-10-08
+**Context:** در build تصویر backend، دسترسی به `files.pythonhosted.org` (محل دانلود پکیج‌های PyPI) با خطای SSL EOF شکست خورد؛ اما `pypi.org` و آینه‌ی `mirror-pypi.runflare.com` در دسترس بودند.
+**Decision:** Dockerfile بکاند از `PIP_INDEX_URL`/`PIP_TRUSTED_HOST` (build-arg) پشتیبانی می‌کند؛ پیش‌فرض PyPI رسمی است و در `.env` می‌توان آینه را ست کرد. Dockerfile فرانت‌اند نیز `NPM_REGISTRY` قابل تنظیم دارد.
+**Alternatives:** hard-code کردن آینه، حذف build از Docker و نصب محلی
+**Why selected:** حفظ پیش‌فرض استاندارد (Free-First و portable) و امکان override بدون تغییر کد؛ پروژه نباید به یک آینه‌ی خاص وابسته شود.
+**Consequences:** در محیط‌های با شبکه‌ی محدود باید `PIP_INDEX_URL` در `.env` ست شود؛ روی سرور عادی، پیش‌فرض کافی است.
+
+---
+
 ## ADR-0008 — ساختار کد Backend و Frontend در Phase 2
 **Date:** 2026-10-07
 **Context:** نیاز به اسکلت اجرایی که هم محلی (بدون Docker) و هم در Docker کار کند.

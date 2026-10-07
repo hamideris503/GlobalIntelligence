@@ -38,9 +38,24 @@
 - `docker compose config --quiet` → معتبر ✅
 
 ### Known issues
-- **Docker Daemon اجرا نشده بود**، بنابراین `docker compose up` و image build در این مرحله اجرا نشد؛ فقط `compose config` اعتبارسنجی شد.
-- **PyPI ناپایدار بود** و نصب در `.venv` شکست خورد؛ تست‌ها با پایتون سراسری (که fastapi/pydantic/sqlalchemy/httpx/pytest/pydantic-settings دارد) اجرا شد.
+- **Docker Desktop در ابتدا خراب بود** و حل شد: نسخه‌ی قدیمی 4.19 با WSL 3.x ناسازگار بود؛ با به‌روزرسانی به Server **29.8.2** درست شد.
+- **شبکه‌ی PyPI ناپایدار** (`files.pythonhosted.org` خطای SSL EOF می‌داد) — با استفاده از آینه‌ی `mirror-pypi.runflare.com` در build حل شد (قابل تنظیم از `.env`).
 - `/health/db` در نبود DB به‌درستی `degraded` می‌دهد و crash نمی‌کند (طبق قانون 72).
+
+### Docker stack (اجراشده و تأییدشده)
+| سرویس | وضعیت | URL |
+|---|---|---|
+| backend | healthy | http://localhost:8000 |
+| frontend | up | http://localhost:5173 |
+| postgres | healthy | localhost:5432 |
+| n8n | up | http://localhost:5678 |
+
+آدرس‌های تست‌شده:
+- `/health` → `{"status":"ok"}` ✅
+- `/health/db` → `{"status":"ok","database":{"ok":true,"detail":"connected"}}` ✅
+- `/docs` → 200 ✅
+- `:5173` → 200 (دارای `#root`) ✅
+- `:5678` → 200 ✅
 
 ### Next step
 - Phase 3 — PostgreSQL: مدل‌ها، Alembic، migration اولیه، اتصال کامل و health check دیتابیس
