@@ -37,8 +37,12 @@
 - Health checkها + تست‌های pytest + Dockerfiles
 - هدف محقق‌شده: بالا آمدن همه سرویس‌های پایه (Backend/DB به‌صورت پیوسته)
 
-## Phase 3 — PostgreSQL
-- Database، migrations، models، connection، health check
+## Phase 3 — PostgreSQL ✅ (این مرحله)
+- ORM models برای موجودیت‌های اصلی (۱۵ جدول)
+- Alembic + migration اولیه (autogenerate) + اجرا در entrypoint بکاند
+- session factory + `get_db` dependency
+- Point-in-Time columns روی Document/Article/Event
+- seed منابع اولیه + تست‌های مدل‌ها
 
 ## Phase 4 — n8n
 - راه‌اندازی n8n + یک workflow ساده: Trigger → Backend → Database

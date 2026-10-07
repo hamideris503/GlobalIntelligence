@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 2 — Skeleton (Backend + Frontend + DB + Health)**
+**Phase فعلی: 3 — PostgreSQL (models + migrations)**
 **Status: DONE**
 
-> ⚠️ در Phase 2 اسکلت اجرایی ساخته شد: Backend FastAPI، Frontend React+Vite، PostgreSQL و n8n در docker-compose، و health endpointها. موتور تحلیلی و مدل داده در فازهای بعدی اضافه می‌شوند.
+> ⚠️ پایه‌ی داده ساخته شد: ۱۵ جدول ORM، migration با Alembic، session factory و seed منابع. موتورهای تحلیلی (Event/Claim/Forecast/Decision) در فازهای بعدی روی این پایه ساخته می‌شوند.
 
 ---
 
@@ -117,6 +117,15 @@ npm run dev
 ```
 
 > نکته: اگر PostgreSQL در حال اجرا نباشد، `/health/db` وضعیت `degraded` برمی‌گرداند اما سرور کار می‌کند (بدون crash).
+
+### دیتابیس و migration
+```bash
+# اجرای migration‌ها (در Docker به‌صورت خودکار در entrypoint اجرا می‌شود)
+python -m alembic upgrade head
+
+# seed منابع اولیه
+docker compose exec backend python -m db.seed.sources
+```
 
 ---
 

@@ -55,6 +55,16 @@
 
 ---
 
+## ADR-0010 — نگهداری JSON در ستون‌های Text برای موجودیت‌های تازه
+**Date:** 2026-10-08
+**Context:** مدل‌های Article/Event/Claim فیلدهایی مثل topics/entities/actors دارند که در نسخه اول ساختار متغیر دارند؛ جداول واسط کامل، پیچیدگی زودهنگام ایجاد می‌کند.
+**Decision:** این فیلدها در نسخه اول به‌صورت JSON (stringified در ستون Text) نگهداری می‌شوند. در Phase 15 (Knowledge Graph) در صورت نیاز به جداول رابطه‌ای تبدیل می‌شوند.
+**Alternatives:** ستون JSONB از ابتدا، جداول واسط کامل، MongoDB
+**Why selected:** Rule Against Premature Complexity (بند 105)؛ PostgreSQL همچنان منبع واحد است و مسیر مهاجرت باز است.
+**Consequences:** کوئری‌های پیشرفته روی این فیلدها فعلاً محدود است؛ در صورت نیاز به PostgreSQL JSONB مهاجرت می‌کنیم (migration جدید).
+
+---
+
 ## ADR-0009 — مقاوم‌سازی Docker build در برابر شبکه‌ی محدود
 **Date:** 2026-10-08
 **Context:** در build تصویر backend، دسترسی به `files.pythonhosted.org` (محل دانلود پکیج‌های PyPI) با خطای SSL EOF شکست خورد؛ اما `pypi.org` و آینه‌ی `mirror-pypi.runflare.com` در دسترس بودند.

@@ -4,6 +4,49 @@
 
 ---
 
+## Phase 3 — PostgreSQL (models + migrations)
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- مدل‌های ORM موجودیت‌های اصلی (۱۵ جدول):
+  sources, documents, articles, events, claims, evidence, entities,
+  entity_relationships, market_observations, macro_observations,
+  world_states, scenarios, forecasts, forecast_outcomes, recommendations
+- `base.py`: `Base`, `UUIDMixin`, `TimestampMixin`, `PointInTimeMixin`
+- `enums.py`: SourceType, VerificationStatus, EntityType, RelationType, EvidenceDirection
+- Alembic setup: `alembic.ini`, `db/migrations/env.py`, `script.py.mako`
+- migration اولیه autogenerate: `50834c9c3273_initial_schema.py`
+- entrypoint بکاند: اجرای خودکار `alembic upgrade head` پیش از سرور
+- session factory + `get_db()` + health/db با نسخه‌ی migration
+- seed منابع اولیه (`db/seed/sources.py`) — ۶ منبع
+- تست‌های مدل (`tests/test_models.py`)
+
+### Files changed
+- `backend/database/base.py`, `enums.py`, `session.py`, `__init__.py`
+- `backend/database/models/` (۱۲ فایل مدل + `__init__.py`)
+- `alembic.ini`, `db/migrations/{env.py,script.py.mako}`, `db/migrations/versions/50834c9c3273_initial_schema.py`
+- `docker/backend.Dockerfile`, `docker/backend-entrypoint.sh`
+- `db/seed/sources.py`, `tests/test_models.py`
+
+### Tests
+- `python -m pytest tests -q` → **7 passed** ✅
+- `alembic upgrade head` → ۱۶ جدول (۱۵ + alembic_version) ✅
+- `alembic downgrade base` → ۱ جدول (فقط alembic_version) ✅
+- `alembic upgrade head` دوباره → ۱۶ جدول ✅ (migration برگشت‌پذیر)
+- اجرای داخل Docker: entrypoint migration را اجرا و سرور را بالا آورد ✅
+- seed → ۶ منبع ثبت شد ✅
+- `/health/db` → `{"ok":true,"server":"PostgreSQL 16.15...","migration":"50834c9c3273"}` ✅
+
+### Known issues
+- فایل `.env` باید UTF-8 باشد؛ اگر با PowerShell و encoding اشتباه بازنویسی شود، pydantic-settings خطای decode می‌دهد (با کپی مستقیم از `.env.example` حل شد).
+- در شبکه‌ی محدود، `PIP_INDEX_URL` در `.env` باید ست بماند تا build بکاند موفق شود.
+
+### Next step
+- Phase 4 — n8n: ساخت workflow ساده Trigger → Backend → Database
+
+---
+
 ## Phase 2 — Skeleton (Backend + Frontend + DB + Health)
 **تاریخ:** 2026-10-07
 **وضعیت:** DONE

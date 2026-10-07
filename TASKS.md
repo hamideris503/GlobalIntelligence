@@ -19,6 +19,11 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 3: ORM models (۱۵ جدول) + enums + Point-in-Time mixin
+- [x] Phase 3: Alembic + migration اولیه (`50834c9c3273`) + upgrade/downgrade تست‌شده
+- [x] Phase 3: entrypoint بکاند اجرای خودکار migration
+- [x] Phase 3: session factory + `get_db` + health/db با نسخه migration
+- [x] Phase 3: seed منابع اولیه + تست‌های مدل (۷ تست pass)
 - [x] Phase 2: Backend FastAPI + health endpoints (`/`, `/health`, `/health/db`)
 - [x] Phase 2: Frontend React + Vite (RTL/Dark) + build موفق
 - [x] Phase 2: `docker-compose.yml` (postgres, backend, frontend, n8n) + Dockerfiles
