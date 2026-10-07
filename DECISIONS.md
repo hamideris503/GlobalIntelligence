@@ -55,6 +55,20 @@
 
 ---
 
+## ADR-0008 — ساختار کد Backend و Frontend در Phase 2
+**Date:** 2026-10-07
+**Context:** نیاز به اسکلت اجرایی که هم محلی (بدون Docker) و هم در Docker کار کند.
+**Decision:**
+- Backend به‌صورت package پایتونی (`backend.*`) با Application Factory (`create_app`) و اجرای `uvicorn backend.main:app`.
+- تنظیمات مرکزی با `pydantic-settings` از `.env`؛ نام Providerهای AI و DSN در کد hard-code نمی‌شود.
+- بررسی دیتابیس به‌صورت **non-fatal**: نبود DB باعث خطای سرور نمی‌شود بلکه وضعیت `degraded`.
+- Frontend با React 18 + Vite + TypeScript، `dir="rtl"`، Dark Mode، و آدرس API از `VITE_API_BASE_URL`.
+**Alternatives:** ساختار flat بدون package؛ اتصال اجباری به DB در startup؛ CRA به‌جای Vite
+**Why selected:** قابلیت اجرا در محیط‌های مختلف، عدم Crash در نبود سرویس جانبی (قانون 72)، سرعت Vite.
+**Consequences:** در Docker مسیر import باید از ریشه با پکیج `backend` کار کند؛ دیتابیس در Phase 3 کامل فعال می‌شود.
+
+---
+
 ## ADR-0007 — نسخه‌های حداقلی و نبود uv/make
 **Date:** 2026-10-07
 **Context:** محیط توسعه روی ویندوز است. `uv` و `make` نصب نیستند؛ npm روی ویندوز به شکل `npm.cmd` اجرا می‌شود و کنسول cp1256 است.

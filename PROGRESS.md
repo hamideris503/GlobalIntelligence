@@ -4,6 +4,49 @@
 
 ---
 
+## Phase 2 — Skeleton (Backend + Frontend + DB + Health)
+**تاریخ:** 2026-10-07
+**وضعیت:** DONE
+
+### Completed
+- Backend FastAPI با endpoints: `/`, `/health` (liveness)، `/health/db` (readiness)
+- تنظیمات مرکزی با `pydantic-settings` (خواندن از `.env`)
+- لایه‌ی دیتابیس: `get_engine()` و `check_database()` (بدون crash در نبود DB)
+- Frontend React + Vite با HTML `dir="rtl"`، Dark Mode و نمایش وضعیت API/DB
+- `docker-compose.yml` شامل postgres, backend, frontend, n8n
+- Dockerfiles برای backend و frontend + `.dockerignore`
+- ۳ تست pytest برای health endpoints
+
+### Files changed
+- `backend/main.py`, `backend/asgi.py`, `backend/__init__.py`
+- `backend/core/{__init__,config,logging}.py`
+- `backend/database/{__init__,session}.py`
+- `backend/api/__init__.py`, `backend/api/routers/{__init__,health}.py`
+- `apps/web/{index.html,vite.config.ts,tsconfig.json}`
+- `apps/web/src/{main.tsx,App.tsx,styles.css,vite-env.d.ts}`
+- `docker-compose.yml`, `.dockerignore`, `docker/{backend,frontend}.Dockerfile`
+- `tests/{__init__.py,test_health.py}`
+
+### Tests
+- `python -m pytest tests -q` → **3 passed** ✅
+- اجرای زنده uvicorn روی پورت 8010:
+  - `/` → `{"name":"GlobalIntelligence","env":"development","status":"ok","docs":"/docs"}` ✅
+  - `/health` → `{"status":"ok"}` ✅
+  - `/health/db` → `{"status":"degraded", ...}` (graceful، چون Postgres در دسترس نبود) ✅
+- `npx tsc --noEmit` → exit 0 ✅
+- `npm run build` → build موفق (dist ساخته شد) ✅
+- `docker compose config --quiet` → معتبر ✅
+
+### Known issues
+- **Docker Daemon اجرا نشده بود**، بنابراین `docker compose up` و image build در این مرحله اجرا نشد؛ فقط `compose config` اعتبارسنجی شد.
+- **PyPI ناپایدار بود** و نصب در `.venv` شکست خورد؛ تست‌ها با پایتون سراسری (که fastapi/pydantic/sqlalchemy/httpx/pytest/pydantic-settings دارد) اجرا شد.
+- `/health/db` در نبود DB به‌درستی `degraded` می‌دهد و crash نمی‌کند (طبق قانون 72).
+
+### Next step
+- Phase 3 — PostgreSQL: مدل‌ها، Alembic، migration اولیه، اتصال کامل و health check دیتابیس
+
+---
+
 ## Phase 1 — Environment Preparation & Repository Skeleton
 **تاریخ:** 2026-10-07
 **وضعیت:** DONE

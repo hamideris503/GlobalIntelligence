@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 1 — Environment Preparation & Repository Skeleton**
+**Phase فعلی: 2 — Skeleton (Backend + Frontend + DB + Health)**
 **Status: DONE**
 
-> ⚠️ این پروژه در مراحل بسیار ابتدایی است. هنوز کد اجرایی (Backend/Frontend) پیاده‌سازی نشده است. در Phase 0 اسناد معماری و برنامه‌ریزی ساخته شد و در Phase 1 محیط توسعه و اسکلت اجرایی ریپازیتوری آماده شد.
+> ⚠️ در Phase 2 اسکلت اجرایی ساخته شد: Backend FastAPI، Frontend React+Vite، PostgreSQL و n8n در docker-compose، و health endpointها. موتور تحلیلی و مدل داده در فازهای بعدی اضافه می‌شوند.
 
 ---
 
@@ -84,9 +84,7 @@ WORLD
 
 ---
 
-## شروع سریع (بعد از Phase 2)
-
-> در حال حاضر اسکلت اجرایی (dependency files) موجود است اما Backend/Frontend کد اجرایی ندارند.
+## شروع سریع
 
 ```bash
 git clone <repo-url>
@@ -96,6 +94,29 @@ cp .env.example .env          # مقادیر محلی را تنظیم کنید (
 # بررسی محیط (بدون وابستگی خارجی)
 python scripts/check_env.py
 ```
+
+### اجرا با Docker (نیازمند Docker Desktop در حال اجرا)
+```bash
+docker compose up -d --build
+# Backend API:  http://localhost:8000/health
+# API docs:     http://localhost:8000/docs
+# Frontend:     http://localhost:5173
+# n8n:          http://localhost:5678
+```
+
+### اجرای محلی بدون Docker
+```bash
+# Backend
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload
+
+# Frontend
+cd apps/web
+npm install
+npm run dev
+```
+
+> نکته: اگر PostgreSQL در حال اجرا نباشد، `/health/db` وضعیت `degraded` برمی‌گرداند اما سرور کار می‌کند (بدون crash).
 
 ---
 

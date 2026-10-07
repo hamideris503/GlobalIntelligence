@@ -29,9 +29,13 @@
 - Git، Python، Node.js، Docker، Docker Compose (بررسی و تأیید شد)
 - Repository، `.gitignore`، `.env.example`، اسکلت اجرایی (dependency files)
 
-## Phase 2 — Skeleton
-- Backend، Frontend، Database، Health endpoint
-- هدف: بالا آمدن همه سرویس‌های پایه
+## Phase 2 — Skeleton ✅ (این مرحله)
+- Backend FastAPI + endpoints: `/`, `/health`, `/health/db`
+- Frontend React + Vite (RTL/Dark) + build موفق
+- PostgreSQL در docker-compose + admin قرارداد اتصال
+- n8n در docker-compose
+- Health checkها + تست‌های pytest + Dockerfiles
+- هدف محقق‌شده: بالا آمدن همه سرویس‌های پایه (Backend/DB به‌صورت پیوسته)
 
 ## Phase 3 — PostgreSQL
 - Database، migrations، models، connection، health check
