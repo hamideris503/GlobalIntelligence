@@ -1,0 +1,63 @@
+# ============================================================
+# GlobalIntelligence — .gitignore
+# ============================================================
+
+# --- Env & secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+config/secrets.yaml
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# --- Node / Frontend ---
+node_modules/
+dist/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Data (raw / sample may be regenerated) ---
+data/raw/*
+!data/raw/.gitkeep
+data/cache/
+*.sqlite
+*.db
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Docker ---
+docker/volumes/
+
+# --- Logs ---
+logs/
+*.log

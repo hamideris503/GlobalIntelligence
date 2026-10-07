@@ -1,0 +1,129 @@
+# ROADMAP.md
+
+> نقشه راه GlobalIntelligence — ۵۲ فاز
+> اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
+
+**Phase فعلی:** 0
+
+---
+
+## Milestoneها
+
+| Milestone | مسیر | فازها |
+|---|---|---|
+| **M1 — Intelligence Core** | SOURCE → NEWS → PostgreSQL → AI Gateway → Classification → Event → Claim → Evidence → Dashboard | 7–15, 40 |
+| **M2 — Memory & Forecast** | DATA → WORLD STATE → HISTORICAL MEMORY → FORECAST → OUTCOME → EVALUATION | 16–20, 25–29 |
+| **M3 — Decision Support** | WORLD STATE → SCENARIOS → RISK → DECISION → RECOMMENDATION | 30–34 |
+| **M4 — Full Platform** | GLOBAL DATA → … → SELF-IMPROVEMENT | همه |
+
+> ⚠️ اگر مسیر M1 سالم نبود، وارد بخش Forecast نمی‌شویم.
+
+---
+
+## Phase 0 — تعریف نهایی پروژه ✅ (این مرحله)
+- Product specification، Architecture، Constraints
+- Free-first rules، Goals، Non-goals
+- ساخت اسناد پایه (README, ARCHITECTURE, ROADMAP, TASKS, PROGRESS, DECISIONS, LICENSES, DATA_SOURCES, AI_MODELS)
+
+## Phase 1 — آماده‌سازی محیط
+- Git، Python، Node.js، Docker، Docker Compose
+- Repository، `.gitignore`، `.env.example`
+
+## Phase 2 — Skeleton
+- Backend، Frontend، Database، Health endpoint
+- هدف: بالا آمدن همه سرویس‌های پایه
+
+## Phase 3 — PostgreSQL
+- Database، migrations، models، connection، health check
+
+## Phase 4 — n8n
+- راه‌اندازی n8n + یک workflow ساده: Trigger → Backend → Database
+
+## Phase 5 — AI Gateway
+- Provider interface: `generate`, `structured_generate`, `classify`, `extract`
+- Adapterها (معماری Multi-provider؛ در ابتدا یک Provider کافی است)
+
+## Phase 6 — Mock AI
+- Mock Provider برای توسعه بدون هزینه
+
+## Phase 7 — Data Source Registry
+- جدول Source + اولین منابع معتبر
+
+## Phase 8 — News Ingestion
+- SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE
+
+## Phase 9 — Deduplication
+- duplicate، near duplicate، repost، same story
+
+## Phase 10 — Article Classification
+- topic، language، country، importance، entities (با AI)
+
+## Phase 11 — Event Extraction
+- چند مقاله مرتبط → یک Event
+
+## Phase 12 — Claim Extraction
+- Event / Article → Claims
+
+## Phase 13 — Evidence Engine
+- supporting + contradicting evidence
+
+## Phase 14 — Source Independence
+- تشخیص وابستگی منابع
+
+## Phase 15 — Knowledge Graph
+- Entity + Relationship
+
+## Phase 16 — Economic Data
+- inflation، GDP، employment، rates، trade، liquidity
+
+## Phase 17 — Market Data
+- FX، Gold، Oil، Stocks، Bonds، Commodities
+
+## Phase 18 — World State
+- ساخت Current World State
+
+## Phase 19 — Historical Memory
+- historical events، states، snapshots
+
+## Phase 20 — Historical Analogue
+- Current state ↔ Historical similar states
+
+## Phase 21 — Macro Engine
+## Phase 22 — Geopolitical Engine
+## Phase 23 — Social Intelligence
+## Phase 24 — Narrative Engine
+## Phase 25 — Forecast Engine
+- ابتدا Baselineها (naive, historical mean, random walk) سپس ARIMA/ETS/Theta/ML/Bayesian
+
+## Phase 26 — Forecast Ledger
+## Phase 27 — Outcome Engine
+## Phase 28 — Forecast Evaluation (Brier, Log Loss, MAE, RMSE, Calibration)
+## Phase 29 — Forecast Tournament
+## Phase 30 — Scenario Engine (Base/Bull/Bear/Tail)
+## Phase 31 — Risk Engine
+## Phase 32 — Decision Engine
+## Phase 33 — Iran Mode
+## Phase 34 — Iran Transmission
+## Phase 35 — Portfolio Intelligence
+## Phase 36 — Model Performance
+## Phase 37 — Adaptive AI Router
+## Phase 38 — Audit / Replay
+## Phase 39 — Self Evaluation
+## Phase 40 — Dashboard
+## Phase 41 — Daily Intelligence
+## Phase 42 — Weekly Intelligence
+## Phase 43 — Alerts
+## Phase 44 — Security Hardening
+## Phase 45 — Backup
+## Phase 46 — Docker Production
+## Phase 47 — Staging
+## Phase 48 — VPS Deployment
+## Phase 49 — 24/7 Automation
+## Phase 50 — Production Monitoring
+## Phase 51 — Long-Term Learning
+## Phase 52 — Advanced Research (GraphRAG, Bayesian networks, causal discovery, …)
+
+---
+
+## در Phase 0 عمداً ساخته نمی‌شود
+Forecast Engine، Knowledge Graph، Trading، Complex AI agents، Microservices، VPS.
