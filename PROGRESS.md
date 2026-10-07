@@ -4,6 +4,46 @@
 
 ---
 
+## Phase 9 — Deduplication (exact / near / repost / same-story)
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/news/dedup.py`:
+  - shingling (k-gram) + MinHash (۶۴ permutation)
+  - LSH banding (۱۶ باند × ۴ ردیف) برای یافتن کارای کاندیدها
+  - Union-Find برای خوشه‌بندی
+  - تشخیص exact (content_hash)، near (Jaccard)، repost (بین منابع)
+- `domains/news/dedup_service.py`: اجرا روی Documentهای ذخیره‌شده و ثبت cluster
+- `domains/news/run_dedup.py`: CLI
+- API: `POST /api/dedup/run` (limit + near_threshold)
+- ادغام اختیاری با ingestion با `DEDUP_ON_INGEST=true`
+- config: `dedup_near_threshold`, `dedup_window`, `dedup_on_ingest`
+- `tests/test_dedup.py` (۸ تست)
+
+### Files changed
+- `domains/news/{dedup,dedup_service,run_dedup}.py`
+- `backend/api/routers/dedup.py`, `backend/main.py`, `backend/core/config.py`
+- `domains/news/ingestion.py` (hook اختیاری)
+- `tests/test_dedup.py`
+
+### Tests
+- `python -m pytest tests -q` → **38 passed** ✅
+- MinHash: متن یکسان → 1.0، متن متفاوت → <0.3 ✅
+- exact dup clustering ✅
+- repost detection بین دو منبع (آستانه ۰.۴۵) → `repost_pairs=1` ✅
+- `POST /api/dedup/run` زنده ✅
+- CLI `python -m domains.news.run_dedup` ✅
+
+### Known issues
+- آستانه‌ی پیش‌فرض ۰.۷ محافظه‌کارانه است؛ برای عناوین کوتاه/بازنویسی‌شده ممکن است نیاز به تنظیم پایین‌تر باشد (قابل تنظیم است).
+- هر اجرا روی پنجره‌ی محدود (`limit`) کار می‌کند؛ برای دیتاست بزرگ، اجرای دوره‌ای لازم است.
+
+### Next step
+- Phase 10 — Article Classification (topic, language, country, importance, entities) با AI
+
+---
+
 ## Phase 8 — News Ingestion (SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE)
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

@@ -121,6 +121,15 @@ class NewsIngestionPipeline:
                 result.errors.append(f"store failed: {type(exc).__name__}: {exc}")
         self.db.commit()
 
+        # اجرای اختیاری dedup پس از ingestion (Phase 9)
+        if get_settings().dedup_on_ingest and result.stored:
+            try:
+                from domains.news.dedup_service import DedupService
+
+                DedupService(self.db).run(limit=1000)
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"dedup failed: {type(exc).__name__}: {exc}")
+
     # --- مسیر async (API) ---
     async def ingest_source_async(self, source: Source, *, limit: int = 20) -> IngestionResult:
         result = IngestionResult(source_name=source.name)

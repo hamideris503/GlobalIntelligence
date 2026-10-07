@@ -55,6 +55,16 @@
 
 ---
 
+## ADR-0014 — Dedup بدون وابستگی خارجی (MinHash/LSH دست‌ساز)
+**Date:** 2026-10-08
+**Context:** بند 18 (Source Independence) و Phase 9 نیازمند تشخیص near-duplicate هستند. کتابخانه‌هایی مثل datasketch/minhashlsh وجود دارند اما وابستگی جدید می‌آورند.
+**Decision:** پیاده‌سازی shingling + MinHash + LSH + Union-Find با stdlib. آستانه و پارامترها قابل تنظیم.
+**Alternatives:** datasketch، simhash، embeddings + ANN
+**Why selected:** Free-First و Rule 9 (دپندنسی فقط با دلیل)؛ الگوریتم کوچک و قابل نگهداری است. در صورت نیاز به دقت/مقیاس بیشتر، در فازهای بعدی می‌توان به embeddings مهاجرت کرد.
+**Consequences:** برای دیتاست‌های بسیار بزرگ، اجرا باید دوره‌ای/پنجره‌ای باشد؛ dedup سبک در ingestion (content_hash) همچنان اول خط دفاع است.
+
+---
+
 ## ADR-0013 — Raw-first و Point-in-Time در Ingestion
 **Date:** 2026-10-08
 **Context:** بند 19 (ذخیره raw) و بند 45 (Point-in-Time Integrity) در ingestion حیاتی‌اند.

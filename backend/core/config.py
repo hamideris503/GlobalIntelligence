@@ -70,6 +70,13 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openai/gpt-4o-mini"
 
+    # --- Data collection ---
+    source_min_interval_seconds: int = 60
+    user_agent: str = "GlobalIntelligenceBot/0.1 (+https://example.local; contact@example.local)"
+    dedup_on_ingest: bool = False
+    dedup_near_threshold: float = 0.7
+    dedup_window: int = 1000
+
     # --- Frontend ---
     vite_api_base_url: str = "http://localhost:8000"
 

@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 8 — News Ingestion (SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE)**
+**Phase فعلی: 9 — Deduplication**
 **Status: DONE**
 
-> ⚠️ خط لوله‌ی دریافت خبر ساخته شد: fetcher (RSS/Mock)، normalizer، pipeline با dedup سبک، API و worker CLI. مرحله‌ی بعد Deduplication پیشرفته است.
+> ⚠️ خوشه‌بندی تکراری‌ها ساخته شد: MinHash/LSH/Union-Find، تشخیص exact/near/repost، API و CLI. مرحله‌ی بعد طبقه‌بندی مقالات است.
 
 ---
 

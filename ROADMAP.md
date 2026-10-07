@@ -77,8 +77,14 @@
 - workflow n8n زمان‌بندی‌شده برای ingestion
 - تست شد: ۳ سند ذخیره، اجرای دوباره dedup شد
 
-## Phase 9 — Deduplication
-- duplicate، near duplicate، repost، same story
+## Phase 9 — Deduplication ✅ (این مرحله)
+- shingling + MinHash + LSH banding (بدون وابستگی خارجی)
+- Union-Find برای خوشه‌بندی
+- تشخیص exact / near-duplicate / repost (بین منابع)
+- سرویس `DedupService` + CLI + API `/api/dedup/run`
+- ادغام اختیاری با ingestion (`DEDUP_ON_INGEST`)
+- آستانه‌ی قابل تنظیم (`DEDUP_NEAR_THRESHOLD`)
+- تست شد: repost بین دو منبع تشخیص داده شد
 
 ## Phase 10 — Article Classification
 - topic، language، country، importance، entities (با AI)
