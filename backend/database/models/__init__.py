@@ -9,6 +9,7 @@ from backend.database.models.entity import Entity, EntityRelationship
 from backend.database.models.event import Event
 from backend.database.models.evidence import Evidence
 from backend.database.models.forecast import Forecast, ForecastOutcome
+from backend.database.models.job import JobRun
 from backend.database.models.market import MacroObservation, MarketObservation
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.scenario import Scenario
@@ -25,6 +26,7 @@ __all__ = [
     "Evidence",
     "Forecast",
     "ForecastOutcome",
+    "JobRun",
     "MacroObservation",
     "MarketObservation",
     "Recommendation",

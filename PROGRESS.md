@@ -4,6 +4,46 @@
 
 ---
 
+## Phase 4 — n8n orchestration (Trigger → Backend → Database)
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- n8n نسخه 2.42.4 در حال اجرا (http://localhost:5678)
+- مدل `JobRun` + جدول `job_runs` + migration `71f41613dd11`
+- jobs API:
+  - `POST /api/jobs/trigger` → ثبت JobRun در PostgreSQL
+  - `GET /api/jobs` → آخرین اجراها
+- workflow نمونه: `integrations/n8n/workflows/phase4-trigger-backend-database.json`
+  - Schedule Trigger (هر ۵ دقیقه) → HTTP POST به `http://backend:8000/api/jobs/trigger`
+- import + publish workflow در n8n + ری‌استارت
+- اسکریپت کمکی: `scripts/import_n8n_workflows.py`
+
+### Files changed
+- `backend/database/models/job.py`, `models/__init__.py`
+- `backend/api/schemas/jobs.py`, `backend/api/routers/jobs.py`, `backend/main.py`
+- `db/migrations/versions/71f41613dd11_add_job_runs.py`
+- `integrations/n8n/workflows/phase4-trigger-backend-database.json`, `integrations/n8n/README.md`
+- `tests/test_jobs.py`, `scripts/import_n8n_workflows.py`
+
+### Tests
+- `python -m pytest tests -q` → **9 passed** ✅
+- import workflow در n8n → «Successfully imported 1 workflow» ✅
+- publish + restart → «1 published workflows» ✅
+- **اجرای زمان‌بندی‌شده‌ی واقعی**: n8n در 2026-10-07 21:25:01 خودکار درخواست زد و
+  رکورد `scheduled_heartbeat` با source=`n8n` در `job_runs` ثبت شد ✅
+- تست شبکه از داخل کانتینر n8n به `http://backend:8000` ✅
+
+### Known issues
+- در n8n 2.x، فایل workflow باید فیلد `id` داشته باشد و از `publish:workflow`
+  استفاده شود (نه صرفاً active کردن). اسکریپت کمکی این را مدیریت می‌کند.
+- n8n با volume خودش (`n8n_data`) کار می‌کند؛ workflowها در DB داخلی n8n ذخیره می‌شوند.
+
+### Next step
+- Phase 5 — AI Gateway (Provider interface + Mock provider + routing پایه)
+
+---
+
 ## Phase 3 — PostgreSQL (models + migrations)
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

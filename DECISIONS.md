@@ -55,6 +55,16 @@
 
 ---
 
+## ADR-0011 — مرز n8n و Backend
+**Date:** 2026-10-08
+**Context:** n8n می‌تواند convert به مغز سیستم شود، که خلاف بند 8 است.
+**Decision:** n8n فقط trigger/زمان‌بندی/webhook/هماهنگی انجام می‌دهد و از طریق API به backend وصل می‌شود. هیچ منطق علمی/تحلیلی در n8n نوشته نمی‌شود. ارتباط با یک endpoint روشن (`/api/jobs/trigger`) و جدول `job_runs` انجام می‌شود.
+**Alternatives:** نوشتن logic در n8n، اجرای مستقیم SQL از n8n به Postgres
+**Why selected:** حفظ منبع حقیقت در Backend/Python (بند 8)، قابلیت تست و Reproducibility.
+**Consequences:** هر job جدید باید endpoint مربوطه در backend داشته باشد؛ n8n فقط صدا می‌زند.
+
+---
+
 ## ADR-0010 — نگهداری JSON در ستون‌های Text برای موجودیت‌های تازه
 **Date:** 2026-10-08
 **Context:** مدل‌های Article/Event/Claim فیلدهایی مثل topics/entities/actors دارند که در نسخه اول ساختار متغیر دارند؛ جداول واسط کامل، پیچیدگی زودهنگام ایجاد می‌کند.

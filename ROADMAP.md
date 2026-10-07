@@ -44,8 +44,12 @@
 - Point-in-Time columns روی Document/Article/Event
 - seed منابع اولیه + تست‌های مدل‌ها
 
-## Phase 4 — n8n
-- راه‌اندازی n8n + یک workflow ساده: Trigger → Backend → Database
+## Phase 4 — n8n ✅ (این مرحله)
+- راه‌اندازی n8n (در docker-compose از Phase 2)
+- Workflow نمونه: Schedule Trigger → Backend → Database
+- endpoint `/api/jobs/trigger` + جدول `job_runs` + migration
+- import/publish خودکار workflow با اسکریپت
+- تست شد: اجرای زمان‌بندی‌شده‌ی واقعی n8n رکورد در PostgreSQL ثبت کرد
 
 ## Phase 5 — AI Gateway
 - Provider interface: `generate`, `structured_generate`, `classify`, `extract`

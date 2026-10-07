@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 3 — PostgreSQL (models + migrations)**
+**Phase فعلی: 4 — n8n orchestration (Trigger → Backend → Database)**
 **Status: DONE**
 
-> ⚠️ پایه‌ی داده ساخته شد: ۱۵ جدول ORM، migration با Alembic، session factory و seed منابع. موتورهای تحلیلی (Event/Claim/Forecast/Decision) در فازهای بعدی روی این پایه ساخته می‌شوند.
+> ⚠️ مسیر orchestration فعال شد: n8n به‌صورت زمان‌بندی‌شده به Backend درخواست می‌دهد و backend داده را در PostgreSQL ثبت می‌کند. موتور AI و ingestion در فازهای بعدی اضافه می‌شوند.
 
 ---
 

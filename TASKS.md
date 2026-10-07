@@ -19,6 +19,9 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 4: n8n workflow (Trigger → Backend → Database) import و فعال شد
+- [x] Phase 4: jobs API (`POST /api/jobs/trigger`, `GET /api/jobs`) + جدول `job_runs`
+- [x] Phase 4: اجرای زمان‌بندی‌شده‌ی واقعی n8n تأیید شد (رکورد در DB)
 - [x] Phase 3: ORM models (۱۵ جدول) + enums + Point-in-Time mixin
 - [x] Phase 3: Alembic + migration اولیه (`50834c9c3273`) + upgrade/downgrade تست‌شده
 - [x] Phase 3: entrypoint بکاند اجرای خودکار migration
