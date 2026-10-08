@@ -30,7 +30,7 @@ export default function App() {
       <header>
         <h1>GlobalIntelligence</h1>
         <p className="subtitle">
-          پلتفرم هوش اطلاعاتی، اقتصادی و پیش‌بینی — Phase 2 (Skeleton)
+          پلتفرم هوش اطلاعاتی، اقتصادی و پیش‌بینی
         </p>
       </header>
 

@@ -13,6 +13,8 @@ dependencies = [
     "psycopg[binary]>=3.2,<4",
     "python-dotenv>=1.0,<2",
     "httpx>=0.27,<1",
+    "feedparser>=6.0,<7",
+    "jsonschema>=4.20,<5",
 ]
 
 [project.optional-dependencies]
@@ -29,7 +31,16 @@ line-length = 100
 src = ["."]
 
 [tool.ruff.lint]
+# قواعد کاربردی؛ الگوهای خاص FastAPI و SQLAlchemy نادیده گرفته می‌شوند
 select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "B008",   # FastAPI Depends()/Query() در default argument — الگوی استاندارد
+    "E501",   # طول خط — به‌عهده‌ی formatter
+    "UP042",  # str+Enum — عمداً برای سازگاری
+    "RUF012", # mutable class default
+    "PERF102",
+    "TRY004",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -14,15 +14,17 @@ class Route:
 
     role: str
     providers: list[str] = field(default_factory=list)  # به ترتیب fallback
+    model: str | None = None  # مدل مشخص (اختیاری) برای این نقش
 
 
-# پیش‌فرض: همه به mock برمی‌گردند تا سیستم همیشه کار کند (Free-First).
+# نقش‌ها به‌صورت پیش‌فرض خالی‌اند تا زنجیره از تنظیمات ساخته شود.
+# اگر نقش تعریف‌نشده باشد، AI_DEFAULT_PROVIDER استفاده می‌شود.
 DEFAULT_ROUTES: dict[str, Route] = {
-    "fast_extraction": Route("fast_extraction", ["mock"]),
-    "deep_analysis": Route("deep_analysis", ["mock"]),
-    "critic": Route("critic", ["mock"]),
-    "report": Route("report", ["mock"]),
-    "default": Route("default", ["mock"]),
+    "fast_extraction": Route("fast_extraction", []),
+    "deep_analysis": Route("deep_analysis", []),
+    "critic": Route("critic", []),
+    "report": Route("report", []),
+    "default": Route("default", []),
 }
 
 

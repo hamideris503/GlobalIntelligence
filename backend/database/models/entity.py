@@ -26,12 +26,12 @@ class Entity(UUIDMixin, TimestampMixin, Base):
         ForeignKey("sources.id", ondelete="SET NULL"), index=True
     )
 
-    outgoing: Mapped[list["EntityRelationship"]] = relationship(
+    outgoing: Mapped[list[EntityRelationship]] = relationship(
         foreign_keys="EntityRelationship.from_entity_id",
         back_populates="from_entity",
         cascade="all, delete-orphan",
     )
-    incoming: Mapped[list["EntityRelationship"]] = relationship(
+    incoming: Mapped[list[EntityRelationship]] = relationship(
         foreign_keys="EntityRelationship.to_entity_id",
         back_populates="to_entity",
         cascade="all, delete-orphan",
@@ -53,9 +53,9 @@ class EntityRelationship(UUIDMixin, TimestampMixin, Base):
     valid_to: Mapped[str | None] = mapped_column(String(64))
     evidence: Mapped[str | None] = mapped_column(Text)
 
-    from_entity: Mapped["Entity"] = relationship(
+    from_entity: Mapped[Entity] = relationship(
         foreign_keys=[from_entity_id], back_populates="outgoing"
     )
-    to_entity: Mapped["Entity"] = relationship(
+    to_entity: Mapped[Entity] = relationship(
         foreign_keys=[to_entity_id], back_populates="incoming"
     )

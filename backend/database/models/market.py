@@ -1,7 +1,7 @@
 """MarketObservation و MacroObservation — داده‌های سری زمانی (بند 16-17 Phases)."""
 from __future__ import annotations
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database.base import Base, PointInTimeMixin, TimestampMixin, UUIDMixin

@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import json
 
+from domains.news.classifier import ArticleClassifier
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.database.session import get_db
-from domains.news.classifier import ArticleClassifier
 
 router = APIRouter(prefix="/api/classify", tags=["classification"])
 

@@ -4,6 +4,55 @@
 
 ---
 
+## Phase 10 fix round — رفع اشکالات بازبینی (P0/P1)
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed (P0)
+- **P0-1:** مسیریابی Gateway اصلاح شد؛ mock در production حذف و `is_mock` اضافه شد؛ classifier mock را در production رد می‌کند.
+- **P0-2:** `feed_url`/`endpoint_config` به Source؛ `/api/ingest/all` فقط منابع rss با feed_url را در حالت واقعی برمی‌دارد؛ ۵ منبع خبری RSS واقعی به seed اضافه شد؛ RSS با feedparser + fixture تست شد.
+- **P0-3:** ذخیره‌ی همه‌ی اسناد؛ یکتایی فقط درون منبع `(source_id, hash, content_hash)`؛ افزایش revision؛ FK به RESTRICT.
+- **P0-4:** پرامپت v2 با ابعاد importance اجباری + prompt-injection guard + `<article>`؛ اعتبارسنجی jsonschema؛ فیلتر topics؛ clamp sentiment/confidence؛ ذخیره‌ی country و classification_meta؛ وضعیت/تلاش/خطا؛ novelty و historical_significance deterministic.
+- **P0-5:** احراز هویت `X-API-Key`؛ validator production (fail-fast)؛ حذف metadata از API عمومی و سقف پیام/tokens.
+
+### Completed (P1 برگزیده)
+- `available_at = retrieved_at` (رفع look-ahead) + علامت‌گذاری تاریخ آینده.
+- `raw_payload` نسخه‌ی خام اصلی (بند ۱۹).
+- LSH به 32×2 (recall بهتر)؛ اسناد کوتاه/خالی از MinHash کنار گذاشته شدند؛ شناسه‌ی خوشه قطعی (min id).
+- savepoint به‌ازای هر آیتم؛ ثبت last_success/last_error منبع هنگام ingestion.
+- کلید Gemini در هدر `x-goog-api-key` (نه URL).
+- n8n به `2.42.4` pin شد؛ `N8N_BASIC_AUTH_*` حذف؛ پورت‌ها روی 127.0.0.1؛ compose با `${VAR:?}`.
+- entrypoint در staging/production fail-fast؛ کاربر غیر root در Dockerfile.
+- timeout از تنظیمات (نه ثابت).
+- تست‌ها سریع‌ون‌سبک (۱ ثانیه) + fixture RSS/Atom + تست provider با MockTransport + رفع isolation با conftest.
+
+### Files changed
+- `backend/ai/{gateway/gateway.py,routing/router.py,schemas/types.py,providers/*}`
+- `backend/core/config.py`, `backend/auth/deps.py`, `backend/main.py`, `backend/api/*`
+- `domains/news/{fetchers,normalizer,ingestion,classifier,classifier_schema,dedup,dedup_service,source_registry}.py`
+- `backend/database/models/{document,source,article}.py`, `db/migrations/versions/69c88e2ff7c5_*.py`, `db/seed/sources.py`
+- `docker-compose.yml`, `docker/backend.Dockerfile`, `docker/backend-entrypoint.sh`, `.env.example`
+- `tests/{conftest,test_rss,test_providers_http,test_ai_gateway,test_classification,test_dedup,test_health}.py`, `tests/fixtures/*`
+- `LICENSE`, `.github/workflows/ci.yml`, README/TASKS/DECISIONS
+
+### Tests
+- `python -m pytest tests -q` → **57 passed in ~1s** ✅
+- migration `69c88e2ff7c5` upgrade/downgrade روی PostgreSQL واقعی ✅
+- احراز هویت: بدون کلید 401، با کلید 200، `/health` باز ✅
+- همه‌ی منابع ذخیره می‌شوند: ۶۰ سند از ۲۰ منبع ✅
+- `is_mock:true` در پاسخ mock ✅
+
+### Known issues (باقی‌مانده برای فازهای بعد)
+- تست‌ها هنوز روی SQLite اجرا می‌شوند (CI روی PostgreSQL اضافه شد).
+- endpointهای سنگین هنوز همگام‌اند (انتقال به workers در TODO).
+- topics/entities هنوز Text هستند (JSONB در TODO).
+- اجرای واقعی با Provider واقعی/اینترنت هنوز در این محیط ممکن نشد.
+
+### Next step
+- Phase 10 (redo): اجرای واقعی کوچک با یک Provider واقعی؛ سپس Phase 11
+
+---
+
 ## Phase 10 — Article Classification
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

@@ -19,13 +19,20 @@ class GeminiProvider(HTTPProvider):
             s, "gemini_base_url", "https://generativelanguage.googleapis.com"
         )
         self.default_model = getattr(s, "gemini_model", "gemini-1.5-flash")
+        self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def _endpoint(self) -> str:
+        # کلید API در هدر فرستاده می‌شود (نه در URL) تا در لاگ فاش نشود (P1-17)
         model = self.default_model
         return (
             f"{self.base_url.rstrip('/')}/v1beta/models/{model}:generateContent"
-            f"?key={self.api_key}"
         )
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key or "",
+        }
 
     def _payload(self, request: AIRequest) -> dict[str, Any]:
         # Gemini نقش system را جدا می‌گیرد

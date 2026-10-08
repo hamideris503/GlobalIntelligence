@@ -5,6 +5,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 # --- JSON Schema برای structured output ---
+_IMPORTANCE_PROPS = {
+    k: {"type": "number", "minimum": 0, "maximum": 1}
+    for k in (
+        "impact", "scope", "probability", "novelty", "market_relevance",
+        "geopolitical_relevance", "economic_relevance", "time_sensitivity",
+        "strategic_relevance", "historical_significance",
+    )
+}
+
 CLASSIFY_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -21,26 +30,17 @@ CLASSIFY_SCHEMA: dict[str, Any] = {
                 "required": ["name", "type"],
             },
         },
-        "sentiment": {"type": "number"},
+        "sentiment": {"type": "number", "minimum": -1, "maximum": 1},
         "stance": {"type": "string"},
         "summary": {"type": "string"},
         "importance": {
             "type": "object",
-            "properties": {
-                "impact": {"type": "number"},
-                "scope": {"type": "number"},
-                "probability": {"type": "number"},
-                "novelty": {"type": "number"},
-                "market_relevance": {"type": "number"},
-                "geopolitical_relevance": {"type": "number"},
-                "economic_relevance": {"type": "number"},
-                "time_sensitivity": {"type": "number"},
-                "strategic_relevance": {"type": "number"},
-            },
+            "properties": _IMPORTANCE_PROPS,
+            "required": list(_IMPORTANCE_PROPS.keys()),
         },
-        "confidence": {"type": "number"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },
-    "required": ["topics", "entities", "sentiment", "summary"],
+    "required": ["topics", "entities", "sentiment", "summary", "importance"],
 }
 
 EXTRACT_SCHEMA: dict[str, Any] = {
@@ -59,6 +59,20 @@ EXTRACT_SCHEMA: dict[str, Any] = {
 }
 
 
+ALLOWED_TOPICS = {
+    "macroeconomics", "monetary_policy", "fiscal_policy", "inflation",
+    "employment", "energy", "commodities", "markets", "equities",
+    "fixed_income", "fx", "crypto", "geopolitics", "conflict", "sanctions",
+    "trade", "politics", "society", "technology", "health", "climate",
+}
+
+ALLOWED_ENTITY_TYPES = {
+    "person", "country", "company", "organization", "government",
+    "central_bank", "asset", "commodity", "currency", "industry",
+    "political_party", "indicator", "other",
+}
+
+
 @dataclass
 class Entity:
     name: str
@@ -70,7 +84,10 @@ class Entity:
 
 @dataclass
 class ImportanceInputs:
-    """ابعاد اهمیت، همه در بازه‌ی 0..1 (1 = مهم‌تر)."""
+    """ابعاد اهمیت، همه در بازه‌ی 0..1 (1 = مهم‌تر).
+
+    novelty و historical_significance deterministic محاسبه می‌شوند (نه از LLM).
+    """
 
     impact: float = 0.0
     scope: float = 0.0
@@ -81,6 +98,7 @@ class ImportanceInputs:
     economic_relevance: float = 0.0
     time_sensitivity: float = 0.0
     strategic_relevance: float = 0.0
+    historical_significance: float = 0.0
 
     def as_dict(self) -> dict[str, float]:
         return {
@@ -93,15 +111,16 @@ class ImportanceInputs:
             "economic_relevance": self.economic_relevance,
             "time_sensitivity": self.time_sensitivity,
             "strategic_relevance": self.strategic_relevance,
+            "historical_significance": self.historical_significance,
         }
 
 
-def _clamp01(v: Any, default: float = 0.0) -> float:
+def _clamp(v: Any, lo: float, hi: float, default: float) -> float:
     try:
         f = float(v)
     except (TypeError, ValueError):
         return default
-    return max(0.0, min(1.0, f))
+    return max(lo, min(hi, f))
 
 
 @dataclass
@@ -118,39 +137,62 @@ class ClassificationResult:
     prompt_version: str | None = None
     provider: str | None = None
     model: str | None = None
+    is_mock: bool = False
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ClassificationResult":
-        topics = data.get("topics") or []
-        if isinstance(topics, str):
-            topics = [topics]
-        topics = [str(t) for t in topics if t][:10]
+    def from_dict(cls, data: dict[str, Any]) -> ClassificationResult:
+        # topics: فقط از لیست مجاز، حداکثر ۱۰
+        topics_raw = data.get("topics") or []
+        if isinstance(topics_raw, str):
+            topics_raw = [topics_raw]
+        topics = [str(t).lower() for t in topics_raw if str(t).lower() in ALLOWED_TOPICS][:10]
 
-        entities = []
+        entities: list[Entity] = []
+        seen: set[str] = set()
         for e in data.get("entities") or []:
             if isinstance(e, dict) and e.get("name"):
-                entities.append(Entity(name=str(e["name"]), type=str(e.get("type", "other"))))
+                name = str(e["name"]).strip()
+                etype = str(e.get("type", "other")).lower()
+                if etype not in ALLOWED_ENTITY_TYPES:
+                    etype = "other"
+                key = name.lower()
+                if name and key not in seen:
+                    seen.add(key)
+                    entities.append(Entity(name=name, type=etype))
 
         imp_raw = data.get("importance") or {}
         imp = ImportanceInputs(
-            impact=_clamp01(imp_raw.get("impact")),
-            scope=_clamp01(imp_raw.get("scope")),
-            probability=_clamp01(imp_raw.get("probability"), 0.5),
-            novelty=_clamp01(imp_raw.get("novelty")),
-            market_relevance=_clamp01(imp_raw.get("market_relevance")),
-            geopolitical_relevance=_clamp01(imp_raw.get("geopolitical_relevance")),
-            economic_relevance=_clamp01(imp_raw.get("economic_relevance")),
-            time_sensitivity=_clamp01(imp_raw.get("time_sensitivity")),
-            strategic_relevance=_clamp01(imp_raw.get("strategic_relevance")),
+            impact=_clamp(imp_raw.get("impact"), 0, 1, 0.0),
+            scope=_clamp(imp_raw.get("scope"), 0, 1, 0.0),
+            probability=_clamp(imp_raw.get("probability"), 0, 1, 0.5),
+            novelty=_clamp(imp_raw.get("novelty"), 0, 1, 0.0),
+            market_relevance=_clamp(imp_raw.get("market_relevance"), 0, 1, 0.0),
+            geopolitical_relevance=_clamp(imp_raw.get("geopolitical_relevance"), 0, 1, 0.0),
+            economic_relevance=_clamp(imp_raw.get("economic_relevance"), 0, 1, 0.0),
+            time_sensitivity=_clamp(imp_raw.get("time_sensitivity"), 0, 1, 0.0),
+            strategic_relevance=_clamp(imp_raw.get("strategic_relevance"), 0, 1, 0.0),
+            historical_significance=_clamp(imp_raw.get("historical_significance"), 0, 1, 0.0),
         )
+
+        country = data.get("country")
+        if isinstance(country, str):
+            country = country.strip().upper()[:2] or None
+        else:
+            country = None
+
+        sentiment = data.get("sentiment")
+        sentiment = _clamp(sentiment, -1, 1, 0.0) if sentiment is not None else None
+
+        confidence = data.get("confidence")
+        confidence = _clamp(confidence, 0, 1, 0.0) if confidence is not None else None
 
         return cls(
             topics=topics,
-            country=data.get("country"),
+            country=country,
             entities=entities,
-            sentiment=data.get("sentiment"),
-            stance=data.get("stance"),
-            summary=data.get("summary"),
+            sentiment=sentiment,
+            stance=(data.get("stance") or None),
+            summary=(data.get("summary") or None),
             importance_inputs=imp,
-            confidence=data.get("confidence"),
+            confidence=confidence,
         )

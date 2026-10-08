@@ -55,6 +55,40 @@
 
 ---
 
+## ADR-0016 — ذخیره‌ی همه‌ی اسناد و یکتایی درون‌منبعی
+**Date:** 2026-10-08
+**Context:** بازبینی نشان داد ingestion سندهای منابع دیگر با content_hash یکسان را دور می‌ریخت؛ این با بند ۱۸ (تفاوت mention و تأیید مستقل) و فاز ۱۴ (Source Independence) در تناقض بود.
+**Decision:** یکتایی سند فقط درون یک منبع و بر اساس `(source_id, hash, content_hash)` است (`uq_document_source_url_content`). همه‌ی اسناد منابع مختلف ذخیره می‌شوند. اگر همان URL با محتوای متفاوت بیاید، `revision` افزایش می‌یابد. تکراری‌بودن فقط با `duplicate_cluster` بیان می‌شود.
+**Alternatives:** یکتایی سراسری بر اساس content_hash
+**Why selected:** حفظ اطلاعات «چه کسی چه چیزی را گزارش کرد»، امکان محاسبه‌ی استقلال منابع.
+**Consequences:** حجم ذخیره بیشتر؛ dedup نقش «تشخیص» را دارد نه «حذف».
+
+---
+
+## ADR-0017 — جلوگیری از mock در production
+**Date:** 2026-10-08
+**Context:** زنجیره‌ی Gateway همیشه با mock شروع می‌شد، پس گذاشتن API Key بی‌اثر بود و داده‌ی جعلی در DB ذخیره می‌شد.
+**Decision:**
+- Routeها به‌صورت پیش‌فرض خالی‌اند و زنجیره از تنظیمات ساخته می‌شود.
+- در `MOCK_MODE=true` فقط mock استفاده می‌شود.
+- در غیر آن، mock از زنجیره حذف و در نبود Provider واقعی خطا پرتاب می‌شود.
+- فیلد `is_mock` روی پاسخ؛ classifier نتیجه‌ی mock را در production رد می‌کند.
+**Alternatives:** حفظ mock به‌عنوان آخرین fallback سراسری
+**Why selected:** جلوگیری از آلودگی داده و ادعای نادرست تحلیل واقعی.
+**Consequences:** در production باید حداقل یک Provider واقعی پیکربندی شود.
+
+---
+
+## ADR-0018 — احراز هویت حداقلی از ابتدا
+**Date:** 2026-10-08
+**Context:** بند ۶۹ امنیت را از ابتدا می‌خواهد؛ endpointها باز بودند.
+**Decision:** هدر `X-API-Key` برای همه‌ی endpointها به‌جز `/health`. در production، `validate_production()` در startup نبود/ضعیف‌بودن `SECRET_KEY`/`API_KEY`/`MOCK_MODE` را رد می‌کند (fail-fast). `metadata` (مدل/timeout) از API عمومی حذف شد و روی طول پیام‌ها/tokens سقف گذاشته شد.
+**Alternatives:** افزودن auth فقط در فاز ۴۴
+**Why selected:** جلوگیری از مصرف اعتبار API توسط اشخاص ثالث و انتخاب مدل گران.
+**Consequences:** n8n باید کلید را در credential خود نگه دارد؛ این احراز هویت حداقلی است و در فاز ۴۴ کامل می‌شود.
+
+---
+
 ## ADR-0015 — Importance ترکیبی ولی Deterministic
 **Date:** 2026-10-08
 **Context:** بند 22 می‌گوید Importance نباید فقط بر اساس نظر LLM باشد.

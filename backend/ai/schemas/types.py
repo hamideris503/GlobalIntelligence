@@ -41,15 +41,15 @@ class Message:
     content: str
 
     @staticmethod
-    def system(content: str) -> "Message":
+    def system(content: str) -> Message:
         return Message(role="system", content=content)
 
     @staticmethod
-    def user(content: str) -> "Message":
+    def user(content: str) -> Message:
         return Message(role="user", content=content)
 
     @staticmethod
-    def assistant(content: str) -> "Message":
+    def assistant(content: str) -> Message:
         return Message(role="assistant", content=content)
 
 
@@ -87,6 +87,7 @@ class AIResponse:
     raw: dict[str, Any] | None = None
     model_version: str | None = None
     prompt_version: str | None = None
+    is_mock: bool = False
 
 
 @dataclass

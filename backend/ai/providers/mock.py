@@ -77,6 +77,7 @@ class MockProvider(BaseProvider):
             raw={"mock": True, "task": request.task, "role": request.role},
             model_version="mock-1",
             prompt_version=request.metadata.get("prompt_version", "v0"),
+            is_mock=True,
         )
 
     async def health(self) -> ProviderHealth:

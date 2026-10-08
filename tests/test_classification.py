@@ -5,7 +5,6 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
-from backend.database import models as _models
 from backend.database.models.article import Article
 from backend.database.models.document import Document
 from backend.database.models.source import Source
@@ -41,9 +40,12 @@ def test_importance_range() -> None:
 # --- schema parsing ---
 def test_classification_from_dict() -> None:
     data = {
-        "topics": ["energy", "markets"],
-        "country": "US",
-        "entities": [{"name": "OPEC", "type": "organization"}],
+        "topics": ["energy", "markets", "bogus_topic"],  # bogus باید فیلتر شود
+        "country": "us",  # باید به US تبدیل شود
+        "entities": [
+            {"name": "OPEC", "type": "organization"},
+            {"name": "OPEC", "type": "organization"},  # تکراری حذف شود
+        ],
         "sentiment": -0.3,
         "stance": "negative",
         "summary": "Oil rose.",
@@ -52,14 +54,34 @@ def test_classification_from_dict() -> None:
     }
     r = ClassificationResult.from_dict(data)
     assert r.topics == ["energy", "markets"]
-    assert r.entities[0].name == "OPEC"
+    assert r.country == "US"
+    assert len(r.entities) == 1
     assert r.sentiment == -0.3
     assert r.importance_inputs.market_relevance == 0.9
 
 
-def test_classify_schema_is_object() -> None:
+def test_sentiment_and_confidence_clamped() -> None:
+    data = {
+        "topics": [], "entities": [], "sentiment": 5.0, "summary": "x",
+        "importance": {}, "confidence": -3.0,
+    }
+    r = ClassificationResult.from_dict(data)
+    assert r.sentiment == 1.0
+    assert r.confidence == 0.0
+
+
+def test_classify_schema_requires_importance() -> None:
     assert CLASSIFY_SCHEMA["type"] == "object"
-    assert "topics" in CLASSIFY_SCHEMA["properties"]
+    assert "importance" in CLASSIFY_SCHEMA["required"]
+
+
+def test_jsonschema_validation_rejects_bad_output() -> None:
+    import pytest
+
+    from domains.news.classifier import _validate
+
+    with pytest.raises(ValueError):
+        _validate({"topics": [], "entities": [], "sentiment": 0.0}, CLASSIFY_SCHEMA)
 
 
 # --- classifier with mock provider ---

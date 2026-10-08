@@ -34,7 +34,7 @@ class Forecast(UUIDMixin, TimestampMixin, Base):
     evidence: Mapped[str | None] = mapped_column(Text)  # JSON
     assumptions: Mapped[str | None] = mapped_column(Text)
 
-    outcome: Mapped["ForecastOutcome | None"] = relationship(
+    outcome: Mapped[ForecastOutcome | None] = relationship(
         back_populates="forecast", uselist=False, cascade="all, delete-orphan"
     )
 
@@ -59,7 +59,7 @@ class ForecastOutcome(UUIDMixin, TimestampMixin, Base):
 
     notes: Mapped[str | None] = mapped_column(Text)
 
-    forecast: Mapped["Forecast"] = relationship(back_populates="outcome")
+    forecast: Mapped[Forecast] = relationship(back_populates="outcome")
 
 
 class Recommendation(UUIDMixin, TimestampMixin, Base):

@@ -1,12 +1,12 @@
 """Deduplication API (Phase 9)."""
 from __future__ import annotations
 
+from domains.news.dedup_service import DedupService
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.database.session import get_db
-from domains.news.dedup_service import DedupService
 
 router = APIRouter(prefix="/api/dedup", tags=["dedup"])
 

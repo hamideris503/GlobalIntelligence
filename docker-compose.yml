@@ -1,7 +1,8 @@
 # ============================================================
-# GlobalIntelligence — docker-compose (Phase 2 Skeleton)
+# GlobalIntelligence — docker-compose (dev)
 # سرویس‌ها: postgres, backend, frontend, n8n
 # اجرا:  docker compose up -d --build
+# پورت‌ها به‌صورت پیش‌فرض روی 127.0.0.1 محدود شده‌اند (امنیت).
 # ============================================================
 name: globalintelligence
 
@@ -11,15 +12,15 @@ services:
     container_name: gi_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-globalintelligence}
-      POSTGRES_USER: ${POSTGRES_USER:-gi_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gi_user} -d ${POSTGRES_DB:-globalintelligence}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,9 +41,9 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gi_user}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-globalintelligence}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,27 +61,25 @@ services:
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
-      - "5173:5173"
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
     depends_on:
       - backend
     networks:
       - gi_net
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.42.4
     container_name: gi_n8n
     restart: unless-stopped
     environment:
-      N8N_BASIC_AUTH_ACTIVE: "true"
-      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
-      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-change-me-in-production}
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-me-in-production}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http
       GENERIC_TIMEZONE: ${TZ:-UTC}
+      N8N_DIAGNOSTICS_ENABLED: "false"
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
     networks:

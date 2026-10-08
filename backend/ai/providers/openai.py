@@ -17,6 +17,7 @@ class OpenAIProvider(HTTPProvider):
         self.api_key = getattr(s, "openai_api_key", None) or None
         self.base_url = getattr(s, "openai_base_url", "https://api.openai.com/v1")
         self.default_model = getattr(s, "openai_model", "gpt-4o-mini")
+        self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def _headers(self) -> dict[str, str]:
         return {

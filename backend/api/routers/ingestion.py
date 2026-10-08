@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 
+from domains.news.ingestion import NewsIngestionPipeline
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,7 +16,6 @@ from backend.api.schemas.ingestion import (
 from backend.database.models.document import Document
 from backend.database.models.source import Source
 from backend.database.session import get_db
-from domains.news.ingestion import NewsIngestionPipeline
 
 router = APIRouter(prefix="/api/ingest", tags=["ingestion"])
 
@@ -49,8 +49,18 @@ async def ingest(payload: IngestRequest, db: Session = Depends(get_db)) -> Inges
 async def ingest_all(
     limit: int = Query(default=20, ge=1, le=200), db: Session = Depends(get_db)
 ) -> list[IngestResultRead]:
-    """اجرای دریافت برای همه‌ی منابع فعال (برای زمان‌بندی با n8n)."""
-    sources = list(db.execute(select(Source).where(Source.active.is_(True))).scalars().all())
+    """اجرای دریافت برای منابع فعالی که روش rss و feed_url دارند.
+
+    در MOCK_MODE همه‌ی منابع فعال با fetcher نمونه پردازش می‌شوند.
+    در حالت واقعی فقط منابع news (rss با feed_url) انتخاب می‌شوند (P0-2).
+    """
+    from backend.core.config import get_settings
+
+    stmt = select(Source).where(Source.active.is_(True))
+    if not get_settings().mock_mode:
+        stmt = stmt.where(Source.collection_method == "rss", Source.feed_url.is_not(None))
+    sources = list(db.execute(stmt).scalars().all())
+
     pipeline = NewsIngestionPipeline(db)
     results = []
     for source in sources:
@@ -68,7 +78,11 @@ def list_documents(
 ) -> list[DocumentRead]:
     stmt = select(Document).order_by(Document.retrieved_at.desc().nullslast())
     if source_id:
-        stmt = stmt.where(Document.source_id == uuid.UUID(source_id))
+        try:
+            sid = uuid.UUID(source_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="invalid source_id") from None
+        stmt = stmt.where(Document.source_id == sid)
     stmt = stmt.limit(limit).offset(offset)
     rows = db.execute(stmt).scalars().all()
     return [

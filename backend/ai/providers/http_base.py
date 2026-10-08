@@ -25,6 +25,7 @@ class HTTPProvider(BaseProvider):
     api_key: str | None = None
     api_key_env: str = ""
     default_model: str = ""
+    _default_timeout: float = 60.0
 
     def configured(self) -> bool:
         return bool(self.api_key)
@@ -52,7 +53,12 @@ class HTTPProvider(BaseProvider):
             )
 
         started = time.perf_counter()
-        timeout = httpx.Timeout(request.metadata.get("timeout", 60.0))
+        # timeout از metadata درخواست یا تنظیمات برنامه (نه ۶۰ ثانیه‌ی ثابت)
+        default_timeout = float(
+            request.metadata.get("timeout")
+            or getattr(self, "_default_timeout", 60.0)
+        )
+        timeout = httpx.Timeout(default_timeout)
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(

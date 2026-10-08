@@ -2,23 +2,22 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 0
+**به‌روزرسانی:** Phase 10 (fix round)
 
 ---
 
 ## TODO
-- [ ] Phase 2: راه‌اندازی واقعی stack با Docker پس از روشن‌شدن Docker Desktop
-- [ ] Phase 1: فعال‌سازی pre-commit hooks (اختیاری، پس از نصب وابستگی‌ها)
-- [ ] Phase 3: مدل‌ها + migrations با Alembic
-- [ ] Phase 2: `docker-compose.yml` پایه (frontend, backend, postgres, n8n)
-- [ ] Phase 3: PostgreSQL + migrations + models + connection + health check
-- [ ] Phase 5: اینترفیس AI Gateway + Mock Provider
-- [ ] Phase 7: جدول Source + seed منابع اولیه
+- [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
+- [ ] Phase 11: Event Extraction
+- [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
+- [ ] بعد: انتقال endpointهای سنگین به workers/ پس‌زمینه
+- [ ] بعد: JSONB برای topics/entities (به‌جای Text)
 
 ## IN_PROGRESS
 - (هیچ)
 
 ## DONE
+- [x] Phase 10 fix (P0/P1): رفع مسیریابی Gateway (mock در production)، ذخیره‌ی همه‌ی اسناد، feed_url، پرامپت/schema، احراز هویت، LSH 32×2، raw_payload، savepoint، Gemini header، n8n pin
 - [x] Phase 10: Article classification (topics/entities/sentiment) + deterministic importance
 - [x] Phase 9: dedup (MinHash/LSH/Union-Find) + service + CLI + API + ingest hook
 - [x] Phase 8: News ingestion pipeline + fetchers + normalizer + API + CLI worker

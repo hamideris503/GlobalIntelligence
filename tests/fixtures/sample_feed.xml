@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Sample Feed</title>
+    <link>https://example.local/</link>
+    <description>Sample RSS for tests</description>
+    <item>
+      <title>Fed holds rates</title>
+      <link>https://example.local/fed</link>
+      <description>Short description.</description>
+      <content:encoded><![CDATA[<p>The <b>Fed</b> held rates steady.</p>]]></content:encoded>
+      <pubDate>Wed, 08 Oct 2026 10:00:00 GMT</pubDate>
+      <author>newsroom@example.local</author>
+      <guid>https://example.local/fed</guid>
+    </item>
+    <item>
+      <title>Oil rises</title>
+      <link>https://example.local/oil</link>
+      <description>Oil climbed on supply worries.</description>
+      <pubDate>Wed, 08 Oct 2026 09:00:00 GMT</pubDate>
+      <guid>https://example.local/oil</guid>
+    </item>
+  </channel>
+</rss>

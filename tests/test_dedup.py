@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.database import models as _models
 from backend.database.models.document import Document
 from backend.database.models.source import Source
 from domains.news.dedup import (
@@ -40,6 +39,29 @@ def test_minhash_different_texts_low_similarity() -> None:
 
 
 # --- clustering ---
+def test_empty_documents_do_not_cluster() -> None:
+    """اسناد بدون متن نباید به هم بچسبند (P1-7)."""
+    items = [
+        DedupInput(id="1", text=None, content_hash=None, source_name="A"),
+        DedupInput(id="2", text="", content_hash=None, source_name="B"),
+        DedupInput(id="3", text="   ", content_hash=None, source_name="C"),
+    ]
+    res = cluster_documents(items)
+    roots = {res.cluster_id_for(i) for i in ("1", "2", "3")}
+    assert len(roots) == 3  # هر کدام خوشه‌ی خودش
+
+
+def test_cluster_id_is_deterministic() -> None:
+    items = [
+        DedupInput(id="b", text="same text here for clustering", content_hash="x"),
+        DedupInput(id="a", text="same text here for clustering", content_hash="x"),
+    ]
+    res1 = cluster_documents(items)
+    res2 = cluster_documents(list(reversed(items)))
+    assert res1.cluster_id_for("a") == res2.cluster_id_for("a")
+    assert res1.cluster_id_for("a") == "a"  # کمترین id = نماینده
+
+
 def test_exact_duplicates_cluster() -> None:
     items = [
         DedupInput(id="1", text="hello world news", content_hash="h1"),

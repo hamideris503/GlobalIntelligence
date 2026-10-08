@@ -16,9 +16,10 @@ from dataclasses import dataclass, field
 # --- پارامترهای پیش‌فرض ---
 SHINGLE_SIZE = 5          # اندازه‌ی k-gram (کلمات)
 NUM_PERM = 64             # تعداد هش‌های MinHash
-BANDS = 16                # تعداد باندهای LSH
-ROWS_PER_BAND = NUM_PERM // BANDS  # 4
+BANDS = 32                # تعداد باندهای LSH (recall بالاتر برای شباهت‌های متوسط)
+ROWS_PER_BAND = NUM_PERM // BANDS  # 2
 NEAR_DUP_THRESHOLD = 0.7  # آستانه‌ی Jaccard برای near-duplicate
+MIN_TOKENS_FOR_MINHASH = 8  # اسناد کوتاه‌تر فقط exact-match می‌شوند
 
 _MERSENNE = (1 << 61) - 1
 
@@ -74,7 +75,7 @@ def jaccard_from_signatures(a: tuple[int, ...], b: tuple[int, ...]) -> float:
     """تخمین Jaccard از دو امضای MinHash."""
     if not a or not b:
         return 0.0
-    equal = sum(1 for x, y in zip(a, b) if x == y)
+    equal = sum(1 for x, y in zip(a, b, strict=False) if x == y)
     return equal / len(a)
 
 
@@ -166,13 +167,19 @@ def cluster_documents(
     # 2) near-duplicate: MinHash + LSH
     sigs: dict[str, tuple[int, ...]] = {}
     meta: dict[str, DedupInput] = {it.id: it for it in items}
+    eligible: list[str] = []
     for it in items:
+        tokens = _tokenize(it.text)
+        if len(tokens) < MIN_TOKENS_FOR_MINHASH:
+            # اسناد کوتاه/خالی وارد MinHash نمی‌شوند (P1-7)
+            continue
         sigs[it.id] = minhash_signature(shingles(it.text))
+        eligible.append(it.id)
 
     buckets: dict[tuple[int, int], list[str]] = defaultdict(list)
-    for it in items:
-        for band in lsh_bands(sigs[it.id]):
-            buckets[band].append(it.id)
+    for doc_id in eligible:
+        for band in lsh_bands(sigs[doc_id]):
+            buckets[band].append(doc_id)
 
     seen_pairs: set[tuple[str, str]] = set()
     for _, ids in buckets.items():
@@ -195,10 +202,15 @@ def cluster_documents(
                         kind = "repost"
                     result.pairs.append(DedupPair(a, b, round(sim, 4), kind))
 
-    # 3) ساخت خوشه‌ها
+    # 3) ساخت خوشه‌ها با شناسه‌ی قطعی (کمترین id = نماینده)
+    raw_groups: dict[str, list[str]] = defaultdict(list)
     for it in items:
-        root = uf.find(it.id)
-        result.cluster_of[it.id] = root
-        result.clusters.setdefault(root, []).append(it.id)
+        raw_groups[uf.find(it.id)].append(it.id)
+
+    for ids in raw_groups.values():
+        canonical = min(ids)  # قطعی و پایدار
+        for doc_id in ids:
+            result.cluster_of[doc_id] = canonical
+        result.clusters[canonical] = sorted(ids)
 
     return result

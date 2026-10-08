@@ -27,7 +27,7 @@
 - **Explainable / Auditable / Reproducible:** هر تصمیم قابل بازسازی است.
 - **Point-in-Time Integrity:** در زمان T از داده‌ای که هنوز منتشر نشده استفاده نمی‌کنیم.
 - **No Fake Precision:** عدد بدون منبع، زمان و عدم قطعیت ممنوع.
-- برو از **INSUFFICIENT_EVIDENCE** برای پرسش‌هایی که شواهد کافی ندارند عقب‌نشینی می‌کنیم.
+- در نبود شواهد کافی، **INSUFFICIENT_EVIDENCE** برمی‌گردانیم.
 
 ---
 
@@ -35,7 +35,7 @@
 
 - خبرخوان ساده / چت‌بات ساده
 - اتصال مستقیم یک LLM به یک صفحه وب
-- داشبورد پرم از نمودار بدون موتور تحلیلی
+- داشبورد پر از نمودار بدون موتور تحلیلی
 - پیش‌بینی بدون ثبت نتیجه قبلی
 - سیستم معامله خودکار با پول واقعی
 - مجموعه‌ای از Microserviceها از روز اول
@@ -70,17 +70,17 @@ WORLD
 
 ---
 
-## Stack اولیه (Phase 2+)
+## Stack
 
 | لایه | فناوری | وضعیت |
 |---|---|---|
-| Frontend | React + Vite (RTL، Persian، Dark Mode) | برنامه‌ریزی‌شده |
-| Backend | Python + FastAPI | برنامه‌ریزی‌شده |
-| Orchestration | n8n | برنامه‌ریزی‌شده |
-| Database | PostgreSQL (بعداً TimescaleDB در صورت نیاز) | برنامه‌ریزی‌شده |
+| Frontend | React + Vite (RTL، Persian، Dark Mode) | پایه ساخته‌شده |
+| Backend | Python + FastAPI | پیاده‌سازی‌شده |
+| Orchestration | n8n (pinned 2.42.4) | پیاده‌سازی‌شده |
+| Database | PostgreSQL 16 (بعداً TimescaleDB در صورت نیاز) | پیاده‌سازی‌شده |
 | Cache/Queue | Redis (فقط در صورت نیاز واقعی) | به تعویق افتاده |
-| AI | AI Gateway چند-Provider (Mock-first) | برنامه‌ریزی‌شده |
-| Packaging | Docker + docker-compose | برنامه‌ریزی‌شده |
+| AI | AI Gateway چند-Provider (Mock-first، Provider-Agnostic) | پیاده‌سازی‌شده |
+| Packaging | Docker + docker-compose | پیاده‌سازی‌شده |
 
 ---
 

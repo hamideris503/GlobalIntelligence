@@ -3,9 +3,6 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.database import models as _models
-from tests.conftest import TestingSession
-
 
 def test_create_and_get_source(client: TestClient) -> None:
     res = client.post(

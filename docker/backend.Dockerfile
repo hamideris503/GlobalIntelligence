@@ -1,5 +1,5 @@
 # ============================================================
-# GlobalIntelligence — Backend image (development)
+# GlobalIntelligence — Backend image
 # ============================================================
 FROM python:3.12-slim
 
@@ -10,8 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_RETRIES=10 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# در صورت نیاز به آینه (mirror) داخلی برای شبکه‌های محدود، می‌توان
-# PIP_INDEX_URL و PIP_TRUSTED_HOST را از build-arg ست کرد.
+# در صورت نیاز به آینه (mirror) داخلی برای شبکه‌های محدود
 ARG PIP_INDEX_URL=https://pypi.org/simple
 ARG PIP_TRUSTED_HOST=
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
@@ -32,6 +31,10 @@ COPY db ./db
 # entrypoint اعمال migration پیش از اجرای سرور
 COPY docker/backend-entrypoint.sh /usr/local/bin/backend-entrypoint.sh
 RUN chmod +x /usr/local/bin/backend-entrypoint.sh
+
+# اجرا با کاربر غیر root
+RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8000
 

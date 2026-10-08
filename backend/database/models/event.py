@@ -28,5 +28,5 @@ class Event(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
 
     confidence: Mapped[float | None] = mapped_column(Float)
 
-    articles: Mapped[list["Article"]] = relationship(back_populates="event")  # noqa: F821
-    claims: Mapped[list["Claim"]] = relationship(back_populates="event")  # noqa: F821
+    articles: Mapped[list[Article]] = relationship(back_populates="event")  # noqa: F821
+    claims: Mapped[list[Claim]] = relationship(back_populates="event")  # noqa: F821

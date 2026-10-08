@@ -1,0 +1,17 @@
+# GlobalIntelligence — ruff configuration (repository root)
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "B008",   # FastAPI Depends()/Query() در default argument — الگوی استاندارد
+    "E501",   # طول خط — به‌عهده‌ی formatter
+    "UP042",  # str+Enum — عمداً برای سازگاری
+    "RUF012", # mutable class default
+    "PERF102",
+    "TRY004",
+]
+
+[lint.isort]
+known-first-party = ["backend", "domains", "tests"]

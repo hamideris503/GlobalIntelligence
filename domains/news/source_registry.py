@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -54,8 +54,9 @@ class SourceRegistry:
         return source
 
     def update(self, source: Source, **fields: object) -> Source:
+        """به‌روزرسانی فیلدها. مقادیر None نیز اعمال می‌شوند (برای خالی‌کردن)."""
         for key, value in fields.items():
-            if value is not None and hasattr(source, key):
+            if hasattr(source, key):
                 setattr(source, key, value)
         self.db.commit()
         self.db.refresh(source)
@@ -69,7 +70,7 @@ class SourceRegistry:
 
     # --- health tracking (بند 17: last_success / last_error) ---
     def record_success(self, source: Source) -> Source:
-        source.last_success = datetime.now(timezone.utc)
+        source.last_success = datetime.now(UTC)
         source.last_error = None
         self.db.commit()
         self.db.refresh(source)

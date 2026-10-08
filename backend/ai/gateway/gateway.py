@@ -72,17 +72,31 @@ class AIGateway:
         raise last_exc
 
     async def generate(self, request: AIRequest) -> AIResponse:
-        """تولید پاسخ؛ در صورت شکست Provider، به Provider بعدی fallback می‌کند."""
+        """تولید پاسخ؛ در صورت شکست Provider، به Provider بعدی fallback می‌کند.
+
+        رفتار زنجیره:
+        - اگر MOCK_MODE فعال باشد → فقط mock (توسعه/آفلاین).
+        - در غیر این صورت → زنجیره‌ی نقش، سپس AI_DEFAULT_PROVIDER.
+          mock هرگز در production صدا زده نمی‌شود.
+        """
         route = self._route(request)
         chain = list(route.providers)
 
-        # اگر Provider پیش‌فرض تنظیم شده و در زنجیره نیست، به انتها اضافه شود
-        default = self._settings.ai_default_provider
-        if default not in chain:
-            chain.append(default)
-        # «mock» همیشه آخرین گزینه است تا سیستم هرگز کاملاً از کار نیفتد
-        if "mock" not in chain:
-            chain.append("mock")
+        if not chain:
+            default = self._settings.ai_default_provider
+            chain = [default] if default else []
+
+        if self._settings.mock_mode:
+            chain = ["mock"]
+        else:
+            # حذف mock در production
+            chain = [p for p in chain if p != "mock"]
+            if not chain:
+                raise AIError(
+                    "no real provider configured (MOCK_MODE=false and no provider)",
+                    kind=AIErrorKind.auth,
+                    retryable=False,
+                )
 
         errors: list[str] = []
         for name in chain:
@@ -90,9 +104,11 @@ class AIGateway:
             try:
                 started = time.perf_counter()
                 response = await self._call_with_retry(provider, request)
+                response.is_mock = name == "mock"
                 logger.info(
-                    "ai.generate | role=%s task=%s provider=%s model=%s latency_ms=%.1f",
+                    "ai.generate | role=%s task=%s provider=%s model=%s mock=%s latency_ms=%.1f",
                     request.role, request.task, response.provider, response.model,
+                    response.is_mock,
                     response.latency_ms or ((time.perf_counter() - started) * 1000),
                 )
                 return response

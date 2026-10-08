@@ -1,7 +1,10 @@
-"""Seed اولیه‌ی Source Registry (بند 16-17).
+"""Seed Source Registry (بند 16-17; اصلاح Phase 10).
 
-منابع رایگان و معتبر. مقادیر credibility/independence **اولیه و محافظه‌کارانه**
-هستند و در فازهای بعدی از عملکرد واقعی (بند 56-58) به‌روزرسانی می‌شوند.
+شامل منابع خبری واقعی با RSS رسمی (برای Milestone 1) و منابع داده‌ی
+اقتصادی/بازار (برای فازهای ۱۶ و ۱۷).
+
+آدرس‌های RSS زیر فیدهای عمومی و پایدارند. license/terms هر منبع در همان ردیف
+ثبت شده و پیش از استفاده‌ی تجاری باید بازبینی شود.
 
 اجرا:
     python -m db.seed.sources
@@ -12,9 +15,49 @@ from backend.database.enums import SourceType
 from backend.database.models import Source
 from backend.database.session import get_session_factory
 
-# نوع به‌صورت رشته ذخیره می‌شود (مدل، String دارد)
 INITIAL_SOURCES: list[dict[str, object]] = [
-    # --- رسمی / بین‌المللی ---
+    # ================= خبری واقعی (RSS) — Milestone 1 =================
+    {
+        "name": "Federal Reserve Press Releases",
+        "domain": "federalreserve.gov", "country": "US", "type": SourceType.rss.value,
+        "language": "en", "collection_method": "rss",
+        "feed_url": "https://www.federalreserve.gov/feeds/press_all.xml",
+        "credibility_score": 0.97, "independence_score": 0.95,
+        "primary_source_ratio": 0.98, "license": "public domain (US Gov)",
+    },
+    {
+        "name": "ECB Press Releases",
+        "domain": "ecb.europa.eu", "country": None, "type": SourceType.rss.value,
+        "language": "en", "collection_method": "rss",
+        "feed_url": "https://www.ecb.europa.eu/rss/press.html",
+        "credibility_score": 0.95, "independence_score": 0.9,
+        "primary_source_ratio": 0.95, "license": "ECB terms",
+    },
+    {
+        "name": "Reuters Business (via Google News)",
+        "domain": "news.google.com", "country": None, "type": SourceType.rss.value,
+        "language": "en", "collection_method": "rss",
+        "feed_url": "https://news.google.com/rss/search?q=business&hl=en-US&gl=US&ceid=US:en",
+        "credibility_score": 0.7, "independence_score": 0.45,
+        "primary_source_ratio": 0.25, "license": "aggregator — review terms",
+    },
+    {
+        "name": "BBC Business",
+        "domain": "feeds.bbci.co.uk", "country": "GB", "type": SourceType.rss.value,
+        "language": "en", "collection_method": "rss",
+        "feed_url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+        "credibility_score": 0.82, "independence_score": 0.75,
+        "primary_source_ratio": 0.55, "license": "BBC terms",
+    },
+    {
+        "name": "Al Jazeera",
+        "domain": "aljazeera.com", "country": None, "type": SourceType.rss.value,
+        "language": "en", "collection_method": "rss",
+        "feed_url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "credibility_score": 0.78, "independence_score": 0.65,
+        "primary_source_ratio": 0.5, "license": "Al Jazeera terms",
+    },
+    # ================= داده‌ی اقتصادی / بازار (فازهای ۱۶-۱۷) =================
     {
         "name": "IMF World Economic Outlook",
         "domain": "imf.org", "country": None, "type": SourceType.dataset.value,
@@ -37,13 +80,6 @@ INITIAL_SOURCES: list[dict[str, object]] = [
         "primary_source_ratio": 0.9,
     },
     {
-        "name": "ECB Data Portal",
-        "domain": "ecb.europa.eu", "country": None, "type": SourceType.official.value,
-        "language": "en", "collection_method": "api",
-        "credibility_score": 0.95, "independence_score": 0.9,
-        "primary_source_ratio": 0.95,
-    },
-    {
         "name": "OECD Data",
         "domain": "oecd.org", "country": None, "type": SourceType.dataset.value,
         "language": "en", "collection_method": "api",
@@ -56,21 +92,6 @@ INITIAL_SOURCES: list[dict[str, object]] = [
         "language": "en", "collection_method": "api",
         "credibility_score": 0.95, "independence_score": 0.9,
         "primary_source_ratio": 0.95,
-    },
-    # --- بازارها ---
-    {
-        "name": "Stooq",
-        "domain": "stooq.com", "country": None, "type": SourceType.dataset.value,
-        "language": "en", "collection_method": "scrape",
-        "credibility_score": 0.75, "independence_score": 0.55,
-        "primary_source_ratio": 0.3,
-    },
-    {
-        "name": "Yahoo Finance",
-        "domain": "finance.yahoo.com", "country": None, "type": SourceType.api.value,
-        "language": "en", "collection_method": "api",
-        "credibility_score": 0.75, "independence_score": 0.5,
-        "primary_source_ratio": 0.25,
     },
     {
         "name": "World Gold Council",
@@ -86,7 +107,6 @@ INITIAL_SOURCES: list[dict[str, object]] = [
         "credibility_score": 0.8, "independence_score": 0.7,
         "primary_source_ratio": 0.6,
     },
-    # --- رویداد / OSINT ---
     {
         "name": "GDELT",
         "domain": "gdeltproject.org", "country": None, "type": SourceType.dataset.value,
@@ -101,7 +121,7 @@ INITIAL_SOURCES: list[dict[str, object]] = [
         "credibility_score": 0.85, "independence_score": 0.8,
         "primary_source_ratio": 0.6, "license": "ACLED terms (attribution)",
     },
-    # --- ایران ---
+    # ================= ایران =================
     {
         "name": "Central Bank of Iran",
         "domain": "cbi.ir", "country": "IR", "type": SourceType.official.value,
@@ -120,10 +140,7 @@ INITIAL_SOURCES: list[dict[str, object]] = [
 
 
 def seed() -> int:
-    """منابع جدید را اضافه و رکوردهای موجود را تکمیل می‌کند.
-
-    Returns: تعداد منابعی که *تازه ساخته* شدند.
-    """
+    """منابع جدید را اضافه و رکوردهای موجود را تکمیل می‌کند."""
     session = get_session_factory()()
     created = 0
     updated = 0
@@ -134,9 +151,8 @@ def seed() -> int:
                 session.add(Source(**data))
                 created += 1
                 continue
-            # تکمیل فیلدهای خالی (بدون بازنویسی داده‌ی موجود)
             for key, value in data.items():
-                if key in ("name",):
+                if key == "name":
                     continue
                 if getattr(existing, key, None) is None and value is not None:
                     setattr(existing, key, value)

@@ -16,7 +16,7 @@ class Source(UUIDMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     domain: Mapped[str | None] = mapped_column(String(255))
     country: Mapped[str | None] = mapped_column(String(2))  # ISO-3166 alpha-2
-    type: Mapped[SourceType] = mapped_column(String(32), default=SourceType.other)
+    type: Mapped[str] = mapped_column(String(32), default=SourceType.other.value)
     language: Mapped[str | None] = mapped_column(String(16))
 
     credibility_score: Mapped[float | None] = mapped_column(Float)
@@ -28,7 +28,11 @@ class Source(UUIDMixin, TimestampMixin, Base):
 
     license: Mapped[str | None] = mapped_column(String(255))
     terms: Mapped[str | None] = mapped_column(Text)
-    collection_method: Mapped[str | None] = mapped_column(String(64))
+    collection_method: Mapped[str | None] = mapped_column(String(64))  # rss|api|scrape|dataset
+
+    # --- Phase 10 fix: آدرس فید واقعی و پیکربندی اندپوینت ---
+    feed_url: Mapped[str | None] = mapped_column(Text)
+    endpoint_config: Mapped[str | None] = mapped_column(Text)  # JSON (stringified)
 
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_success: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

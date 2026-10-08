@@ -1,17 +1,18 @@
-"""Fetchers — دریافت خام از منابع (بند 16, Phase 8).
+"""Fetchers — دریافت خام از منابع (بند 16, Phase 8; بهبود Phase 10 fix).
 
 - `BaseFetcher`: قرارداد یکسان
-- `RSSFetcher`: پارس RSS/Atom با stdlib (بدون وابستگی اضافی)
+- `RSSFetcher`: پارس RSS/Atom با feedparser (استاندارد و مقاوم)
 - `MockFetcher`: داده‌ی نمونه برای حالت آفلاین/MOCK_MODE (بند 73)
 
 هیچ Fetcher نباید مستقیماً DB را بنویسد؛ فقط `RawItem` برمی‌گرداند.
+`raw_payload` نسخه‌ی اصلی و دست‌نخورده‌ی آیتم (XML/JSON) را نگه می‌دارد (بند 19).
 """
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -32,6 +33,7 @@ class RawItem:
     published_at: datetime | None = None
     author: str | None = None
     language: str | None = None
+    raw_payload: str | None = None  # نسخه‌ی اصلی و دست‌نخورده (XML/JSON)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -51,7 +53,7 @@ def _parse_date(value: str | None) -> datetime | None:
     try:
         dt = parsedate_to_datetime(value)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except Exception:  # noqa: BLE001
         try:
@@ -61,7 +63,7 @@ def _parse_date(value: str | None) -> datetime | None:
 
 
 class RSSFetcher(BaseFetcher):
-    """پارس فید RSS 2.0 و Atom با stdlib."""
+    """پارس RSS 2.0 / Atom با feedparser (استاندارد)."""
 
     name = "rss"
 
@@ -72,77 +74,54 @@ class RSSFetcher(BaseFetcher):
     async def fetch(self, *, url: str | None, limit: int = 20) -> list[RawItem]:
         if not url:
             return []
-        headers = {"User-Agent": self._user_agent}
+        headers = {
+            "User-Agent": self._user_agent,
+            "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        }
         async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             content = resp.content
-        return self._parse(content, limit=limit)
+        return self.parse(content, limit=limit)
 
-    def _parse(self, content: bytes, *, limit: int) -> list[RawItem]:
-        root = ET.fromstring(content)
+    def parse(self, content: bytes, *, limit: int) -> list[RawItem]:
+        """پارس محتوای فید (قابل تست با XML نمونه)."""
+        import feedparser
+
+        feed = feedparser.parse(content)
         items: list[RawItem] = []
+        for entry in feed.entries[:limit]:
+            # لینک: ترجیحاً alternate (نه self)
+            link = entry.get("link")
+            if not link:
+                for lnk in entry.get("links", []) or []:
+                    if lnk.get("rel") in (None, "alternate") and lnk.get("href"):
+                        link = lnk["href"]
+                        break
 
-        # RSS 2.0
-        for item in root.iter("item"):
-            items.append(self._item_rss(item))
-            if len(items) >= limit:
-                return items
+            # متن: content:encoded ترجیح دارد، سپس summary/description
+            body = None
+            content_list = entry.get("content") or []
+            if content_list:
+                body = content_list[0].get("value")
+            body = body or entry.get("summary") or entry.get("description")
 
-        # Atom
-        ns = {"a": "http://www.w3.org/2005/Atom"}
-        for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
-            items.append(self._entry_atom(entry, ns))
-            if len(items) >= limit:
-                break
+            published = entry.get("published") or entry.get("updated")
+            author = entry.get("author")
+            guid = entry.get("id") or link
+
+            items.append(
+                RawItem(
+                    title=entry.get("title"),
+                    url=link,
+                    raw_text=body,
+                    published_at=_parse_date(published),
+                    author=author,
+                    raw_payload=json.dumps(dict(entry), ensure_ascii=False, default=str),
+                    metadata={"guid": guid, "feed_title": feed.feed.get("title")},
+                )
+            )
         return items
-
-    @staticmethod
-    def _text(el: ET.Element | None) -> str | None:
-        if el is None:
-            return None
-        return (el.text or "").strip() or None
-
-    def _item_rss(self, item: ET.Element) -> RawItem:
-        title = self._text(item.find("title"))
-        link = self._text(item.find("link"))
-        desc = self._text(item.find("description"))
-        author = self._text(item.find("author")) or self._text(
-            item.find("{http://purl.org/dc/elements/1.1/}creator")
-        )
-        pub = self._text(item.find("pubDate")) or self._text(
-            item.find("{http://purl.org/dc/elements/1.1/}date")
-        )
-        guid = self._text(item.find("guid"))
-        return RawItem(
-            title=title,
-            url=link or guid,
-            raw_text=desc,
-            published_at=_parse_date(pub),
-            author=author,
-            metadata={"guid": guid} if guid else {},
-        )
-
-    def _entry_atom(self, entry: ET.Element, ns: dict[str, str]) -> RawItem:
-        title = self._text(entry.find("a:title", ns))
-        link_el = entry.find("a:link", ns)
-        link = link_el.get("href") if link_el is not None else None
-        summary = self._text(entry.find("a:summary", ns)) or self._text(
-            entry.find("a:content", ns)
-        )
-        author_el = entry.find("a:author/a:name", ns)
-        author = self._text(author_el)
-        pub = self._text(entry.find("a:published", ns)) or self._text(
-            entry.find("a:updated", ns)
-        )
-        return RawItem(
-            title=title,
-            url=link,
-            raw_text=summary,
-            published_at=_parse_date(pub),
-            author=author,
-            metadata={},
-        )
 
 
 class MockFetcher(BaseFetcher):
@@ -172,7 +151,7 @@ class MockFetcher(BaseFetcher):
     ]
 
     async def fetch(self, *, url: str | None, limit: int = 20) -> list[RawItem]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         items = []
         for i, s in enumerate(self.SAMPLE[:limit]):
             items.append(
@@ -183,6 +162,7 @@ class MockFetcher(BaseFetcher):
                     published_at=now,
                     author=s["author"],
                     language="en",
+                    raw_payload=json.dumps(s, ensure_ascii=False),
                     metadata={"mock": True, "index": i, "source_url": url},
                 )
             )

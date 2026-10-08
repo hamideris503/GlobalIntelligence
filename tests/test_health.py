@@ -25,8 +25,13 @@ def test_health_liveness() -> None:
     assert res.json() == {"status": "ok"}
 
 
-def test_health_db_shape() -> None:
+def test_health_db_shape(monkeypatch) -> None:
     """health/db همیشه 200 برمی‌گرداند اما وضعیت ممکن است ok یا degraded باشد."""
+    from backend.api.routers import health as health_router
+
+    monkeypatch.setattr(
+        health_router, "check_database", lambda: {"ok": False, "detail": "test"}
+    )
     res = client.get("/health/db")
     assert res.status_code == 200
     body = res.json()

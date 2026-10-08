@@ -1,7 +1,4 @@
-"""AI API — مسیر مستقل برای آزمون Gateway.
-
-توجه: این endpoint عمومی/آزمایشی است. در فاز امنیت (44) محدود خواهد شد.
-"""
+"""AI API — مسیر مستقل برای آزمون Gateway (محافظت‌شده با API key)."""
 from __future__ import annotations
 
 from fastapi import APIRouter
@@ -27,7 +24,7 @@ async def generate(payload: AIGenerateRequest) -> AIGenerateResponse:
         task=payload.task,
         temperature=payload.temperature,
         max_tokens=payload.max_tokens,
-        metadata=payload.model_metadata or {},
+        # توجه: metadata از کاربر پذیرفته نمی‌شود (جلوگیری از انتخاب مدل/تایم‌اوت)
     )
     response = await gateway.generate(request)
     return AIGenerateResponse(
@@ -43,6 +40,7 @@ async def generate(payload: AIGenerateRequest) -> AIGenerateResponse:
         latency_ms=response.latency_ms,
         model_version=response.model_version,
         prompt_version=response.prompt_version,
+        is_mock=response.is_mock,
     )
 
 

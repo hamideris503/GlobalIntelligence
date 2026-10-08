@@ -1,16 +1,18 @@
 """FastAPI application factory.
 
 ساخت اپلیکیشن، ثبت routerها، CORS و رویدادهای چرخه‌ی عمر.
+در production، تنظیمات ناامن باعث fail-fast می‌شوند (بند 69).
 """
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routers import ai, classify, dedup, health, ingestion, jobs, sources
+from backend.auth.deps import require_api_key
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
 
@@ -20,6 +22,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    settings.validate_production()
     logger.info(
         "startup | app=%s env=%s mock_mode=%s",
         settings.app_name,
@@ -49,13 +52,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # /health بدون احراز هویت (برای probe)، بقیه محافظت‌شده
     app.include_router(health.router)
-    app.include_router(jobs.router)
-    app.include_router(ai.router)
-    app.include_router(sources.router)
-    app.include_router(ingestion.router)
-    app.include_router(dedup.router)
-    app.include_router(classify.router)
+    protected = [Depends(require_api_key)]
+    app.include_router(jobs.router, dependencies=protected)
+    app.include_router(ai.router, dependencies=protected)
+    app.include_router(sources.router, dependencies=protected)
+    app.include_router(ingestion.router, dependencies=protected)
+    app.include_router(dedup.router, dependencies=protected)
+    app.include_router(classify.router, dependencies=protected)
     return app
 
 

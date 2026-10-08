@@ -17,6 +17,7 @@ class OpenRouterProvider(HTTPProvider):
         self.api_key = getattr(s, "openrouter_api_key", None) or None
         self.base_url = getattr(s, "openrouter_base_url", "https://openrouter.ai/api/v1")
         self.default_model = getattr(s, "openrouter_model", "openai/gpt-4o-mini")
+        self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def _headers(self) -> dict[str, str]:
         return {

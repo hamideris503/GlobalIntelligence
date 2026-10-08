@@ -34,8 +34,8 @@ class Claim(UUIDMixin, TimestampMixin, Base):
         String(32), default=VerificationStatus.unverified.value, nullable=False
     )
 
-    event: Mapped["Event | None"] = relationship(back_populates="claims")  # noqa: F821
-    evidence: Mapped[list["Evidence"]] = relationship(  # noqa: F821
+    event: Mapped[Event | None] = relationship(back_populates="claims")  # noqa: F821
+    evidence: Mapped[list[Evidence]] = relationship(  # noqa: F821
         back_populates="claim", cascade="all, delete-orphan"
     )
 
@@ -57,4 +57,4 @@ class Evidence(UUIDMixin, TimestampMixin, Base):
     weight: Mapped[float | None] = mapped_column(Float)
     confidence: Mapped[float | None] = mapped_column(Float)
 
-    claim: Mapped["Claim"] = relationship(back_populates="evidence")
+    claim: Mapped[Claim] = relationship(back_populates="evidence")

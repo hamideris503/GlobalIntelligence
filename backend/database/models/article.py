@@ -28,20 +28,29 @@ class Article(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     summary: Mapped[str | None] = mapped_column(Text)
     language: Mapped[str | None] = mapped_column(String(16))
     source_name: Mapped[str | None] = mapped_column(String(255))
+    country: Mapped[str | None] = mapped_column(String(2), index=True)  # Phase 10
 
     topics: Mapped[str | None] = mapped_column(Text)  # JSON list
     entities: Mapped[str | None] = mapped_column(Text)  # JSON list
     sentiment: Mapped[float | None] = mapped_column(Float)
     stance: Mapped[str | None] = mapped_column(String(64))
 
-    importance: Mapped[int | None] = mapped_column(Integer)  # 1 (mهم) .. 10 (عادی)
+    importance: Mapped[int | None] = mapped_column(Integer)  # 1 (مهم) .. 10 (عادی)
     confidence: Mapped[float | None] = mapped_column(Float)
     uncertainty: Mapped[float | None] = mapped_column(Float)
 
     duplicate_cluster: Mapped[str | None] = mapped_column(String(128), index=True)
     event_cluster: Mapped[str | None] = mapped_column(String(128), index=True)
 
-    document: Mapped["Document | None"] = relationship(  # noqa: F821
+    # --- Phase 10 fix: وضعیت و ردیابی طبقه‌بندی ---
+    classification_status: Mapped[str] = mapped_column(
+        String(16), default="pending", nullable=False, index=True
+    )  # pending | done | failed
+    classification_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    classification_error: Mapped[str | None] = mapped_column(Text)
+    classification_meta: Mapped[str | None] = mapped_column(Text)  # JSON: provider/model/prompt_version/...
+
+    document: Mapped[Document | None] = relationship(  # noqa: F821
         back_populates="articles"
     )
-    event: Mapped["Event | None"] = relationship(back_populates="articles")  # noqa: F821
+    event: Mapped[Event | None] = relationship(back_populates="articles")  # noqa: F821

@@ -29,14 +29,16 @@ class DedupService:
         docs = list(self.db.execute(stmt).scalars().all())
         inputs = []
         for d in docs:
-            text = f"{d.title or ''}. {d.raw_text or ''}".strip()
+            # متن dedup: عنوان + متن؛ اگر خالی است، رشته‌ی خالی بماند (نه ".")
+            parts = [p for p in (d.title, d.raw_text) if p]
+            text = " ".join(parts).strip()
             src_name = d.source.name if d.source else None
             inputs.append(
                 (
                     d,
                     DedupInput(
                         id=str(d.id),
-                        text=text,
+                        text=text or None,
                         content_hash=d.content_hash,
                         source_name=src_name,
                     ),

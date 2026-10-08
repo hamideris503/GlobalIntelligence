@@ -8,7 +8,6 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +30,7 @@ class Settings(BaseSettings):
 
     # --- Security ---
     secret_key: str = "change-me-in-production"
+    api_key: str | None = None
     access_token_expire_minutes: int = 60
     allowed_origins: str = "http://localhost:5173,http://localhost:3000"
 
@@ -83,6 +83,20 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    def validate_production(self) -> None:
+        """در production، مقادیر پیش‌فرض ناامن باعث fail-fast می‌شوند (بند 69)."""
+        if self.app_env != "production":
+            return
+        problems = []
+        if self.secret_key in ("", "change-me-in-production"):
+            problems.append("SECRET_KEY must be set")
+        if not self.api_key:
+            problems.append("API_KEY must be set")
+        if self.mock_mode:
+            problems.append("MOCK_MODE must be false in production")
+        if problems:
+            raise ValueError("insecure production configuration: " + "; ".join(problems))
 
 
 @lru_cache

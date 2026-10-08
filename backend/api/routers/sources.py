@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import uuid
 
+from domains.news.source_registry import SourceRegistry
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,6 @@ from backend.api.schemas.sources import (
 )
 from backend.database.models.source import Source
 from backend.database.session import get_db
-from domains.news.source_registry import SourceRegistry
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
 

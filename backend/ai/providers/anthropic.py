@@ -16,9 +16,8 @@ class AnthropicProvider(HTTPProvider):
         s = get_settings()
         self.api_key = getattr(s, "anthropic_api_key", None) or None
         self.base_url = getattr(s, "anthropic_base_url", "https://api.anthropic.com")
-        self.default_model = getattr(
-            s, "anthropic_model", "claude-3-5-haiku-latest"
-        )
+        self.default_model = getattr(s, "anthropic_model", "claude-3-5-haiku-latest")
+        self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def _headers(self) -> dict[str, str]:
         return {
