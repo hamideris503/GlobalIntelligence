@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 15 — Knowledge Graph**
+**Phase فعلی: 16 — Economic Data**
 **Status: DONE**
 
-> ⚠️ Knowledge Graph ساخته شد: موجودیت‌ها با canonical resolution از مقالات/رویدادها استخراج و روابط جهت‌دار (affects/owns/supplies/...) بین آن‌ها ساخته می‌شود. مرحله‌ی بعد Economic Data است.
+> ⚠️ Economic Data ساخته شد: داده‌ی اقتصادی (inflation/GDP/unemployment/rates/trade/liquidity) از API رایگان بانک جهانی با upsert idempotent جمع‌آوری می‌شود. مرحله‌ی بعد Market Data است.
 
 ---
 
