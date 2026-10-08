@@ -4,6 +4,45 @@
 
 ---
 
+## Phase 17 — Market Data
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/markets/fetchers.py`: کاتالوگ ۱۳ نماد (`SYMBOLS`) + ۵ fetcher رایگان بدون کلید
+  - FX: `ErApiFxFetcher` (open.er-api.com، primary) + `EcbFxFetcher` (XML رسمی ECB، fallback)
+  - طلا/نقره: `GoldApiFetcher` (gold-api.com: XAU/XAG)
+  - نفت/سهام/اوراق/کالا: `YahooFetcher` (v8 chart: CL=F/BZ=F/GC=F/SI=F/AAPL/^GSPC/^TNX/NG=F/HG=F)
+  - `MockFetcher` (deterministic برای آفلاین)
+- `domains/markets/engine.py`: `MarketDataService`
+  - زنجیره‌ی primary→fallback برای هر نماد؛ خطای هر نماد ایزوله
+  - upsert idempotent در `MarketObservation` بر اساس (symbol, observed_at, source_name) — بدون migration جدید
+- `domains/markets/run_fetch.py`: CLI (`--symbol`, `--asset-class`, `--all`, `--fetcher`)
+- API: `POST /api/markets/fetch`, `GET /api/markets/observations`, `/symbols`, `/latest`
+- تست‌های `tests/test_markets.py` (۱۱ تست)
+
+### Tests
+- `python -m pytest tests -q` → **131 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: هر ۱۳ نماد fetch موفق، ۰ failed (XAU=4131.40، WTI=91.19، EURUSD=1.12، US10Y=5.23٪) ✅
+- زنده: اجرای دوباره mock → duplicate (idempotent) ✅
+- زنده: `GET /api/markets/latest` هر ۱۳ نماد با source ✅
+- زنده: CLI ✅؛ ردیف‌های mock تستی از DB زنده پاک شد ✅
+
+### Audit note (Phase 0–16)
+- ممیزی کامل انجام شد: ۱۲۰ تست پاس، ruff تمیز، migration head درست، APIهای همه‌ی فازها زنده OK
+- اصلاح: README/ROADMAP نشانگر کهنه‌ی فاز ۱۵ → ۱۶ (commit `b0c8d1c`)
+- منابع ناموفق مستند شد: Frankfurter (Cloudflare block)، Stooq (JS challenge)، FRED/EIA (نیازمند کلید)
+
+### Known issues
+- Frankfurter و Stooq از داخل شبکه مسدود/غیرقابل دسترس‌اند؛ جایگزین‌ها (er-api/ECB/Yahoo/gold-api) تأیید زنده شدند.
+- Yahoo Finance بدون قرارداد رسمی است؛ fallback و ایزولاسیون خطا برای همین طراحی شد.
+
+### Next step
+- Phase 18 — World State
+
+---
+
 ## Phase 16 — Economic Data
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

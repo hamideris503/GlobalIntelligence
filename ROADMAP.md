@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 16
+**Phase فعلی:** 17
 
 ---
 
@@ -148,8 +148,13 @@
 - CLI: `python -m domains.macro.run_fetch`
 - تست شد: ۹ تست پاس؛ کل ۱۲۰ تست پاس
 
-## Phase 17 — Market Data
-- FX، Gold، Oil، Stocks، Bonds، Commodities
+## Phase 17 — Market Data ✅ (این مرحله)
+- کاتالوگ ۱۳ نماد: FX (EURUSD/GBPUSD/USDJPY/USDCHF)، طلا/نقره (XAUUSD/XAGUSD)، نفت (WTI/BRENT/NATGAS)، سهام (SPX/AAPL)، اوراق (US10Y)، مس (COPPER)
+- Fetcherهای رایگان بدون کلید: `ErApiFxFetcher` + `EcbFxFetcher` (fallback رسمی)، `GoldApiFetcher`، `YahooFetcher`، `MockFetcher`
+- `MarketDataService`: زنجیره‌ی primary→fallback برای هر نماد + upsert idempotent در `MarketObservation` (بدون migration جدید)
+- API: `POST /api/markets/fetch`, `GET /api/markets/observations`, `/symbols`, `/latest`
+- CLI: `python -m domains.markets.run_fetch`
+- تست شد: ۱۱ تست پاس؛ کل ۱۳۱ تست پاس؛ زنده هر ۱۳ نماد با مقادیر واقعی
 
 ## Phase 18 — World State
 - ساخت Current World State

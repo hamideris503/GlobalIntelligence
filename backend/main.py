@@ -23,6 +23,7 @@ from backend.api.routers import (
     independence,
     ingestion,
     jobs,
+    markets,
     sources,
 )
 from backend.auth.deps import require_api_key
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(independence.router, dependencies=protected)
     app.include_router(graph.router, dependencies=protected)
     app.include_router(economic.router, dependencies=protected)
+    app.include_router(markets.router, dependencies=protected)
     return app
 
 

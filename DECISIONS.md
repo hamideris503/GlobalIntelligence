@@ -5,6 +5,21 @@
 
 ---
 
+## ADR-0025 — Market Data: چندمنبعی رایگان با زنجیره‌ی fallback
+**Date:** 2026-10-08
+**Context:** Phase 17 باید FX/طلا/نفت/سهام/اوراق/کالا را بدون کلید و پایدار جمع‌آوری کند.
+**Decision:**
+- FX: open.er-api.com (primary) + ECB eurofxref XML (fallback رسمی).
+- طلا/نقره: gold-api.com؛ نفت/سهام/اوراق/کالا: Yahoo Finance v8 chart.
+- کاتالوگ ۱۳ نماد (`SYMBOLS`) با asset_class/unit/currency.
+- زنجیره‌ی primary→fallback برای هر نماد + ایزولاسیون خطا؛ upsert idempotent در `MarketObservation` موجود (بدون migration).
+- Frankfurter (Cloudflare block) و Stooq (JS challenge) رد شدند و مستند شدند.
+**Alternatives:** تک‌منبع؛ FRED/EIA/AlphaVantage (نیازمند کلید)
+**Why selected:** رایگان، بدون کلید، زنده تأییدشده، Free-First، Everything Replaceable.
+**Consequences:** Yahoo بدون قرارداد رسمی است؛ fallback و mock برای پایداری. داده‌ی intraday实时 نیست (daily close).
+
+---
+
 ## ADR-0024 — Economic Data: World Bank API و upsert idempotent
 **Date:** 2026-10-08
 **Context:** Phase 16 باید داده‌ی اقتصادی (inflation/GDP/unemployment/rates/trade/liquidity) را از منبع رایگان و بدون کلید جمع‌آوری کند.

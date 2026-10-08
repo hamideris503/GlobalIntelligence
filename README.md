@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 16 — Economic Data**
+**Phase فعلی: 17 — Market Data**
 **Status: DONE**
 
-> ⚠️ Economic Data ساخته شد: داده‌ی اقتصادی (inflation/GDP/unemployment/rates/trade/liquidity) از API رایگان بانک جهانی با upsert idempotent جمع‌آوری می‌شود. مرحله‌ی بعد Market Data است.
+> ⚠️ Market Data ساخته شد: نقل‌قول‌های FX/طلا/نفت/سهام/اوراق/کالا از منابع رایگان (er-api/ECB/Yahoo/gold-api) با upsert idempotent جمع‌آوری می‌شود. مرحله‌ی بعد World State است.
 
 ---
 
