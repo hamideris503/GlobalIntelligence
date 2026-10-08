@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 18 — World State**
+**Phase فعلی: 19 — Historical Memory**
 **Status: DONE**
 
-> ⚠️ World State ساخته شد: snapshot قطعی وضعیت جهان (۹ سیگنال 0..1 + رژیم کلان/بازار) از داده‌های macro/market/event بدون AI ساخته می‌شود. مرحله‌ی بعد Historical Memory است.
+> ⚠️ Historical Memory ساخته شد: رویدادها/حالت‌ها/داده‌های خام مهم در `memory_records` بایگانی و با پرس‌وجوی Point-in-Time (`timeline as_of`) قابل بازیابی‌اند. مرحله‌ی بعد Historical Analogue است.
 
 ---
 

@@ -5,6 +5,20 @@
 
 ---
 
+## ADR-0027 — Historical Memory: بایگانی ارجاعی با Point-in-Time timeline
+**Date:** 2026-10-08
+**Context:** Phase 19 باید «historical events, states, snapshots» را به حافظه‌ی قابل پرس‌وجو تبدیل کند (ورودی Phase 20 Analogue).
+**Decision:**
+- جدول `memory_records`: ارجاع سبک (layer/ref_type/ref_id) + importance + observed_at/recorded_at + متادیتا؛ یکتایی (layer, ref_type, ref_id).
+- Enum `MemoryLayer` با هر ۷ لایه (۴ لایه‌ی آینده رزرو).
+- گزینش قطعی: event_score آستانه‌ی 0.3، importance≥7، همه‌ی snapshotها.
+- پرس‌وجوی `timeline(as_of)` با observed_at (نه recorded_at) برای صداقت Point-in-Time.
+**Alternatives:** کپی کامل رکوردها (حجیم)؛ بایگانی بدون آستانه (نویز)؛ timeline بر recorded_at
+**Why selected:** سبک، idempotent، قابل توسعه به لایه‌های بعد، بدون AI.
+**Consequences:** رکوردها ارجاع‌اند؛ حذف موجودیت اصلی نیازمند سیاست retention در آینده است.
+
+---
+
 ## ADR-0026 — World State: سیگنال‌های قطعی بدون AI و snapshot تاریخی
 **Date:** 2026-10-08
 **Context:** Phase 18 باید وضعیت فعلی جهان را به‌صورت ساختاریافته و قابل ردیابی بسازد (ورودی فازهای Forecast/Scenario/Risk).

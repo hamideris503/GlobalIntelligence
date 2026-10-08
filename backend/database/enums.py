@@ -59,6 +59,21 @@ class EvidenceDirection(str, enum.Enum):
     contradicts = "contradicts"
 
 
+class MemoryLayer(str, enum.Enum):
+    """لایه‌های ۷گانه‌ی حافظه (بند Memory-First ARCHITECTURE).
+
+    Phase 19 فقط raw/event/state را پر می‌کند؛ بقیه برای فازهای بعد رزرو است.
+    """
+
+    raw = "raw"
+    event = "event"
+    state = "state"
+    forecast = "forecast"
+    outcome = "outcome"
+    model = "model"
+    decision = "decision"
+
+
 class EconomicIndicator(str, enum.Enum):
     inflation = "inflation"
     gdp = "gdp"

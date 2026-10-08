@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 18
+**Phase فعلی:** 19
 
 ---
 
@@ -165,8 +165,13 @@
 - بدون migration جدید (یافته‌ی ممیزی: ستون‌های `captured_at`/`confidence` از قبل موجود بودند)
 - تست شد: ۱۰ تست پاس؛ کل ۱۴۱ تست پاس؛ زنده snapshot واقعی (slowdown/risk_on)
 
-## Phase 19 — Historical Memory
-- historical events، states، snapshots
+## Phase 19 — Historical Memory ✅ (این مرحله)
+- جدول `memory_records` (layer/ref_type/ref_id + title/summary/importance + observed_at/recorded_at + record_metadata) + migration `672f88b5d692`
+- Enum `MemoryLayer` (۷ لایه؛ Phase 19 فقط raw/event/state را پر می‌کند)
+- `HistoricalMemoryService`: قوانین گزینش قطعی (event_score آستانه‌ی 0.3، importance≥7، همه‌ی snapshotها) + idempotent + `timeline(as_of)` Point-in-Time + `stats`
+- API: `POST /api/memory/archive`, `GET /api/memory/timeline`, `/stats`, `/records`
+- CLI: `python -m domains.memory.run_archive`
+- تست شد: ۹ تست پاس؛ کل ۱۵۰ تست پاس؛ زنده ۱۳۵ raw + ۳ event + ۳ state، timeline گذشته=۰، اجرای دوباره=۱۴۱ duplicate
 
 ## Phase 20 — Historical Analogue
 - Current state ↔ Historical similar states

@@ -24,6 +24,7 @@ from backend.api.routers import (
     ingestion,
     jobs,
     markets,
+    memory,
     sources,
     worldstate,
 )
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(economic.router, dependencies=protected)
     app.include_router(markets.router, dependencies=protected)
     app.include_router(worldstate.router, dependencies=protected)
+    app.include_router(memory.router, dependencies=protected)
     return app
 
 

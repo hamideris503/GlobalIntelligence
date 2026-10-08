@@ -4,6 +4,38 @@
 
 ---
 
+## Phase 19 — Historical Memory
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/enums.py`: `MemoryLayer` (۷ لایه؛ raw/event/state فعال، بقیه رزرو)
+- `backend/database/models/memory.py`: `MemoryRecord` با UniqueConstraint (layer, ref_type, ref_id) + ایندکس‌های layer/ref_id/observed_at
+- migration `672f88b5d692`: جدول `memory_records` (up/down روی DB موقت + اعمال زنده، head=`672f88b5d692`)
+- `domains/memory/service.py`: `HistoricalMemoryService`
+  - `event_score` = 0.5*surprise + 0.5*min(1, articles/5)، آستانه‌ی 0.3
+  - raw: importance≥7؛ state: همه‌ی snapshotها
+  - `timeline(as_of)`: «در زمان T چه می‌دانستیم؟» + فیلتر لایه؛ `as_of` naive → 422
+- `domains/memory/run_archive.py`: CLI
+- API: `POST /api/memory/archive`, `GET /api/memory/timeline`, `/stats`, `/records`
+- تست‌های `tests/test_memory.py` (۹ تست)
+
+### Tests
+- `python -m pytest tests -q` → **150 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: archive → ۱۳۵ raw + ۳ event + ۳ state، ۰ failed ✅
+- زنده: timeline گذشته=۰، اجرای دوباره=۱۴۱ duplicate (idempotent) ✅
+- زنده: CLI ✅
+
+### Known issues
+- با mock، فقط ۳ رویداد از ۷۸ آستانه را رد کردند (surprise تهی)؛ با Provider واقعی پوشش بهتر می‌شود.
+- لایه‌های forecast/outcome/model/decision رزرو است (فازهای ۲۵–۳۶).
+
+### Next step
+- Phase 20 — Historical Analogue
+
+---
+
 ## Phase 18 — World State
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

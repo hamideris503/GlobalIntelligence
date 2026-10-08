@@ -11,6 +11,7 @@ from backend.database.models.evidence import Evidence
 from backend.database.models.forecast import Forecast, ForecastOutcome
 from backend.database.models.job import JobRun
 from backend.database.models.market import MacroObservation, MarketObservation
+from backend.database.models.memory import MemoryRecord
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.scenario import Scenario
 from backend.database.models.source import Source
@@ -30,6 +31,7 @@ __all__ = [
     "JobRun",
     "MacroObservation",
     "MarketObservation",
+    "MemoryRecord",
     "Recommendation",
     "Scenario",
     "Source",

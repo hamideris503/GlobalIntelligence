@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 18
+**به‌روزرسانی:** Phase 19
 
 ---
 
 ## TODO
-- [ ] Phase 19: Historical Memory
+- [ ] Phase 20: Historical Analogue
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
 - [ ] بعد: انتقال endpointهای سنگین به workers/ پس‌زمینه
@@ -17,6 +17,7 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 18: World State (۹ سیگنال قطعی + رژیم‌ها + snapshot + API + CLI + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)
 - [x] Phase 16: Economic Data (World Bank fetcher + upsert idempotent + API + CLI + migration + تست)
