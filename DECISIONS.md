@@ -5,6 +5,21 @@
 
 ---
 
+## ADR-0024 — Economic Data: World Bank API و upsert idempotent
+**Date:** 2026-10-08
+**Context:** Phase 16 باید داده‌ی اقتصادی (inflation/GDP/unemployment/rates/trade/liquidity) را از منبع رایگان و بدون کلید جمع‌آوری کند.
+**Decision:**
+- استفاده از API رایگان بانک جهانی (`api.worldbank.org`) بدون نیاز به کلید (Free-First).
+- نگاشت شاخص‌ها به کدهای استاندارد بانک جهانی (`FP.CPI.TOTL.ZG` و…).
+- بازاستفاده از مدل `MacroObservation` با افزودن `series_id` و `meta` (JSON) برای ردیابی.
+- upsert idempotent بر اساس UniqueConstraint (indicator, country, period, source_name).
+- در حالت Mock، `MockFetcher` با داده‌ی deterministic.
+**Alternatives:** FRED (نیازمند کلید)، اسکرپ وب (پرنوسان)، داده‌ی دستی (غیرقابل توسعه)
+**Why selected:** رایگان، بدون کلید، ساختار استاندارد، پوشش همه‌ی شاخص‌های موردنیاز.
+**Consequences:** فرکانس بیشتر شاخص‌ها `annual` است؛ داده‌ی ماهانه/فصلی در فازهای بعدی. نیازمند اینترنت برای داده‌ی واقعی.
+
+---
+
 ## ADR-0001 — انتخاب معماری Modular Monolith + Workers
 **Date:** 2026-10-07
 **Context:** پروژه باید سریع قابل توسعه باشد و تیم/عامل به‌تنهایی آن را بسازد. Microserviceها هزینه عملیاتی و پیچیدگی زودهنگام ایجاد می‌کنند.

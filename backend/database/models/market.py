@@ -43,3 +43,9 @@ class MacroObservation(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     source_name: Mapped[str | None] = mapped_column(String(255))
     revision: Mapped[int | None] = mapped_column(Integer)
     raw: Mapped[str | None] = mapped_column(Text)
+
+    # --- Phase 16: Economic Data ---
+    # شناسه‌ی سری زمانی منبع (مثلاً WB:FP.CPI.TOTL.ZG:USA) برای ردیابی
+    series_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    # متادیتای اضافه (JSON) مثل واحد دقیق، توضیح منبع، لینک
+    meta: Mapped[str | None] = mapped_column(Text)

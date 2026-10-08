@@ -4,6 +4,37 @@
 
 ---
 
+## Phase 16 — Economic Data
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/enums.py`: `EconomicIndicator` (inflation/gdp/unemployment/interest_rate/trade_balance/liquidity) + `DataFrequency`
+- `backend/database/models/market.py`: فیلدهای `series_id` و `meta` (JSON) روی `MacroObservation`
+- `domains/macro/fetchers.py`: `WorldBankFetcher` (API رایگان بانک جهانی، بدون کلید) + `MockFetcher` (deterministic)
+  - نگاشت شاخص‌ها به کدهای بانک جهانی: `FP.CPI.TOTL.ZG` (inflation)، `NY.GDP.MKTP.CD` (gdp)، `SL.UEM.TOTL.ZS` (unemployment)، `FR.INR.RINR` (interest_rate)، `NE.RSB.GNFS.ZS` (trade_balance)، `LTDT.DOMS.CD` (liquidity)
+- `domains/macro/engine.py`: `EconomicDataService`
+  - fetch → normalize → upsert idempotent بر اساس UniqueConstraint (indicator, country, period, source_name)
+  - شمارش stored/duplicates/failed/errors
+- `domains/macro/run_fetch.py`: CLI (`--indicator`, `--country`, `--all`, `--fetcher`)
+- migration `9800836e7fcc`: افزودن `series_id` + `meta` + ایندکس
+- API: `POST /api/economic/fetch`, `GET /api/economic/observations`, `/indicators`, `/latest`
+- تست‌های `tests/test_economic.py` (۹ تست)
+
+### Tests
+- `python -m pytest tests -q` → **120 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- تست‌های موردی: upsert idempotent، ذخیره‌ی series_id/meta، چند شاخص×کشور، API fetch/observations/indicators/latest ✅
+
+### Known issues
+- در حالت Mock همه‌ی مقادیر deterministic و ثابت‌اند؛ داده‌ی واقعی فقط با `WorldBankFetcher` (اینترنت لازم).
+- بسیاری از شاخص‌های بانک جهانی `annual` هستند؛ فرکانس ماهانه/فصلی در فازهای بعدی.
+
+### Next step
+- Phase 17 — Market Data
+
+---
+
 ## Phase 15 — Knowledge Graph
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

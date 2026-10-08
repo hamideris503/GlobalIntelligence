@@ -57,3 +57,20 @@ class RelationType(str, enum.Enum):
 class EvidenceDirection(str, enum.Enum):
     supports = "supports"
     contradicts = "contradicts"
+
+
+class EconomicIndicator(str, enum.Enum):
+    inflation = "inflation"
+    gdp = "gdp"
+    unemployment = "unemployment"
+    interest_rate = "interest_rate"
+    trade_balance = "trade_balance"
+    liquidity = "liquidity"
+    other = "other"
+
+
+class DataFrequency(str, enum.Enum):
+    monthly = "monthly"
+    quarterly = "quarterly"
+    annual = "annual"
+    other = "other"

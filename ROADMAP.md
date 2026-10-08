@@ -139,8 +139,14 @@
 - CLI: `python -m domains.graph.run_graph`
 - تست شد: Fed → Federal Reserve→affects→US Dollar
 
-## Phase 16 — Economic Data
-- inflation، GDP، employment، rates، trade، liquidity
+## Phase 16 — Economic Data ✅ (این مرحله)
+- Enum های `EconomicIndicator` (inflation/gdp/unemployment/interest_rate/trade_balance/liquidity) + `DataFrequency`
+- فیلدهای `series_id` و `meta` روی `MacroObservation` + migration `9800836e7fcc`
+- `WorldBankFetcher` (API رایگان بانک جهانی، بدون کلید) + `MockFetcher` (deterministic)
+- `EconomicDataService`: fetch → normalize → upsert idempotent
+- API: `POST /api/economic/fetch`, `GET /api/economic/observations`, `/indicators`, `/latest`
+- CLI: `python -m domains.macro.run_fetch`
+- تست شد: ۹ تست پاس؛ کل ۱۲۰ تست پاس
 
 ## Phase 17 — Market Data
 - FX، Gold، Oil، Stocks، Bonds، Commodities
