@@ -112,7 +112,7 @@ uvicorn backend.main:app --reload
 
 # Frontend
 cd apps/web
-npm install
+npm ci          # نصب تمیز و قابل‌بازتولید از روی package-lock
 npm run dev
 ```
 
@@ -126,6 +126,16 @@ python -m alembic upgrade head
 # seed منابع اولیه
 docker compose exec backend python -m db.seed.sources
 ```
+
+### بسته‌ی اشتراکی تمیز (بدون secret)
+```bash
+# آرشیو قابل‌اشتراک می‌سازد؛ .env محلی شما دست‌نخورده می‌ماند.
+# کنارگذاشته‌ها: .env، .git، venvها، node_modules، dist، کش‌ها، logها، داده محلی
+# فقط .env.example در بسته می‌ماند + اسکن خودکار secret (بدون چاپ مقدار).
+powershell -ExecutionPolicy Bypass -File scripts/build_clean_archive.ps1
+```
+
+> ⚠️ اگر `.env` حاوی کلید واقعی را جایی به اشتراک گذاشته‌اید، آن کلیدها را از پنل سرویس باطل و دوباره تولید کنید.
 
 ---
 

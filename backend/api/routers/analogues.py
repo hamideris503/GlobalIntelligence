@@ -23,11 +23,15 @@ class AnalogueHitRead(BaseModel):
     macro_regime: str | None
     market_regime: str | None
     deltas: dict[str, float]
+    compared_dims: int
+    coverage: float
 
 
 class AnalogueOutcomeRead(BaseModel):
     reference_id: str
     metric: str
+    valid_dims: int
+    min_valid_dims: int
     hits: list[AnalogueHitRead]
 
 

@@ -32,7 +32,11 @@ def _seed_macro(indicator: str, country: str, rows: list[tuple[str, float]]) -> 
         session.close()
 
 
-def _seed_market(symbol: str, asset_class: str, value: float) -> None:
+def _seed_market(
+    symbol: str, asset_class: str, value: float, days_ago: float = 0.0
+) -> None:
+    from datetime import timedelta
+
     session = TestingSession()
     try:
         session.add(
@@ -41,7 +45,7 @@ def _seed_market(symbol: str, asset_class: str, value: float) -> None:
                 asset_class=asset_class,
                 value=value,
                 source_name="test",
-                observed_at=datetime.now(UTC),
+                observed_at=datetime.now(UTC) - timedelta(days=days_ago),
             )
         )
         session.commit()
@@ -178,3 +182,58 @@ def test_worldstate_api_build_current_history(client: TestClient) -> None:
 def test_worldstate_api_current_404(client: TestClient) -> None:
     res = client.get("/api/world-state/current")
     assert res.status_code == 404
+
+
+# --- SPX drawdown window tests (یافته‌ی ممیزی) ---
+def _drawdown() -> float | None:
+    session = TestingSession()
+    try:
+        return WorldStateBuilder(session)._spx_drawdown()
+    finally:
+        session.close()
+
+
+def test_spx_drawdown_ignores_ath_outside_window() -> None:
+    """سقف تاریخی خارج پنجره‌ی ۲۵۲ روزه نباید افت جاری را بسازد."""
+    _seed_market("SPX", "equity_index", 6000.0, days_ago=400.0)  # خارج پنجره
+    _seed_market("SPX", "equity_index", 5000.0, days_ago=100.0)  # سقف پنجره
+    _seed_market("SPX", "equity_index", 4500.0, days_ago=0.0)  # جاری
+    assert _drawdown() == 0.1
+
+
+def test_spx_drawdown_single_value_is_none() -> None:
+    """تک‌مشاهده → داده‌ی ناکافی (None، نه صفر جعلی)."""
+    _seed_market("SPX", "equity_index", 4500.0, days_ago=0.0)
+    assert _drawdown() is None
+
+
+def test_spx_drawdown_no_spx_is_none() -> None:
+    assert _drawdown() is None
+
+
+def test_spx_drawdown_unsorted_inserts() -> None:
+    """ترتیب درج نباید مهم باشد؛ مرتب‌سازی زمانی در query است."""
+    _seed_market("SPX", "equity_index", 4500.0, days_ago=0.0)
+    _seed_market("SPX", "equity_index", 5000.0, days_ago=100.0)
+    _seed_market("SPX", "equity_index", 6000.0, days_ago=400.0)
+    assert _drawdown() == 0.1
+
+
+def test_spx_drawdown_at_peak_is_zero() -> None:
+    _seed_market("SPX", "equity_index", 5000.0, days_ago=100.0)
+    _seed_market("SPX", "equity_index", 5200.0, days_ago=0.0)
+    assert _drawdown() == 0.0
+
+
+def test_build_without_spx_falls_back_to_yield() -> None:
+    """بدون SPX، استرس فقط از بازده می‌آید (اعتماد 0.4)."""
+    _seed_market("US10Y", "bond_yield", 5.0, days_ago=0.0)
+    session = TestingSession()
+    try:
+        WorldStateBuilder(session).build()
+        snap = session.query(WorldState).one()
+        assert abs(snap.financial_stress - 0.5) < 1e-6
+        meta = json.loads(snap.value_metadata or "{}")
+        assert meta["financial_stress"]["confidence"] == 0.4
+    finally:
+        session.close()

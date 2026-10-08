@@ -4,6 +4,34 @@
 
 ---
 
+## Audit Fix — یافته‌های ممیزی Phase 18/20 (بدون شروع Phase 21)
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- **Cosine معنایی شد** (`domains/analogue/similarity.py`): مرکزدهی حول 0.5 داخل `cosine_distance`؛ خنثی↔خنثی → 0؛ خنثی↔جهت‌دار → 1.0؛ `normalize_euclidean` با `sqrt(9/n)`؛ `masked_deltas`؛ `center`/`N_DIMS`/`NEUTRAL` عمومی شدند.
+- **پوشش no_data** (`domains/analogue/engine.py`): خواندن `value_metadata`؛ بُعد معتبر = metadata موجود + method != no_data + confidence ≥ 0.3؛ مقایسه فقط ابعاد مشترک معتبر؛ حداقل ۳ بُعد وگرنه 422 صریح؛ هر hit دارای `compared_dims`/`coverage`؛ outcome دارای `valid_dims`/`min_valid_dims`.
+- **Drawdown پنجره‌دار** (`domains/worldstate/builder.py`): سقف ۲۵۲ روز اخیر، query محدود ۳۰۰ رکورد مرتب؛ <۲ مقدار → None؛ ثابت‌های `DRAWDOWN_WINDOW_DAYS`/`DRAWDOWN_MAX_POINTS` مستند.
+- **Schema API**: `AnalogueHitRead` += compared_dims/coverage؛ `AnalogueOutcomeRead` += valid_dims/min_valid_dims (افزایشی، سازگار).
+- **امنیت**: تأیید شد هر ۱۴ router غیر-health با `require_api_key` محافظت می‌شوند؛ بدون کلید → 401؛ health عمومی 200؛ `.env.example` فقط placeholder؛ تغییری لازم نبود.
+- **آرشیو تمیز**: `scripts/build_clean_archive.ps1` (اسکن secret بدون چاپ مقدار + راستی‌آزمایی)؛ خروجی `J:\Documents\GlobalIntelligence-clean-20261009-0205.zip` با ۲۴۶ فایل، بدون `.env`/`.git`/`node_modules`/`.venv`/cache؛ فقط `.env.example`؛ فایل `.env` کاربر دست‌نخورده.
+- **قابل‌بازتولید**: `npm ci` + `npm run build` موفق (۱۶.۲۹ ثانیه)؛ `docker compose config` معتبر؛ backend بازسازی و healthy با migration head `672f88b5d692`.
+
+### Tests
+- `python -m pytest tests -q` → **177 passed** (۱۶۲ قبلی + ۱۵ جدید) ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- تست‌های جدید: level-shift کسینوسی، خنثی کامل/نزدیک صفر، no_data در برابر neutral واقعی، confidence پایین، پوشش ناکافی (422)، ابعاد متفاوت (نرمال‌سازی)، سقف پنجره/ترتیب/کمبود داده SPX، خطاهای API ✅
+- زنده: analogues با compared_dims=7/coverage=0.778 (دو بُعد no_data صادقانه گزارش شد، قبلاً ۹/۱.۰ بود) ✅
+
+### Known issues
+- وزن یکسان ابعاد (v1) و آستانه‌های ثابت (0.3/۳ بُعد/۲۵۲ روز) — وزن‌دهی تطبیقی به آینده موکول شد.
+- `.env` محلی کاربر دارای مقادیر واقعی احتمالی است و در RAR قدیمی بوده؛ طبق دستور، کلیدها را بررسی/باطل کنید (من مقادیر را نمی‌خوانم و چاپ نمی‌کنم).
+
+### Next step
+- Phase 21 — Macro Engine (شروع نشده ⛔)
+
+---
+
 ## Phase 20 — Historical Analogue
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

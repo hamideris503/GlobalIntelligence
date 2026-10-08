@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -39,6 +39,12 @@ SIGNAL_NAMES = [
 ]
 
 DISPUTED_STATUSES = frozenset({"contradicted", "disputed"})
+
+# پنجره‌ی افت بازار: سقف ۲۵۲ جلسه‌ی اخیر (یک سال معاملاتی)؛ سقف کل تاریخچه
+# گمراه‌کننده است چون افت «جاری» را نشان نمی‌دهد (یافته‌ی ممیزی).
+DRAWDOWN_WINDOW_DAYS = 252
+# سقف رکوردهای خوانده‌شده برای سقف پنجره (جلوگیری از load کل جدول)
+DRAWDOWN_MAX_POINTS = 300
 
 
 @dataclass
@@ -92,13 +98,42 @@ class WorldStateBuilder:
         )
         return self.db.execute(stmt).scalars().first()
 
-    def _market_max(self, symbol: str) -> float | None:
-        stmt = select(MarketObservation.value).where(
-            MarketObservation.symbol == symbol,
-            MarketObservation.value.is_not(None),
+    def _spx_drawdown(self) -> float | None:
+        """افت SPX از سقف پنجره‌ی اخیر (کسری مثبت؛ None یعنی داده‌ی ناکافی).
+
+        - سقف فقط در ۲۵۲ روز منتهی به آخرین مشاهده جست‌وجو می‌شود.
+        - حداکثر ۳۰۰ رکورد مرتب خوانده می‌شود (بدون load کل جدول).
+        - کمتر از ۲ مقدار مثبت در پنجره → None (ناموجود، نه صفر جعلی).
+        """
+        latest = self._latest_market("SPX")
+        if (
+            latest is None
+            or latest.value is None
+            or latest.value <= 0
+            or latest.observed_at is None
+        ):
+            return None
+        cutoff = latest.observed_at - timedelta(days=DRAWDOWN_WINDOW_DAYS)
+        stmt = (
+            select(MarketObservation.value)
+            .where(
+                MarketObservation.symbol == "SPX",
+                MarketObservation.value.is_not(None),
+                MarketObservation.value > 0,
+                MarketObservation.observed_at.is_not(None),
+                MarketObservation.observed_at >= cutoff,
+                MarketObservation.observed_at <= latest.observed_at,
+            )
+            .order_by(MarketObservation.observed_at.desc())
+            .limit(DRAWDOWN_MAX_POINTS)
         )
-        vals = [v for v in self.db.execute(stmt).scalars().all() if v is not None]
-        return max(vals) if vals else None
+        vals = [v for v in self.db.execute(stmt).scalars().all() if v and v > 0]
+        if len(vals) < 2:
+            return None
+        peak = max(vals)
+        if peak <= 0:
+            return None
+        return max(0.0, (peak - latest.value) / peak)
 
     @staticmethod
     def _yoy(values_desc: list[float | None]) -> float | None:
@@ -138,11 +173,7 @@ class WorldStateBuilder:
         wti = self._latest_market("WTI")
         brent = self._latest_market("BRENT")
         tnx = self._latest_market("US10Y")
-        spx = self._latest_market("SPX")
-        spx_max = self._market_max("SPX")
-        drawdown = None
-        if spx and spx.value is not None and spx_max:
-            drawdown = max(0.0, (spx_max - spx.value) / spx_max)
+        drawdown = self._spx_drawdown()
 
         # 3) event/claim inputs
         events = list(self.db.execute(select(Event)).scalars().all())
