@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 13 — Evidence Engine**
+**Phase فعلی: 14 — Source Independence**
 **Status: DONE**
 
-> ⚠️ Evidence Engine ساخته شد: هر Claim به شواهد موافق/مخالف (supports/contradicts) با weight و confidence تبدیل می‌شود و `verification_status` از توازن شواهد به‌روزرسانی می‌گردد. مرحله‌ی بعد Source Independence است.
+> ⚠️ Source Independence ساخته شد: وابستگی منابع (هم‌دامنه/syndication) تشخیص داده می‌شود و «تأیید مستقل» از «تعداد mention» جدا می‌شود؛ `verification_status` فقط با ≥۲ منبع *مستقل* تصدیق می‌شود. مرحله‌ی بعد Knowledge Graph است.
 
 ---
 

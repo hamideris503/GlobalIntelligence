@@ -18,6 +18,7 @@ from backend.api.routers import (
     dedup,
     events,
     health,
+    independence,
     ingestion,
     jobs,
     sources,
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(classify.router, dependencies=protected)
     app.include_router(events.router, dependencies=protected)
     app.include_router(claims.router, dependencies=protected)
+    app.include_router(independence.router, dependencies=protected)
     return app
 
 

@@ -4,6 +4,41 @@
 
 ---
 
+## Phase 14 — Source Independence
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- مدل `SourceDependency` + جدول `source_dependencies` (یال وابستگی خودارجاع، `kind`/`weight`/`detected_by`، یکتایی جفت)
+- فیلدهای استقلال روی `Claim`: `supporting_source_count` (mention)، `independent_source_count` (تأیید مستقل)، `source_independence` (نسبت 0..1)
+- `domains/news/independence.py`:
+  - `SourceIndependenceEngine.build_groups` → گراف وابستگی (یال‌های ثبت‌شده + heuristic هم‌دامنه) + Union-Find
+  - نماینده‌ی هر گروه = بالاترین credibility سپس independence (deterministic)
+  - `compute_for_claim` → فروکاست منابع وابسته به منبع مستقل + نسبت استقلال
+  - `_refresh_status` → `corroborated` فقط با ≥۲ منبع مستقل (نه صرفاً ≥۲ mention)
+  - `SourceDependencyService` → CRUD روی یال‌ها (idempotent)
+- `domains/news/run_independence.py`: CLI
+- API: `POST /api/independence/run`, `GET/POST/DELETE /api/independence/dependencies`, `GET /api/independence/groups`
+- فیلدهای استقلال در پاسخ `GET /api/claims`
+- migration `cb46c0938264` (up/down روی PostgreSQL واقعی تست شد)
+- تست‌های `tests/test_independence.py` (۹ تست)
+
+### Tests
+- `python -m pytest tests -q` → **102 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- migration `cb46c0938264`: upgrade/downgrade روی DB موقت + اعمال روی DB اصلی ✅
+- زنده: ۱۹ منبع → ۱۸ گروه (ECB هم‌دامنه فروکاست شد)؛ ۳ Claim → `corroborated` با `independent=18`, `independence=0.9474` ✅
+- زنده: افزودن وابستگی دستی → `groups` ۱۸→۱۷؛ حذف → 204؛ self-dependency → 400 ✅
+
+### Known issues
+- heuristic وابستگی فعلاً هم‌دامنه‌محور است؛ syndication/ownership واقعی نیاز به داده‌ی بیرونی دارد (یال دستی پشتیبانی می‌شود).
+- با Mock، `supporting_source_count` بالا است چون همه‌ی مقالات mock از منابع متنوع‌اند؛ با Provider/داده‌ی واقعی معنادار می‌شود.
+
+### Next step
+- Phase 15 — Knowledge Graph (Entity + Relationship)
+
+---
+
 ## Phase 13 — Evidence Engine
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE
@@ -36,7 +71,8 @@
 - `mypy` (خارج از CI) چند خطای type دارد.
 
 ### Next step
-- Phase 14 — Source Independence (تشخیص وابستگی منابع)
+- Phase 14 — Source Independence (تشخیص وابستگی منابع) → انجام شد در فاز ۱۴
+- Phase 15 — Knowledge Graph
 
 ---
 

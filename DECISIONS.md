@@ -55,6 +55,21 @@
 
 ---
 
+## ADR-0022 — استقلال منابع: تفکیک mention از تأیید مستقل
+**Date:** 2026-10-08
+**Context:** Phase 14 باید وابستگی منابع را تشخیص دهد؛ «تعداد mention ≠ تعداد تأیید مستقل» (DATA_SOURCES.md). اگر رسانه‌های متعدد یک خبر را از یک منبع مرجع بازنشر کنند، شمردن آن‌ها به‌عنوان تأیید مستقل اشتباه است.
+**Decision:**
+- جدول `source_dependencies` یال‌های وابستگی را نگه می‌دارد (`source_id`, `depends_on_id`, `kind`, `weight`, `detected_by`) با یکتایی جفت.
+- گراف وابستگی = یال‌های ثبت‌شده + heuristic هم‌دامنه؛ منابع وابسته با Union-Find به یک **منبع مستقل** فروکاسته می‌شوند. نماینده = بالاترین credibility سپس independence (deterministic).
+- روی `Claim` سه فیلد: `supporting_source_count` (mention)، `independent_source_count` (مستقل)، `source_independence` (نسبت 0..1).
+- `verification_status=corroborated` فقط با **≥۲ منبع مستقل**؛ mentionهای اضافی از منابع وابسته آن را تصدیق نمی‌کنند.
+- یال دستی از طریق API/سرویس پشتیبانی می‌شود تا داده‌ی بیرونی (syndication/ownership) بعداً تغذیه شود.
+**Alternatives:** شمردن صرف mention؛ استفاده از مدل زبانی برای تشخیص وابستگی؛ نادیده‌گرفتن وابستگی
+**Why selected:** دقت‌بخشی به «تأیید مستقل»، deterministic بودن، قابلیت بازبینی و افزودن یال دستی.
+**Consequences:** `corroborated` سخت‌گیرانه‌تر می‌شود؛ صحت وابستگی‌ها به کیفیت یال‌های ثبت‌شده بستگی دارد؛ heuristic هم‌دامنه ممکن است نیازمند تنظیم باشد.
+
+---
+
 ## ADR-0021 — Evidence اتمی، idempotent و قطعی per Claim
 **Date:** 2026-10-08
 **Context:** Phase 13 باید برای هر Claim شواهد موافق/مخالف را از متن مقالات همان Event استخراج کند و وضعیت تأیید را به‌صورت قابل‌بازتولید تعیین کند.

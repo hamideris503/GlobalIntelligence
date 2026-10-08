@@ -14,6 +14,7 @@ from backend.database.models.market import MacroObservation, MarketObservation
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.scenario import Scenario
 from backend.database.models.source import Source
+from backend.database.models.source_dependency import SourceDependency
 from backend.database.models.world_state import WorldState
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "Recommendation",
     "Scenario",
     "Source",
+    "SourceDependency",
     "WorldState",
 ]

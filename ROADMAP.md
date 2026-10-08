@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 13
+**Phase فعلی:** 14
 
 ---
 
@@ -112,7 +112,7 @@
 - CLI: `python -m domains.claims.run_extract`
 - تست شد: ۳ رویداد → ۳ Claim
 
-## Phase 13 — Evidence Engine ✅ (این مرحله)
+## Phase 13 — Evidence Engine ✅
 - supporting + contradicting evidence (dir: supports/contradicts, weight, confidence)
 - یک‌بار به‌ازای هر Claim (`evidence_extracted`)
 - `verify_status` ماتریس قطعی: unverified/single_source/corroborated/contradicted/disputed
@@ -121,8 +121,14 @@
 - CLI: `python -m domains.claims.run_evidence`
 - تست شد: ۳ Claim → ۳ Evidence
 
-## Phase 14 — Source Independence
-- تشخیص وابستگی منابع
+## Phase 14 — Source Independence ✅ (این مرحله)
+- جدول `source_dependencies` (گراف وابستگی منابع: syndication/aggregator/same_owner/repost)
+- تشخیص heuristic هم‌دامنه + یال دستی؛ Union-Find برای فروکاست به منبع مستقل
+- `Claim.supporting_source_count` (mention) و `independent_source_count` (تأیید مستقل) + `source_independence`
+- `corroborated` فقط با ≥۲ منبع *مستقل* (نه صرفاً ≥۲ mention)
+- API: `/api/independence/run`, `/api/independence/dependencies`, `/api/independence/groups`
+- CLI: `python -m domains.news.run_independence`
+- تست شد: ۱۹ منبع → ۱۸ گروه؛ ۳ Claim → corroborated با independence=0.947
 
 ## Phase 15 — Knowledge Graph
 - Entity + Relationship

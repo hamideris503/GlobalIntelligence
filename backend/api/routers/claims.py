@@ -50,6 +50,9 @@ class ClaimRead(BaseModel):
     claim_type: str | None
     confidence: float | None
     verification_status: str
+    supporting_source_count: int = 0
+    independent_source_count: int = 0
+    source_independence: float | None = None
     evidence: list[EvidenceRead] = []
 
 
@@ -94,6 +97,9 @@ def list_claims(
             claim_type=c.claim_type,
             confidence=c.confidence,
             verification_status=c.verification_status,
+            supporting_source_count=c.supporting_source_count,
+            independent_source_count=c.independent_source_count,
+            source_independence=c.source_independence,
             evidence=[
                 EvidenceRead(
                     id=str(e.id),

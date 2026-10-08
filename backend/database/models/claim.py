@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, TimestampMixin, UUIDMixin
@@ -34,6 +34,18 @@ class Claim(UUIDMixin, TimestampMixin, Base):
         String(32), default=VerificationStatus.unverified.value, nullable=False
     )
     evidence_extracted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # --- Phase 14: Source Independence ---
+    # تعداد کل منابعی که Claim را mention کرده‌اند (mention count)
+    supporting_source_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
+    # تعداد منابع *مستقل* (بعد از فروکاست وابستگی‌ها)
+    independent_source_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
+    # نسبت استقلال 0..1 = independent / supporting (0 اگر بدون منبع)
+    source_independence: Mapped[float | None] = mapped_column(Float)
 
     event: Mapped[Event | None] = relationship(back_populates="claims")  # noqa: F821
     evidence: Mapped[list[Evidence]] = relationship(  # noqa: F821
