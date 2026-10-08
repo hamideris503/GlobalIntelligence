@@ -17,6 +17,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 11: Event extraction (cluster → event) + API + CLI + prompt/schema
+- [x] Phase 10 validation: golden set (importance variety + country + meta)
 - [x] Phase 10 fix (P0/P1): رفع مسیریابی Gateway (mock در production)، ذخیره‌ی همه‌ی اسناد، feed_url، پرامپت/schema، احراز هویت، LSH 32×2، raw_payload، savepoint، Gemini header، n8n pin
 - [x] Phase 10: Article classification (topics/entities/sentiment) + deterministic importance
 - [x] Phase 9: dedup (MinHash/LSH/Union-Find) + service + CLI + API + ingest hook

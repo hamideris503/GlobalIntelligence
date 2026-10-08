@@ -94,8 +94,14 @@
 - API `/api/classify/*` + CLI
 - تست شد: ۳ مقاله طبقه‌بندی شدند
 
-## Phase 11 — Event Extraction
-- چند مقاله مرتبط → یک Event
+## Phase 11 — Event Extraction ✅ (این مرحله)
+- گروه‌بندی مقالات بر اساس خوشه‌ی dedup
+- استخراج Event با AI Gateway (structured JSON، prompt نسخه‌دار)
+- اگر AI در دسترس نباشد، ساخت Event سبک از خود مقاله (fallback)
+- اتصال مقالات به رویداد (`event_id`, `event_cluster`)
+- API: `/api/events/extract`, `/api/events`
+- CLI: `python -m domains.events.run_extract`
+- تست شد: ۶۰ مقاله → ۳ رویداد
 
 ## Phase 12 — Claim Extraction
 - Event / Article → Claims

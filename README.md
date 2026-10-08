@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 10 — Article Classification**
+**Phase فعلی: 11 — Event Extraction**
 **Status: DONE**
 
-> ⚠️ طبقه‌بندی مقالات ساخته شد: topics/entities/sentiment/stance و Importance Score ترکیبی (deterministic). مرحله‌ی بعد Event Extraction است.
+> ⚠️ استخراج رویداد ساخته شد: خوشه‌های مقالات به Event واحد تبدیل و مقالات متصل می‌شوند. مرحله‌ی بعد Claim Extraction است.
 
 ---
 

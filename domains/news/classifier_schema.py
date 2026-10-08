@@ -14,6 +14,13 @@ _IMPORTANCE_PROPS = {
     )
 }
 
+# ابعادی که باید از LLM گرفته شوند (historical_significance توسط سیستم محاسبه می‌شود)
+_REQUIRED_IMPORTANCE = [
+    "impact", "scope", "probability", "novelty", "market_relevance",
+    "geopolitical_relevance", "economic_relevance", "time_sensitivity",
+    "strategic_relevance",
+]
+
 CLASSIFY_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -36,7 +43,7 @@ CLASSIFY_SCHEMA: dict[str, Any] = {
         "importance": {
             "type": "object",
             "properties": _IMPORTANCE_PROPS,
-            "required": list(_IMPORTANCE_PROPS.keys()),
+            "required": _REQUIRED_IMPORTANCE,
         },
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },

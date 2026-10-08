@@ -4,6 +4,45 @@
 
 ---
 
+## Phase 11 — Event Extraction
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/events/prompts.py`: prompt نسخه‌دار `EXTRACT_EVENT` v1 + `EVENT_SCHEMA`
+- `domains/events/extractor.py`: `EventExtractor` — گروه‌بندی بر اساس `duplicate_cluster`،
+  استخراج ساختاریافته با AI Gateway، fallback سبک در نبود AI
+- اتصال مقالات به رویداد (`event_id`, `event_cluster`) و ثبت `event_metadata`
+- `domains/events/run_extract.py`: CLI
+- API: `POST /api/events/extract`, `GET /api/events`
+- migration `f58aab369371` (اضافه‌شدن `events.event_metadata`)
+- تست‌های `tests/test_events.py` (۵ تست)
+- **Phase 10 validation**: `tests/test_classification_golden.py` با Provider واقع‌گرایانه
+
+### Files changed
+- `domains/events/{__init__,prompts,extractor,run_extract}.py`
+- `backend/api/routers/events.py`, `backend/main.py`
+- `backend/database/models/event.py`, `db/migrations/versions/f58aab369371_*.py`
+- `domains/news/classifier_schema.py` (historical_significance دیگر از LLM خواسته نمی‌شود)
+- `tests/test_events.py`, `tests/test_classification_golden.py`
+
+### Tests
+- `python -m pytest tests -q` → **63 passed در ~1s** ✅
+- `ruff check` → All checks passed ✅
+- migration `f58aab369371` روی PostgreSQL واقعی ✅
+- pipeline زنده: ingest(19 منبع) → dedup → classify(60) → events(3 رویداد، 60 مقاله متصل) ✅
+- golden: importance در بازه‌های مختلف (نه همه ۱۰)، country ذخیره شود، meta ثبت شود ✅
+
+### Known issues
+- با Mock Provider مقادیر رویداد نمایشی‌اند (`event_type=mock`)؛ با Provider واقعی معنادار می‌شوند.
+- استخراج رویداد هنوز همگام است (انتقال به workers در TODO).
+- تقسیم یک خوشه‌ی بزرگ به چند رویداد بر اساس نام‌گذاری وابستگی به AI دارد؛ فعلاً یک خوشه = یک رویداد.
+
+### Next step
+- Phase 12 — Claim Extraction (Event/Article → Claims)
+
+---
+
 ## Phase 10 fix round — رفع اشکالات بازبینی (P0/P1)
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

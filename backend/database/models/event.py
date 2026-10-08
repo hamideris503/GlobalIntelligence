@@ -27,6 +27,7 @@ class Event(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     sources: Mapped[str | None] = mapped_column(Text)  # JSON list of source ids
 
     confidence: Mapped[float | None] = mapped_column(Float)
+    event_metadata: Mapped[str | None] = mapped_column(Text)  # JSON (stringified)
 
     articles: Mapped[list[Article]] = relationship(back_populates="event")  # noqa: F821
     claims: Mapped[list[Claim]] = relationship(back_populates="event")  # noqa: F821
