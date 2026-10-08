@@ -76,6 +76,46 @@ def test_pipeline_deduplicates() -> None:
         session.close()
 
 
+def test_same_item_from_two_sources_stored_twice() -> None:
+    """یک آیتمِ واحد از دو منبع مختلف → هر دو سند ذخیره می‌شوند (P0-3)."""
+    from backend.database.models.document import Document
+
+    session = TestingSession()
+    try:
+        s1 = Source(name="Src A", domain="a.local", type="rss", active=True)
+        s2 = Source(name="Src B", domain="b.local", type="rss", active=True)
+        session.add_all([s1, s2])
+        session.commit()
+
+        pipeline = NewsIngestionPipeline(session, fetcher=MockFetcher())
+        r1 = pipeline.ingest_source(s1, limit=10)
+        r2 = pipeline.ingest_source(s2, limit=10)
+
+        assert r1.stored == 3
+        assert r2.stored == 3
+        # هر ۳ آیتم از هر دو منبع ذخیره شده‌اند → ۶ سند
+        assert session.query(Document).count() == 6
+
+        # دقیقاً همان content_hash باید برای هر source جداگانه ذخیره شده باشد
+        first_hash = (
+            session.query(Document.content_hash)
+            .filter(Document.source_id == s1.id)
+            .order_by(Document.created_at)
+            .first()[0]
+        )
+        same = (
+            session.query(Document)
+            .filter(
+                Document.content_hash == first_hash,
+                Document.source_id == s2.id,
+            )
+            .count()
+        )
+        assert same == 1
+    finally:
+        session.close()
+
+
 # --- API ---
 def test_ingest_api(client: TestClient) -> None:
     sid = _make_source()

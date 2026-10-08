@@ -103,7 +103,7 @@
 - CLI: `python -m domains.events.run_extract`
 - تست شد: ۶۰ مقاله → ۳ رویداد
 
-## Phase 12 — Claim Extraction ✅ (این مرحله)
+## Phase 12 — Claim Extraction
 - گروه‌بندی بر Event؛ یک‌بار به‌ازای هر رویداد (`claims_extracted`)
 - استخراج Claimهای اتمی (subject-predicate-object) با AI Gateway
 - fallback سبک در نبود AI
@@ -111,8 +111,14 @@
 - CLI: `python -m domains.claims.run_extract`
 - تست شد: ۳ رویداد → ۳ Claim
 
-## Phase 13 — Evidence Engine
-- supporting + contradicting evidence
+## Phase 13 — Evidence Engine ✅ (این مرحله)
+- supporting + contradicting evidence (dir: supports/contradicts, weight, confidence)
+- یک‌بار به‌ازای هر Claim (`evidence_extracted`)
+- `verify_status` ماتریس قطعی: unverified/single_source/corroborated/contradicted/disputed
+- پر کردن `source_id`/`document_id` برای استقلال منابع
+- API: `/api/claims/evidence`, `GET /api/claims`, `GET /api/claims/{id}/evidence`
+- CLI: `python -m domains.claims.run_evidence`
+- تست شد: ۳ Claim → ۳ Evidence
 
 ## Phase 14 — Source Independence
 - تشخیص وابستگی منابع

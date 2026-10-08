@@ -4,6 +4,42 @@
 
 ---
 
+## Phase 13 — Evidence Engine
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/claims/evidence_prompts.py`: prompt نسخه‌دار `EXTRACT_EVIDENCE` v1 + `EVIDENCE_SCHEMA`
+  (enum برای `direction`: `supports`/`contradicts`)
+- `domains/claims/evidence.py`: `EvidenceEngine`
+  - `collect_for_claim` → داده‌ی نامزد از مقالات همان Event، استخراج ساختاریافته با AI Gateway
+  - `_ingest_items` → ساخت `Evidence` معتبر + شمارش و لاگ موارد ردشده (`rejected`)
+  - `verify_status(supports, contradicts)` ماتریس قطعی: unverified/single_source/corroborated/contradicted/disputed
+  - پر کردن `source_id` و `document_id` برای استقلال منابع (موردنیاز Phase 14)
+  - idempotency با `claim.evidence_extracted`
+- فیلد `Claim.evidence_extracted` + migration `9b2bac1ae190` (با `server_default="false"`)
+- `domains/claims/run_evidence.py`: CLI
+- API: `POST /api/claims/evidence` (+ `rejected` در پاسخ)، evidence در `GET /api/claims`، `GET /api/claims/{id}/evidence`
+- رفع باگ Mock Provider: `_mock_from_schema` حالا `const`/`enum`/`default`/`anyOf`/`oneOf`/`minimum`/`maximum`/`minItems` را رعایت می‌کند
+- تست‌های `tests/test_evidence.py` (۷) و `tests/test_mock_schema.py` (۱۷)
+- تست چندمنبعی در `tests/test_ingestion.py` (یک آیتم از دو منبع → ۲ سند)
+
+### Tests
+- `python -m pytest tests -q` → **93 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- migration `9b2bac1ae190`: downgrade -1 و upgrade head روی PostgreSQL واقعی ✅
+- زنده: ۳ Claim → ۳ Evidence (`direction=supports`، `source_id` پر)، `verification_status=single_source` ✅
+
+### Known issues
+- با Mock Provider مقادیر نمایشی‌اند (`mock`) جز فیلدهای schema-driven.
+- استخراج/شواهد هنوز همگام است.
+- `mypy` (خارج از CI) چند خطای type دارد.
+
+### Next step
+- Phase 14 — Source Independence (تشخیص وابستگی منابع)
+
+---
+
 ## Phase 12 — Claim Extraction
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE
@@ -31,7 +67,7 @@
 
 ### Known issues
 - با Mock Provider مقادیر Claim نمایشی‌اند (`mock`).
-- Evidence (موافق/مخالف) هنوز ساخته نشده — Phase 13.
+- Evidence در Phase 13 ساخته شد (`domains/claims/evidence.py`).
 - استخراج هنوز همگام است.
 
 ### Next step

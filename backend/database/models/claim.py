@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, TimestampMixin, UUIDMixin
@@ -33,6 +33,7 @@ class Claim(UUIDMixin, TimestampMixin, Base):
     verification_status: Mapped[str] = mapped_column(
         String(32), default=VerificationStatus.unverified.value, nullable=False
     )
+    evidence_extracted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     event: Mapped[Event | None] = relationship(back_populates="claims")  # noqa: F821
     evidence: Mapped[list[Evidence]] = relationship(  # noqa: F821

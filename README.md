@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 12 — Claim Extraction**
+**Phase فعلی: 13 — Evidence Engine**
 **Status: DONE**
 
-> ⚠️ استخراج Claim ساخته شد: هر Event به Claimهای اتمی (subject-predicate-object) تبدیل می‌شود. مرحله‌ی بعد Evidence Engine است.
+> ⚠️ Evidence Engine ساخته شد: هر Claim به شواهد موافق/مخالف (supports/contradicts) با weight و confidence تبدیل می‌شود و `verification_status` از توازن شواهد به‌روزرسانی می‌گردد. مرحله‌ی بعد Source Independence است.
 
 ---
 

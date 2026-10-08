@@ -55,6 +55,21 @@
 
 ---
 
+## ADR-0021 — Evidence اتمی، idempotent و قطعی per Claim
+**Date:** 2026-10-08
+**Context:** Phase 13 باید برای هر Claim شواهد موافق/مخالف را از متن مقالات همان Event استخراج کند و وضعیت تأیید را به‌صورت قابل‌بازتولید تعیین کند.
+**Decision:**
+- Evidence در سطح Claim و فقط یک‌بار (`claims_extracted`/`evidence_extracted`) استخراج می‌شود تا تکرار پیش نیاید.
+- هر Evidence دارای `direction` (supports/contradicts)، `summary`، `weight`، `confidence` و ارجاع به `document_id` و `source_id` است (منبعِ مبنا).
+- موارد نامعتبر (direction غیرمجاز) بی‌صدا حذف نمی‌شوند؛ شمارش (`rejected`) و لاگ می‌شوند.
+- `verification_status` با ماتریس قطعی `verify_status(supports, contradicts)` تعیین می‌شود، نه با مدل زبانی.
+- خروجی Mock Provider باید برای `EVIDENCE_SCHEMA` معتبر باشد (رعایت enum در `_mock_from_schema`).
+**Alternatives:** حذف بی‌صدا؛ تعیین status با LLM؛ ذخیره‌ی source_id نکردن
+**Why selected:** idempotency، قابلیت ردیابی، حفظ ورودی Phase 14 (استقلال منابع)، و No Fake Precision.
+**Consequences:** `source_id` باید در Evidence پر شود؛ Mock باید schema-driven بماند؛ فیلد `rejected` در پاسخ API و CLI گزارش می‌شود.
+
+---
+
 ## ADR-0016 — ذخیره‌ی همه‌ی اسناد و یکتایی درون‌منبعی
 **Date:** 2026-10-08
 **Context:** بازبینی نشان داد ingestion سندهای منابع دیگر با content_hash یکسان را دور می‌ریخت؛ این با بند ۱۸ (تفاوت mention و تأیید مستقل) و فاز ۱۴ (Source Independence) در تناقض بود.

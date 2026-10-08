@@ -19,11 +19,16 @@ from backend.ai.schemas.types import (
 )
 
 
-def _mock_value_for_type(t: str) -> Any:
+def _mock_value_for_type(t: str, schema: dict[str, Any] | None = None) -> Any:
+    if t in ("number", "integer"):
+        value = 0
+        if schema is not None and "minimum" in schema:
+            value = max(value, schema["minimum"])
+        if schema is not None and "maximum" in schema:
+            value = min(value, schema["maximum"])
+        return float(value) if t == "number" else int(value)
     return {
         "string": "mock",
-        "integer": 0,
-        "number": 0.0,
         "boolean": False,
         "array": [],
         "object": {},
@@ -32,7 +37,20 @@ def _mock_value_for_type(t: str) -> Any:
 
 
 def _mock_from_schema(schema: dict[str, Any]) -> Any:
-    """یک نمونه‌ی معتبر و deterministic از یک JSON Schema می‌سازد."""
+    """نمونه‌ی معتبر و deterministic از JSON Schema (رعایت const/enum/default/anyOf/min/max)."""
+    if not isinstance(schema, dict):
+        return "mock"
+    if "const" in schema:
+        return schema["const"]
+    if schema.get("enum"):
+        return schema["enum"][0]
+    if "default" in schema:
+        return schema["default"]
+    for key in ("anyOf", "oneOf"):
+        if schema.get(key):
+            options = [s for s in schema[key] if s.get("type") != "null"] or schema[key]
+            return _mock_from_schema(options[0])
+
     stype = schema.get("type")
     if isinstance(stype, list):
         stype = next((t for t in stype if t != "null"), "null")
@@ -42,9 +60,9 @@ def _mock_from_schema(schema: dict[str, Any]) -> Any:
         required = schema.get("required", list(props.keys()))
         return {k: _mock_from_schema(v) for k, v in props.items() if k in required}
     if stype == "array":
-        items = schema.get("items", {})
-        return [_mock_from_schema(items)]
-    return _mock_value_for_type(str(stype))
+        n = max(1, int(schema.get("minItems", 1)))
+        return [_mock_from_schema(schema.get("items", {})) for _ in range(n)]
+    return _mock_value_for_type(str(stype), schema)
 
 
 class MockProvider(BaseProvider):
