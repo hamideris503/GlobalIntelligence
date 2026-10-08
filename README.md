@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 11 — Event Extraction**
+**Phase فعلی: 12 — Claim Extraction**
 **Status: DONE**
 
-> ⚠️ استخراج رویداد ساخته شد: خوشه‌های مقالات به Event واحد تبدیل و مقالات متصل می‌شوند. مرحله‌ی بعد Claim Extraction است.
+> ⚠️ استخراج Claim ساخته شد: هر Event به Claimهای اتمی (subject-predicate-object) تبدیل می‌شود. مرحله‌ی بعد Evidence Engine است.
 
 ---
 

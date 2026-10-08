@@ -103,8 +103,13 @@
 - CLI: `python -m domains.events.run_extract`
 - تست شد: ۶۰ مقاله → ۳ رویداد
 
-## Phase 12 — Claim Extraction
-- Event / Article → Claims
+## Phase 12 — Claim Extraction ✅ (این مرحله)
+- گروه‌بندی بر Event؛ یک‌بار به‌ازای هر رویداد (`claims_extracted`)
+- استخراج Claimهای اتمی (subject-predicate-object) با AI Gateway
+- fallback سبک در نبود AI
+- API: `/api/claims/extract`, `/api/claims`
+- CLI: `python -m domains.claims.run_extract`
+- تست شد: ۳ رویداد → ۳ Claim
 
 ## Phase 13 — Evidence Engine
 - supporting + contradicting evidence

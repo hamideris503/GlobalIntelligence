@@ -4,6 +4,41 @@
 
 ---
 
+## Phase 12 — Claim Extraction
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/claims/prompts.py`: prompt نسخه‌دار `EXTRACT_CLAIMS` v1 + `CLAIMS_SCHEMA`
+- `domains/claims/extractor.py`: `ClaimExtractor` — استخراج Claim اتمی از متن مقالات یک Event،
+  یک‌بار به‌ازای هر رویداد (`claims_extracted`)، fallback سبک در نبود AI
+- فیلد `Event.claims_extracted` + migration `f6e19dcde0b6`
+- CLI: `domains/claims/run_extract.py`
+- API: `POST /api/claims/extract`, `GET /api/claims`
+- تست‌های `tests/test_claims.py` (۵ تست)
+
+### Files changed
+- `domains/claims/{__init__,prompts,extractor,run_extract}.py`
+- `backend/api/routers/claims.py`, `backend/main.py`
+- `backend/database/models/event.py`, `db/migrations/versions/f6e19dcde0b6_*.py`
+- `tests/test_claims.py`
+
+### Tests
+- `python -m pytest tests -q` → **68 passed در ~1.3s** ✅
+- `ruff check` → All checks passed ✅
+- migration `f6e19dcde0b6` روی PostgreSQL واقعی ✅
+- زنده: ۳ رویداد → ۳ Claim؛ اجرای دوباره idempotent ✅
+
+### Known issues
+- با Mock Provider مقادیر Claim نمایشی‌اند (`mock`).
+- Evidence (موافق/مخالف) هنوز ساخته نشده — Phase 13.
+- استخراج هنوز همگام است.
+
+### Next step
+- Phase 13 — Evidence Engine (supporting + contradicting evidence)
+
+---
+
 ## Phase 11 — Event Extraction
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE

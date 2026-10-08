@@ -11,7 +11,17 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routers import ai, classify, dedup, events, health, ingestion, jobs, sources
+from backend.api.routers import (
+    ai,
+    claims,
+    classify,
+    dedup,
+    events,
+    health,
+    ingestion,
+    jobs,
+    sources,
+)
 from backend.auth.deps import require_api_key
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
@@ -62,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(dedup.router, dependencies=protected)
     app.include_router(classify.router, dependencies=protected)
     app.include_router(events.router, dependencies=protected)
+    app.include_router(claims.router, dependencies=protected)
     return app
 
 

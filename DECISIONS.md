@@ -79,6 +79,16 @@
 
 ---
 
+## ADR-0020 — Claim اتمی و idempotent per Event
+**Date:** 2026-10-08
+**Context:** Phase 12 باید از Event/Article، Claim استخراج کند.
+**Decision:** استخراج در سطح Event و فقط یک‌بار (`claims_extracted`)؛ Claimها به‌صورت subject-predicate-object با `claim_type` و confidence. در نبود AI، یک Claim پایه از فیلد action رویداد ساخته می‌شود. Evidence در Phase 13 جدا می‌شود.
+**Alternatives:** استخراج در سطح هر Article (تکرار زیاد)؛ استخراج هم‌زمان Evidence
+**Why selected:** کاهش تکرار، سادگی، تکیه بر رویداد به‌عنوان واحد معنایی.
+**Consequences:** تفکیک Claim از Evidence نگه داشته می‌شود؛ تکرار Claims یکسان در رویدادهای مختلف در فاز ۱۳/۱۴ ادغام می‌شود.
+
+---
+
 ## ADR-0019 — یک خوشه = یک Event (نسخه اول)
 **Date:** 2026-10-08
 **Context:** Phase 11 باید چند مقاله‌ی مرتبط را به یک Event تبدیل کند.

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, String, Text
+from sqlalchemy import Boolean, DateTime, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, PointInTimeMixin, TimestampMixin, UUIDMixin
@@ -28,6 +28,7 @@ class Event(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
 
     confidence: Mapped[float | None] = mapped_column(Float)
     event_metadata: Mapped[str | None] = mapped_column(Text)  # JSON (stringified)
+    claims_extracted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     articles: Mapped[list[Article]] = relationship(back_populates="event")  # noqa: F821
     claims: Mapped[list[Claim]] = relationship(back_populates="event")  # noqa: F821
