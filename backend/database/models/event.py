@@ -29,6 +29,9 @@ class Event(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     confidence: Mapped[float | None] = mapped_column(Float)
     event_metadata: Mapped[str | None] = mapped_column(Text)  # JSON (stringified)
     claims_extracted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    graph_extracted: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
 
     articles: Mapped[list[Article]] = relationship(back_populates="event")  # noqa: F821
     claims: Mapped[list[Claim]] = relationship(back_populates="event")  # noqa: F821

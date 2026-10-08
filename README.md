@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 14 — Source Independence**
+**Phase فعلی: 15 — Knowledge Graph**
 **Status: DONE**
 
-> ⚠️ Source Independence ساخته شد: وابستگی منابع (هم‌دامنه/syndication) تشخیص داده می‌شود و «تأیید مستقل» از «تعداد mention» جدا می‌شود؛ `verification_status` فقط با ≥۲ منبع *مستقل* تصدیق می‌شود. مرحله‌ی بعد Knowledge Graph است.
+> ⚠️ Knowledge Graph ساخته شد: موجودیت‌ها با canonical resolution از مقالات/رویدادها استخراج و روابط جهت‌دار (affects/owns/supplies/...) بین آن‌ها ساخته می‌شود. مرحله‌ی بعد Economic Data است.
 
 ---
 

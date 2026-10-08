@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 14
+**به‌روزرسانی:** Phase 15
 
 ---
 
 ## TODO
-- [ ] Phase 15: Knowledge Graph
+- [ ] Phase 16: Economic Data
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
 - [ ] بعد: انتقال endpointهای سنگین به workers/ پس‌زمینه
@@ -17,6 +17,7 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 15: Knowledge Graph (entity resolution + relationship extraction + API + CLI + migration + تست)
 - [x] Phase 14: Source Independence (گراف وابستگی منابع + محاسبه‌ی تأیید مستقل + API + CLI + migration + تست)
 - [x] Phase 13: Evidence Engine (claim → evidence) + `verify_status` + API + CLI + prompt/schema + migration + رفع باگ enum در Mock
 - [x] Phase 12: Claim extraction (event → claims) + API + CLI + prompt/schema

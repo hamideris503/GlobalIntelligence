@@ -49,6 +49,7 @@ class EntityRelationship(UUIDMixin, TimestampMixin, Base):
     )
     relation: Mapped[str] = mapped_column(String(32), default=RelationType.other.value)
     weight: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[float | None] = mapped_column(Float)
     valid_from: Mapped[str | None] = mapped_column(String(64))
     valid_to: Mapped[str | None] = mapped_column(String(64))
     evidence: Mapped[str | None] = mapped_column(Text)

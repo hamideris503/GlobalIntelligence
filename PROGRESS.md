@@ -4,6 +4,40 @@
 
 ---
 
+## Phase 15 — Knowledge Graph
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/graph/prompts.py`: prompt نسخه‌دار `EXTRACT_RELATIONS` v1 + `RELATIONS_SCHEMA` (enum از `RelationType`)
+- `domains/graph/engine.py`: `KnowledgeGraphEngine`
+  - Entity resolution: نام نرمال‌شده (`casefold`) به‌عنوان identity؛ upsert بر اساس نام، ارتقای نوع از `other` به نوع مشخص، ثبت aliases
+  - استخراج رابطه با AI (structured JSON) از `actors` + `Article.entities` + متن رویداد
+  - اعتبارسنجی روابط (موجودیت ناشناخته/رابطه نامعتبر/خودارجاع → رد با شمارش `rejected`)
+  - fallback هم‌رویدادی (`affects`) در نبود رابطه‌ی معتبر
+  - idempotency با `Event.graph_extracted` و تقویت وزن/اعتماد یال تکراری
+- فیلد `EntityRelationship.confidence` + فیلد `Event.graph_extracted` + migration `34b4e7f87ba7`
+- `domains/graph/run_graph.py`: CLI
+- API: `POST /api/graph/extract`, `GET /api/graph/entities`, `/entities/{id}`, `/relationships`, `/neighbors/{id}`
+- تست‌های `tests/test_graph.py` (۹ تست)
+
+### Tests
+- `python -m pytest tests -q` → **111 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- migration `34b4e7f87ba7`: upgrade/downgrade روی DB موقت + اعمال روی DB اصلی ✅
+- زنده: رویداد Fed → Entity `Federal Reserve (central_bank)` و `US Dollar (currency)` + رابطه `affects` ✅
+- زنده: اجرای دوباره idempotent (`entities_created=0`) ✅
+- زنده: `GET /api/graph/neighbors/{id}` یال خروجی، entity 404، CLI ✅
+
+### Known issues
+- با Mock همه‌ی موجودیت‌ها `"mock"` می‌شوند، پس گراف معنادار نیازمند Provider واقعی است (fallback فقط با ≥۲ موجودیت متمایز کار می‌کند).
+- entity resolution فعلاً نام‌محور است؛ fuzzy/embedding-based در فازهای بعدی.
+
+### Next step
+- Phase 16 — Economic Data
+
+---
+
 ## Phase 14 — Source Independence
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE
@@ -35,7 +69,7 @@
 - با Mock، `supporting_source_count` بالا است چون همه‌ی مقالات mock از منابع متنوع‌اند؛ با Provider/داده‌ی واقعی معنادار می‌شود.
 
 ### Next step
-- Phase 15 — Knowledge Graph (Entity + Relationship)
+- Phase 15 — Knowledge Graph (done in Phase 15)
 
 ---
 

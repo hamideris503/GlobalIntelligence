@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 14
+**Phase فعلی:** 15
 
 ---
 
@@ -121,7 +121,7 @@
 - CLI: `python -m domains.claims.run_evidence`
 - تست شد: ۳ Claim → ۳ Evidence
 
-## Phase 14 — Source Independence ✅ (این مرحله)
+## Phase 14 — Source Independence ✅
 - جدول `source_dependencies` (گراف وابستگی منابع: syndication/aggregator/same_owner/repost)
 - تشخیص heuristic هم‌دامنه + یال دستی؛ Union-Find برای فروکاست به منبع مستقل
 - `Claim.supporting_source_count` (mention) و `independent_source_count` (تأیید مستقل) + `source_independence`
@@ -130,8 +130,14 @@
 - CLI: `python -m domains.news.run_independence`
 - تست شد: ۱۹ منبع → ۱۸ گروه؛ ۳ Claim → corroborated با independence=0.947
 
-## Phase 15 — Knowledge Graph
-- Entity + Relationship
+## Phase 15 — Knowledge Graph ✅ (این مرحله)
+- Entity resolution نام‌محور (canonical/casefold + aliases + ارتقای نوع)
+- استخراج رابطه‌ی جهت‌دار با AI (enum از RelationType) + fallback هم‌رویدادی (`affects`)
+- `Event.graph_extracted` برای idempotency؛ تقویت وزن یال تکراری
+- فیلد `EntityRelationship.confidence` + migration `34b4e7f87ba7`
+- API: `/api/graph/extract`, `/api/graph/entities`, `/api/graph/relationships`, `/api/graph/neighbors/{id}`
+- CLI: `python -m domains.graph.run_graph`
+- تست شد: Fed → Federal Reserve→affects→US Dollar
 
 ## Phase 16 — Economic Data
 - inflation، GDP، employment، rates، trade، liquidity
