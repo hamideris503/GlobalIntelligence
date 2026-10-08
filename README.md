@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 17 — Market Data**
+**Phase فعلی: 18 — World State**
 **Status: DONE**
 
-> ⚠️ Market Data ساخته شد: نقل‌قول‌های FX/طلا/نفت/سهام/اوراق/کالا از منابع رایگان (er-api/ECB/Yahoo/gold-api) با upsert idempotent جمع‌آوری می‌شود. مرحله‌ی بعد World State است.
+> ⚠️ World State ساخته شد: snapshot قطعی وضعیت جهان (۹ سیگنال 0..1 + رژیم کلان/بازار) از داده‌های macro/market/event بدون AI ساخته می‌شود. مرحله‌ی بعد Historical Memory است.
 
 ---
 

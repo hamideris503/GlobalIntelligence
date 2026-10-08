@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 17
+**Phase فعلی:** 18
 
 ---
 
@@ -156,8 +156,14 @@
 - CLI: `python -m domains.markets.run_fetch`
 - تست شد: ۱۱ تست پاس؛ کل ۱۳۱ تست پاس؛ زنده هر ۱۳ نماد با مقادیر واقعی
 
-## Phase 18 — World State
-- ساخت Current World State
+## Phase 18 — World State ✅ (این مرحله)
+- ۹ سیگنال قطعی 0..1 (growth/inflation/liquidity/stress/geopolitical/energy/trade/political/social) + رژیم کلان (overheating/expansion/stagflation/slowdown) و بازار (stress/risk_on/tight/neutral)
+- `WorldStateBuilder`: macro + market + events/claims → snapshot با value_metadata کامل (value/timestamp/source/method/confidence)
+- هر build یک snapshot جدید (State Memory)؛ YoY تک‌کشوری (ترجیح USA)
+- API: `POST /api/world-state/build`, `GET /api/world-state/current`, `/history`
+- CLI: `python -m domains.worldstate.run_build`
+- بدون migration جدید (یافته‌ی ممیزی: ستون‌های `captured_at`/`confidence` از قبل موجود بودند)
+- تست شد: ۱۰ تست پاس؛ کل ۱۴۱ تست پاس؛ زنده snapshot واقعی (slowdown/risk_on)
 
 ## Phase 19 — Historical Memory
 - historical events، states، snapshots

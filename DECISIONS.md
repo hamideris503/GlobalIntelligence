@@ -5,6 +5,21 @@
 
 ---
 
+## ADR-0026 — World State: سیگنال‌های قطعی بدون AI و snapshot تاریخی
+**Date:** 2026-10-08
+**Context:** Phase 18 باید وضعیت فعلی جهان را به‌صورت ساختاریافته و قابل ردیابی بسازد (ورودی فازهای Forecast/Scenario/Risk).
+**Decision:**
+- ۹ سیگنال 0..1 با توابع خالص و نگاشت‌های مستند v1؛ نبود داده → 0.5 کم‌اعتماد (نه عدد جعلی).
+- رژیم کلان از ربع‌بندی رشد×تورم؛ رژیم بازار از استرس×نقدینگی.
+- هر build یک snapshot جدید (State Memory) با value_metadata کامل (value/timestamp/source/method/confidence).
+- YoY فقط درون یک کشور (ترجیح USA).
+- بدون AI و بدون migration (مدل/جدول از Phase 3 کامل بود).
+**Alternatives:** تفسیر LLM برای وضعیت؛ تک‌snapshot بازنویسی‌شونده؛ میانگین چندکشوری
+**Why selected:** قطعی، قابل ردیابی، تاریخچه‌دار، Deterministic Core.
+**Consequences:** با mock کم‌اطلاع؛ نیازمند Provider واقعی برای سیگنال‌های رویدادی معنادار.
+
+---
+
 ## ADR-0025 — Market Data: چندمنبعی رایگان با زنجیره‌ی fallback
 **Date:** 2026-10-08
 **Context:** Phase 17 باید FX/طلا/نفت/سهام/اوراق/کالا را بدون کلید و پایدار جمع‌آوری کند.

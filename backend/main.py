@@ -25,6 +25,7 @@ from backend.api.routers import (
     jobs,
     markets,
     sources,
+    worldstate,
 )
 from backend.auth.deps import require_api_key
 from backend.core.config import get_settings
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(graph.router, dependencies=protected)
     app.include_router(economic.router, dependencies=protected)
     app.include_router(markets.router, dependencies=protected)
+    app.include_router(worldstate.router, dependencies=protected)
     return app
 
 

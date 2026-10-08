@@ -4,6 +4,38 @@
 
 ---
 
+## Phase 18 — World State
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/worldstate/signals.py`: ۹ تابع سیگنال خالص و قطعی (0..1، خنثی=0.5) + `macro_regime`/`market_regime`
+  - نگاشت‌های v1 مستند: GDP YoY، CPI/10، نقدینگی YoY، میانگین بازده/افت، ترکیب مناقشه/غافلگیری، باند نفت ۵۰–۱۵۰، تراز تجاری، سهم رویدادی
+  - نبود داده → 0.5 با confidence پایین و method=`no_data` (بدون عدد جعلی)
+- `domains/worldstate/builder.py`: `WorldStateBuilder`
+  - ورودی‌ها: macro_observations + market_observations + events/claims/articles
+  - YoY تک‌کشوری (ترجیح USA) تا ترکیب کشورها خراب نشود
+  - هر build یک snapshot جدید (State Memory by design) با value_metadata کامل
+- `domains/worldstate/run_build.py`: CLI
+- API: `POST /api/world-state/build`, `GET /api/world-state/current` (404 اگر snapshot نباشد), `GET /api/world-state/history`
+- تست‌های `tests/test_worldstate.py` (۱۰ تست: نگاشت‌ها، رژیم‌ها، builder واقعی، تک‌کشوری، API)
+
+### Tests
+- `python -m pytest tests -q` → **141 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: snapshot واقعی (macro=slowdown، market=risk_on، inflation=0.295، energy=0.4758، conf=0.5) ✅
+- زنده: current/history/CLI ✅
+- یافته‌ی ممیزی میانی: ستون‌های `captured_at`/`confidence` از قبل در جدول بودند (خروجی psql قبلاً truncate شده بود) → migration اضافی حذف شد، بدون drift ✅
+
+### Known issues
+- با داده‌ی mock، سیگنال‌های رویدادی کم‌اطلاع‌اند (political/social=0.2)؛ با Provider واقعی معنادار می‌شوند.
+- GDP تک‌کشوری است (ترجیح USA)؛ میانگین جهانی وزنی در فازهای بعدی.
+
+### Next step
+- Phase 19 — Historical Memory
+
+---
+
 ## Phase 17 — Market Data
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE
