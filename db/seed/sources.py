@@ -87,11 +87,32 @@ INITIAL_SOURCES: list[dict[str, object]] = [
         "primary_source_ratio": 0.9,
     },
     {
+        "name": "ECB Data Portal",
+        "domain": "ecb.europa.eu", "country": None, "type": SourceType.official.value,
+        "language": "en", "collection_method": "api",
+        "credibility_score": 0.95, "independence_score": 0.9,
+        "primary_source_ratio": 0.95,
+    },
+    {
         "name": "US BLS",
         "domain": "bls.gov", "country": "US", "type": SourceType.official.value,
         "language": "en", "collection_method": "api",
         "credibility_score": 0.95, "independence_score": 0.9,
         "primary_source_ratio": 0.95,
+    },
+    {
+        "name": "Stooq",
+        "domain": "stooq.com", "country": None, "type": SourceType.dataset.value,
+        "language": "en", "collection_method": "scrape",
+        "credibility_score": 0.75, "independence_score": 0.55,
+        "primary_source_ratio": 0.3,
+    },
+    {
+        "name": "Yahoo Finance",
+        "domain": "finance.yahoo.com", "country": None, "type": SourceType.api.value,
+        "language": "en", "collection_method": "api",
+        "credibility_score": 0.75, "independence_score": 0.5,
+        "primary_source_ratio": 0.25,
     },
     {
         "name": "World Gold Council",

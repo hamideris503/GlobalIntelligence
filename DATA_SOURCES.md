@@ -40,6 +40,11 @@
 
 | Name | Domain | Country | Type | Language |
 |---|---|---|---|---|
+| Federal Reserve Press Releases | federalreserve.gov | US | rss | en |
+| ECB Press Releases | ecb.europa.eu | — | rss | en |
+| Reuters Business (via Google News) | news.google.com | — | rss | en |
+| BBC Business | feeds.bbci.co.uk | GB | rss | en |
+| Al Jazeera | aljazeera.com | — | rss | en |
 | IMF World Economic Outlook | imf.org | — | dataset | en |
 | World Bank Open Data | worldbank.org | — | dataset | en |
 | US FRED | stlouisfed.org | US | api | en |
@@ -54,6 +59,8 @@
 | ACLED | acleddata.com | — | dataset | en |
 | Central Bank of Iran | cbi.ir | IR | official | fa |
 | Statistical Center of Iran | amar.org.ir | IR | official | fa |
+
+> ۵ منبع نخست (RSS) فید خبری واقعی دارند (`feed_url`) و منبع Milestone 1 هستند.
 
 ### API رجیستری منابع
 | متد | مسیر | کار |

@@ -226,10 +226,10 @@
 
 ---
 
-## ADR-0006 — مجوز پروژه (Open)
+## ADR-0006 — مجوز پروژه (MIT)
 **Date:** 2026-10-07
-**Context:** مجوز پروژه هنوز تعیین نشده است.
-**Decision:** تصمیم به تأخیر افتاد تا پیش از انتشار عمومی گرفته شود.
-**Alternatives:** MIT، Apache-2.0، AGPL-3.0، Proprietary
-**Why selected:** —
-**Consequences:** تا آن زمان هیچ فایلی منتشر نمی‌شود. باید در LICENSES.md و اینجا پیگیری شود.
+**Context:** مجوز پروژه در Phase 0 تعیین نشده بود.
+**Decision:** پروژه تحت **MIT License** منتشر می‌شود (فایل `LICENSE` از Phase 10 اضافه شد).
+**Alternatives:** Apache-2.0، AGPL-3.0، Proprietary
+**Why selected:** سادگی، رایج‌بودن، سازگاری با کتابخانه‌های MIT/BSD/Apache، کمترین محدودیت برای استفاده.
+**Consequences:** فایل `LICENSE` مرجع است؛ `LICENSES.md` و README باید MIT را نشان دهند.

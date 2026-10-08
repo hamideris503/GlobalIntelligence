@@ -7,7 +7,7 @@
 | مورد | مقدار |
 |---|---|
 | Name | GlobalIntelligence |
-| License | **هنوز تعیین نشده** (به ADR-0006 در DECISIONS.md مراجعه کنید) |
+| License | **MIT** (فایل `LICENSE`) |
 
 ---
 

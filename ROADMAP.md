@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 0
+**Phase فعلی:** 13
 
 ---
 
@@ -20,16 +20,16 @@
 
 ---
 
-## Phase 0 — تعریف نهایی پروژه ✅ (این مرحله)
+## Phase 0 — تعریف نهایی پروژه ✅
 - Product specification، Architecture، Constraints
 - Free-first rules، Goals، Non-goals
 - ساخت اسناد پایه (README, ARCHITECTURE, ROADMAP, TASKS, PROGRESS, DECISIONS, LICENSES, DATA_SOURCES, AI_MODELS)
 
-## Phase 1 — آماده‌سازی محیط ✅ (این مرحله)
+## Phase 1 — آماده‌سازی محیط ✅
 - Git، Python، Node.js، Docker، Docker Compose (بررسی و تأیید شد)
 - Repository، `.gitignore`، `.env.example`، اسکلت اجرایی (dependency files)
 
-## Phase 2 — Skeleton ✅ (این مرحله)
+## Phase 2 — Skeleton ✅
 - Backend FastAPI + endpoints: `/`, `/health`, `/health/db`
 - Frontend React + Vite (RTL/Dark) + build موفق
 - PostgreSQL در docker-compose + admin قرارداد اتصال
@@ -37,21 +37,21 @@
 - Health checkها + تست‌های pytest + Dockerfiles
 - هدف محقق‌شده: بالا آمدن همه سرویس‌های پایه (Backend/DB به‌صورت پیوسته)
 
-## Phase 3 — PostgreSQL ✅ (این مرحله)
+## Phase 3 — PostgreSQL ✅
 - ORM models برای موجودیت‌های اصلی (۱۵ جدول)
 - Alembic + migration اولیه (autogenerate) + اجرا در entrypoint بکاند
 - session factory + `get_db` dependency
 - Point-in-Time columns روی Document/Article/Event
 - seed منابع اولیه + تست‌های مدل‌ها
 
-## Phase 4 — n8n ✅ (این مرحله)
+## Phase 4 — n8n ✅
 - راه‌اندازی n8n (در docker-compose از Phase 2)
 - Workflow نمونه: Schedule Trigger → Backend → Database
 - endpoint `/api/jobs/trigger` + جدول `job_runs` + migration
 - import/publish خودکار workflow با اسکریپت
 - تست شد: اجرای زمان‌بندی‌شده‌ی واقعی n8n رکورد در PostgreSQL ثبت کرد
 
-## Phase 5 — AI Gateway ✅ (این مرحله)
+## Phase 5 — AI Gateway ✅
 - اینترفیس یکسان Provider (`generate`, `structured_generate`, `classify`, `extract`, `health`)
 - Mock Provider (پیش‌فرض، بدون هزینه) + Providerهای HTTP (openai, anthropic, gemini, openrouter)
 - Registry + routing مبتنی بر نقش/وظیفه
@@ -59,15 +59,16 @@
 - endpointهای `/api/ai/generate` و `/api/ai/providers`
 - تست شد: mock پاسخ داد، Providerهای بدون کلید → `not configured` (بدون crash)
 
-## Phase 6 — Mock AI
+## Phase 6 — Mock AI ✅ (در Phase 5 پوشش داده شد)
+- Mock Provider به‌عنوان Provider پیش‌فرض و schema-driven (بدون هزینه/اینترنت)
 
-## Phase 7 — Data Source Registry ✅ (این مرحله)
+## Phase 7 — Data Source Registry ✅
 - مدل `Source` (از Phase 3) + سرویس `SourceRegistry` (CRUD + health tracking)
 - API کامل `/api/sources` (list/create/get/update/health)
 - seed ۱۴ منبع معتبر رایگان با امتیاز اولیه
 - تست شد: ۱۵ منبع، فیلتر، ساخت، ثبت سلامت
 
-## Phase 8 — News Ingestion ✅ (این مرحله)
+## Phase 8 — News Ingestion ✅
 - fetcherها: RSS/Atom (stdlib) + Mock (آفلاین)
 - normalizer: پاک‌سازی، تشخیص زبان، hash/content_hash، Point-in-Time
 - pipeline: SOURCE → FETCH → RAW DOCUMENT → NORMALIZE → DATABASE
@@ -77,7 +78,7 @@
 - workflow n8n زمان‌بندی‌شده برای ingestion
 - تست شد: ۳ سند ذخیره، اجرای دوباره dedup شد
 
-## Phase 9 — Deduplication ✅ (این مرحله)
+## Phase 9 — Deduplication ✅
 - shingling + MinHash + LSH banding (بدون وابستگی خارجی)
 - Union-Find برای خوشه‌بندی
 - تشخیص exact / near-duplicate / repost (بین منابع)
@@ -86,7 +87,7 @@
 - آستانه‌ی قابل تنظیم (`DEDUP_NEAR_THRESHOLD`)
 - تست شد: repost بین دو منبع تشخیص داده شد
 
-## Phase 10 — Article Classification ✅ (این مرحله)
+## Phase 10 — Article Classification ✅
 - prompt نسخه‌دار طبقه‌بندی/استخراج + JSON Schema
 - `ArticleClassifier` با AI Gateway (نقش fast_extraction)
 - محاسبه‌ی deterministic Importance Score (بند 22)
@@ -94,7 +95,7 @@
 - API `/api/classify/*` + CLI
 - تست شد: ۳ مقاله طبقه‌بندی شدند
 
-## Phase 11 — Event Extraction ✅ (این مرحله)
+## Phase 11 — Event Extraction ✅
 - گروه‌بندی مقالات بر اساس خوشه‌ی dedup
 - استخراج Event با AI Gateway (structured JSON، prompt نسخه‌دار)
 - اگر AI در دسترس نباشد، ساخت Event سبک از خود مقاله (fallback)
@@ -103,7 +104,7 @@
 - CLI: `python -m domains.events.run_extract`
 - تست شد: ۶۰ مقاله → ۳ رویداد
 
-## Phase 12 — Claim Extraction
+## Phase 12 — Claim Extraction ✅
 - گروه‌بندی بر Event؛ یک‌بار به‌ازای هر رویداد (`claims_extracted`)
 - استخراج Claimهای اتمی (subject-predicate-object) با AI Gateway
 - fallback سبک در نبود AI

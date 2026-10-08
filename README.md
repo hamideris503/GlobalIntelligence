@@ -146,4 +146,4 @@ docker compose exec backend python -m db.seed.sources
 
 ## مجوز
 
-مجوز این پروژه در Phase 0 هنوز نهایی نشده است. تصمیم در [`DECISIONS.md`](DECISIONS.md) ثبت میشود. پروژه‌های استفاده‌شده در [`LICENSES.md`](LICENSES.md) پیگیری می‌شوند.
+مجوز این پروژه MIT است (فایل [LICENSE](LICENSE)). تصمیم در [DECISIONS.md](DECISIONS.md) (ADR-0006) ثبت شده است. پروژه‌های استفاده‌شده در [LICENSES.md](LICENSES.md) پیگیری می‌شوند.
