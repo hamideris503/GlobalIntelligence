@@ -5,6 +5,20 @@
 
 ---
 
+## ADR-0028 — Historical Analogue: فاصله‌ی برداری فقط‌خواندنی + aftermath
+**Date:** 2026-10-08
+**Context:** Phase 20 باید «وضعیت فعلی ↔ وضعیت‌های تاریخی مشابه» را بدون AI و بدون داده‌ی جدید بسازد.
+**Decision:**
+- بردار ۹ سیگنال با ترتیب ثابت؛ دو متریک (euclidean پیش‌فرض، cosine)؛ شباهت 0..1؛ واگرایی هر سیگنال.
+- فقط snapshotهای قدیمی‌تر از مرجع (گذشته، نه آینده)؛ مرجع پیش‌فرض آخرین snapshot.
+- `aftermath`: snapshotهای بعدی + رویدادهای حافظه (layer=event) بعد از آنالوگ.
+- فقط خواندنی: بدون migration، بدون AI.
+**Alternatives:** embedding/AI similarity؛ وزن‌دهی سیگنال‌ها؛ لحاظ آینده
+**Why selected:** قطعی، ساده، قابل ردیابی، Deterministic Core.
+**Consequences:** وزن یکسان سیگنال‌ها (v1)؛ با تاریخچه‌ی کوتاه آنالوگ بدیهی است و با هر build بهتر می‌شود.
+
+---
+
 ## ADR-0027 — Historical Memory: بایگانی ارجاعی با Point-in-Time timeline
 **Date:** 2026-10-08
 **Context:** Phase 19 باید «historical events, states, snapshots» را به حافظه‌ی قابل پرس‌وجو تبدیل کند (ورودی Phase 20 Analogue).

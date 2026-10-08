@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 19 — Historical Memory**
+**Phase فعلی: 20 — Historical Analogue**
 **Status: DONE**
 
-> ⚠️ Historical Memory ساخته شد: رویدادها/حالت‌ها/داده‌های خام مهم در `memory_records` بایگانی و با پرس‌وجوی Point-in-Time (`timeline as_of`) قابل بازیابی‌اند. مرحله‌ی بعد Historical Analogue است.
+> ⚠️ Historical Analogue ساخته شد: وضعیت فعلی با snapshotهای تاریخی (فاصله‌ی برداری ۹ سیگنال) مقایسه و «بعدش چه شد» (snapshotها و رویدادهای بعدی) بازیابی می‌شود. مرحله‌ی بعد Macro Engine است.
 
 ---
 

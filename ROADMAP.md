@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 19
+**Phase فعلی:** 20
 
 ---
 
@@ -173,8 +173,13 @@
 - CLI: `python -m domains.memory.run_archive`
 - تست شد: ۹ تست پاس؛ کل ۱۵۰ تست پاس؛ زنده ۱۳۵ raw + ۳ event + ۳ state، timeline گذشته=۰، اجرای دوباره=۱۴۱ duplicate
 
-## Phase 20 — Historical Analogue
-- Current state ↔ Historical similar states
+## Phase 20 — Historical Analogue ✅ (این مرحله)
+- فاصله‌ی برداری ۹ سیگنال (`euclidean` پیش‌فرض + `cosine`) با توابع خالص؛ شباهت 0..1 + واگرایی هر سیگنال
+- `AnalogueService`: مرجع (مشخص/آخرین) ↔ فقط snapshotهای قدیمی‌تر + رتبه‌بندی + `aftermath` (snapshotهای بعدی و رویدادهای حافظه‌ی بعدی)
+- API: `GET /api/analogues`, `GET /api/analogues/{id}/aftermath` (404/422 دقیق)
+- CLI: `python -m domains.analogue.run_analogues`
+- فقط خواندنی: بدون migration، بدون AI
+- تست شد: ۱۲ تست پاس؛ کل ۱۶۲ تست پاس؛ زنده ۲ آنالوگ با similarity=1.0
 
 ## Phase 21 — Macro Engine
 ## Phase 22 — Geopolitical Engine

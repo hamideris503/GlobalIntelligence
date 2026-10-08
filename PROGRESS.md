@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 20 — Historical Analogue
+**تاریخ:** 2026-10-08
+**وضعیت:** DONE
+
+### Completed
+- `domains/analogue/similarity.py`: توابع خالص (`to_vector`/`euclidean`/`cosine_distance`/`similarity`/`deltas`)؛ None→0.5 خنثی
+- `domains/analogue/engine.py`: `AnalogueService`
+  - مرجع مشخص یا آخرین snapshot؛ فقط گذشته (captured_at قدیمی‌تر)؛ top_k؛ دو متریک
+  - `aftermath`: snapshotهای بعدی + رویدادهای layer=event حافظه بعد از آنالوگ
+- `domains/analogue/run_analogues.py`: CLI (حالت analogues و aftermath)
+- API: `GET /api/analogues` (422 متریک نامعتبر، 404 مرجع ناموجود)، `GET /api/analogues/{id}/aftermath`
+- تست‌های `tests/test_analogues.py` (۱۲ تست)
+
+### Tests
+- `python -m pytest tests -q` → **162 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۲ آنالوگ similarity=1.0 + deltas صفر ✅
+- زنده: aftermath (۱ snapshot بعدی، ۰ رویداد بعدی — درست، چون رویدادها قبل‌اند) + cosine + CLI ✅
+
+### Known issues
+- با ۳ snapshot نزدیک‌به‌هم، آنالوگ‌ها بدیهی‌اند؛ با تاریخچه‌ی بلندتر معنادار می‌شوند (هر build جدید تاریخچه می‌سازد).
+- وزن یکسان هر ۹ سیگنال (v1)؛ وزن‌دهی تطبیقی در فازهای بعدی.
+
+### Next step
+- Phase 21 — Macro Engine
+
+---
+
 ## Phase 19 — Historical Memory
 **تاریخ:** 2026-10-08
 **وضعیت:** DONE
