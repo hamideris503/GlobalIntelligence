@@ -1,0 +1,131 @@
+﻿Phase 10 (redo) — Summary
+-------------------------
+
+
+source_name : ECB Data Portal
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : OECD Data
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : US BLS
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Stooq
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Yahoo Finance
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : World Gold Council
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : BBC Business
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Reuters Business (via Google News)
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Federal Reserve Press Releases
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Al Jazeera
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : ECB Press Releases
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : CoinGecko
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : GDELT
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : ACLED
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Statistical Center of Iran
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : US FRED
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : Central Bank of Iran
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : World Bank Open Data
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+source_name : IMF World Economic Outlook
+fetched     : 3
+stored      : 0
+duplicates  : 3
+errors      : {}
+
+
+
+
+---
+Pipeline results (last runs):
+dedup: 135 docs, 3 duplicate clusters
+classify: 75 classified (mock, real structure)
+events: 75 created
+claims: 75 created
+evidence: 75 supports
+independence: 19 sources, 18 groups, 3 corroborated
+graph: entities/relations populated (mock values)
+tests: 111 passed, ruff clean
