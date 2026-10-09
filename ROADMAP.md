@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 29
+**Phase فعلی:** 30
 
 ---
 
@@ -238,7 +238,13 @@
 - API: `POST /api/tournaments/run` (targets خالی → 422), `GET /api/tournaments`, `GET /api/tournaments/{id}` (404)
 - CLI: `python -m domains.forecast.run_tournament`
 - تست شد: ۶ تست پاس؛ کل ۲۵۳ تست پاس؛ زنده برنده naive (MAE 0.05 در برابر 2.05)
-## Phase 30 — Scenario Engine (Base/Bull/Bear/Tail)
+## Phase 30 — Scenario Engine (Base/Bull/Bear/Tail) ✅ (این مرحله)
+- سناریوهای جهت‌مقداری قطعی: bull=+σ، bear=−σ، tail=−2σ؛ σ ناموجود → فقط base (۳ skip صادقانه)
+- `ScenarioEngine`: baseline موجود + σ سری → ۴ ردیف Ledger با جانشینی خودکار + تخفیف confidence
+- API: `POST /api/scenarios/run`, `GET /api/scenarios` (آخرین مجموعه‌ی active هر هدف)
+- CLI: `python -m domains.scenarios.run_scenarios`
+- بدون migration (فیلد scenario از Phase 26)
+- تست شد: ۸ تست پاس؛ کل ۲۶۱ تست پاس؛ زنده ۴ سناریو تورم + base-only برای WTI تک‌نقطه‌ای
 ## Phase 31 — Risk Engine
 ## Phase 32 — Decision Engine
 ## Phase 33 — Iran Mode

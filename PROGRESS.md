@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 30 — Scenario Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/scenarios/analytics.py`: توابع خالص (`series_sigma`/`build_scenarios` + تخفیف‌ها)؛ σ ناموجود → None
+- `domains/scenarios/engine.py`: `ScenarioEngine` (baseline موجود + ۳ سناریو با جانشینی + assumptions صریح)
+- `domains/scenarios/run_scenarios.py`: CLI
+- API: `POST /api/scenarios/run`, `GET /api/scenarios`
+- تست‌های `tests/test_scenarios.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **261 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (فیلد scenario موجود) ✅
+- زنده: ۴ سناریو تورم (base=2.95، bull=5.19، bear=0.71، tail=−1.53) + ۲ جانشینی ✅
+- زنده: WTI تک‌نقطه‌ای → فقط base + ۳ skip صادقانه + CLI ✅
+- اصلاح حین کار: `db.get` با UUID، فیلد جاافتاده‌ی errors، خط تکراری، zip strict
+
+### Known issues
+- tail فقط دم چپ است (دم راست در آینده)؛ سناریوها جهت‌مقداری‌اند نه رفاهی (مستند شد).
+- بازه از base کپی می‌شود (ساده‌سازی ثبت‌شده).
+
+### Next step
+- Phase 31 — Risk Engine
+
+---
+
 ## Phase 29 — Forecast Tournament
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

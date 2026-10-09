@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 29 — Forecast Tournament**
+**Phase فعلی: 30 — Scenario Engine**
 **Status: DONE**
 
-> ⚠️ Forecast Tournament ساخته شد: چند روش روی اهداف مشترک رقابت می‌کنند و جدول امتیازات با برنده ذخیره می‌شود. مرحله‌ی بعد Scenario Engine است.
+> ⚠️ Scenario Engine ساخته شد: ۴ سناریوی قطعی (base/bull/bear/tail) از baseline با شوک σ در Ledger ثبت می‌شود. مرحله‌ی بعد Risk Engine است.
 
 ---
 

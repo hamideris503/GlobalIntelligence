@@ -32,6 +32,7 @@ from backend.api.routers import (
     memory,
     narratives,
     outcomes,
+    scenarios,
     society,
     sources,
     tournaments,
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     app.include_router(forecasts.router, dependencies=protected)
     app.include_router(evaluation.router, dependencies=protected)
     app.include_router(tournaments.router, dependencies=protected)
+    app.include_router(scenarios.router, dependencies=protected)
     return app
 
 
