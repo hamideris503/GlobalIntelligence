@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 27 — Outcome Engine**
+**Phase فعلی: 28 — Forecast Evaluation**
 **Status: DONE**
 
-> ⚠️ Outcome Engine ساخته شد: نتیجه‌ی واقعی (اولین مشاهده در/پس از target_date) به پیش‌بینی‌های سررسیده تطبیق و وضعیت resolved می‌شود. مرحله‌ی بعد Forecast Evaluation است.
+> ⚠️ Forecast Evaluation ساخته شد: امتیازهای Brier/LogLoss/MAE/RMSE و جدول کالیبراسیون برای outcomeها محاسبه می‌شود. مرحله‌ی بعد Forecast Tournament است.
 
 ---
 

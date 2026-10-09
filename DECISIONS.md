@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0037 — Forecast Evaluation: امتیاز استاندارد + خلاصه‌ی live
+**Date:** 2026-10-09
+**Context:** Phase 28 باید دقت پیش‌بینی‌ها را با متریک‌های استاندارد بسنجد.
+**Decision:**
+- abs/squared برای مقداری؛ brier/log_loss با clip برای احتمالاتی؛ MAE/RMSE/میانگین‌ها + کالیبراسیون دهکی.
+- امتیازدهی idempotent روی ردیف outcome؛ خلاصه live از مقادیر خام (مستقل از run).
+- ورودی نامعتبر → None/تهی، نه عدد جعلی.
+**Alternatives:** ذخیره‌ی خلاصه (materialize)؛ متریک‌های سفارشی
+**Why selected:** استاندارد بودن، سادگی، صداقت در خلأ داده.
+**Consequences:** خلاصه با رشد Ledger کند می‌شود (بهینه‌سازی بعدی).
+
+---
+
 ## ADR-0036 — Outcome Engine: تطبیق بدون look-ahead
 **Date:** 2026-10-09
 **Context:** Phase 27 باید نتیجه‌ی واقعی را منصفانه به پیش‌بینی وصل کند.

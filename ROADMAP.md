@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 27
+**Phase فعلی:** 28
 
 ---
 
@@ -225,7 +225,13 @@
 - CLI: `python -m domains.forecast.run_resolve`
 - بدون migration (جدول از Phase 3 کامل — راستی‌آزمایی شد)
 - تست شد: ۸ تست پاس؛ کل ۲۳۷ تست پاس؛ زنده resolve واقعی (2.95) + پاک‌سازی
-## Phase 28 — Forecast Evaluation (Brier, Log Loss, MAE, RMSE, Calibration)
+## Phase 28 — Forecast Evaluation ✅ (این مرحله)
+- متریک‌های خالص: abs/squared (مقداری)، brier/log_loss با clip (احتمالاتی)، MAE/RMSE، کالیبراسیون دهکی
+- `EvaluationEngine`: امتیازدهی idempotent روی ردیف outcome + خلاصه‌ی live (بدون ذخیره‌ی جدا)
+- API: `POST /api/evaluation/run`, `GET /api/evaluation/scores`, `GET /api/evaluation/summary`
+- CLI: `python -m domains.forecast.run_evaluate` (+`--summary`)
+- بدون migration (فیلدها از Phase 3 — راستی‌آزمایی شد)
+- تست شد: ۱۰ تست پاس؛ کل ۲۴۷ تست پاس؛ زنده end-to-end (resolve→evaluate→summary: MAE=2.05)
 ## Phase 29 — Forecast Tournament
 ## Phase 30 — Scenario Engine (Base/Bull/Bear/Tail)
 ## Phase 31 — Risk Engine

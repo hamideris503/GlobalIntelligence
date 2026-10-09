@@ -4,6 +4,33 @@
 
 ---
 
+## Phase 28 — Forecast Evaluation
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/forecast/metrics.py`: توابع خالص (`value_scores`/`prob_scores` با clip/`parse_bool`/`aggregate`/`calibrate`)
+- `domains/forecast/evaluation.py`: `EvaluationEngine` (امتیازدهی idempotent + خلاصه‌ی live از مقادیر خام، مستقل از run قبلی)
+- `domains/forecast/run_evaluate.py`: CLI (+`--summary`/`--model`)
+- API: `POST /api/evaluation/run`, `GET /api/evaluation/scores`, `GET /api/evaluation/summary`
+- تست‌های `tests/test_evaluation.py` (۱۰ تست)
+
+### Tests
+- `python -m pytest tests -q` → **247 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (راستی‌آزمایی شد) ✅
+- زنده end-to-end: resolve→evaluate→summary (MAE=2.0505) + پاک‌سازی + CLI ✅
+- اصلاح حین کار: summary از مقادیر خام محاسبه می‌کند (نه فقط فیلدهای ذخیره‌شده)؛ import مرتب‌سازی ruff
+
+### Known issues
+- کالیبراسیون فقط برای پیش‌بینی‌های احتمالاتی است (هنوز تولید نمی‌شود) → جدول تهی صادقانه.
+- خلاصه ذخیره نمی‌شود؛ با رشد Ledger ممکن است کند شود (فازهای بعد: materialize).
+
+### Next step
+- Phase 29 — Forecast Tournament
+
+---
+
 ## Phase 27 — Outcome Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
