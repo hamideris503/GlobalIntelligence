@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 47 — Staging**
-**Status: DONE**
+**Phase فعلی: 48 — VPS Deployment**
+**Status: BLOCKED (docs + automation done)**
 
-> ⚠️ Staging آماده شد: stack جدا (پورت/volume مجزا) با smoke test سبز و دستورالعمل `docs/STAGING.md`. مرحله‌ی بعد VPS Deployment است.
+> ⚠️ استقرار VPS: automation و مستندات آماده است؛ اجرای زنده نیازمند دسترسی به سرور است (BLOCKED). مرحله‌ی بعد 24/7 Automation است.
 
 ---
 

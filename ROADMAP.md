@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 47
+**Phase فعلی:** 48
 
 ---
 
@@ -347,7 +347,13 @@
 - `scripts/smoke_check.py`: ۹ چک فقط‌خواندنی (health/auth/endpointها) + تست‌های `tests/test_smoke.py`
 - `docs/STAGING.md`: رویه‌ی up/smoke/down + هشدار چاپ secret در `config` + عیب‌یابی
 - تست شد: staging واقعی بالا آمد (migration خودکار) + smoke ۹/۹ سبز + جمع‌سازی کامل؛ dev دست‌نخورده
-## Phase 48 — VPS Deployment
+## Phase 48 — VPS Deployment ⚠️ BLOCKED (automation done)
+- `scripts/deploy_vps.py`: پلن ۵ مرحله‌ای (بررسی/docker، پوشه، scp بدون `.env`، up prod، smoke) + محافظ refuse انتقال `.env` + dry-run پیش‌فرض
+- `docs/VPS_DEPLOYMENT.md`: پیش‌نیاز، secret دستی، اجرا، smoke پسااستقرار، rollback، کارهای مانده
+- تست‌های `tests/test_deploy.py` (۵ تست منطق خالص)
+- بدون migration
+- تست شد: ۵ تست پاس؛ کل ۳۵۵ تست پاس؛ dry-run زنده با ۵ گام صحیح
+- **BLOCKED**: اجرای `--live` نیازمند host/user/key واقعی VPS است (در دسترس نیست)
 ## Phase 49 — 24/7 Automation
 ## Phase 50 — Production Monitoring
 ## Phase 51 — Long-Term Learning

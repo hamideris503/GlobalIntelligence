@@ -4,6 +4,29 @@
 
 ---
 
+## Phase 48 — VPS Deployment
+**تاریخ:** 2026-10-09
+**وضعیت:** BLOCKED (automation + docs DONE؛ اجرای زنده نیازمند سرور)
+
+### Completed
+- `scripts/deploy_vps.py`: پلن داده‌محور (قابل تست) + اجرای واقعی فقط با `--live` + محافظ `.env`
+- `docs/VPS_DEPLOYMENT.md`: راهنمای کامل (پیش‌نیاز/secret/اجرا/smoke/rollback/کارهای مانده)
+- تست‌های `tests/test_deploy.py` (۵ تست)
+
+### Tests
+- `python -m pytest tests -q` → **355 passed** ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- بدون migration ✅
+- dry-run زنده: ۵ گام صحیح چاپ شد ✅
+
+### Blocked
+- اجرای `--live` روی VPS واقعی: host/user/key در دسترس نیست. با دریافت مشخصات سرور، همین اسکریپت اجرا و smoke ثبت می‌شود.
+
+### Next step
+- Phase 49 — 24/7 Automation (پس از رفع BLOCKED یا موازی با mock)
+
+---
+
 ## Phase 47 — Staging
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
