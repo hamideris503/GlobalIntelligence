@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 39
+**Phase فعلی:** 40
 
 ---
 
@@ -301,7 +301,12 @@
 - API: `POST /api/self-eval/run`, `GET /api/self-eval/latest` (404 دقیق), `GET /api/self-eval/history`
 - CLI: `python -m domains.selfeval.run_selfeval`
 - تست شد: ۵ تست پاس؛ کل ۳۱۹ تست پاس؛ زنده نمره‌ی واقعی B (0.8333)
-## Phase 40 — Dashboard
+## Phase 40 — Dashboard ✅ (این مرحله)
+- `apps/web/src/api.ts`: کلید X-API-Key در localStorage + fetch یکپارچه
+- `apps/web/src/App.tsx`: کارت‌های سلامت + ۷ بخش زنده (جهان/بازار/تصمیم/ریسک/پیش‌بینی/خودارزیابی/ایران) با پیام فارسی 401
+- استایل RTL + جدول‌ها در `styles.css`
+- بدون migration (فقط فرانت‌اند)؛ بک‌اند دست‌نخورده
+- تست شد: ۳۱۹ تست پاس؛ `npm run build` موفق؛ سرو زنده
 ## Phase 41 — Daily Intelligence
 ## Phase 42 — Weekly Intelligence
 ## Phase 43 — Alerts

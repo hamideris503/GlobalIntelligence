@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 40 — Dashboard
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `apps/web/src/api.ts`: کلاینت با هدر X-API-Key (localStorage) — بدون کلید فقط health عمومی
+- `apps/web/src/App.tsx`: داشبورد RTL فارسی با ۷ بخش زنده + جعبه‌ی کلید + پیام راهنمای 401
+- `apps/web/src/styles.css`: پنل‌ها، جدول‌ها، جعبه‌ی کلید (تم تیره حفظ شد)
+- کانتینر frontend بازسازی شد (dev server با کد جدید)
+
+### Tests
+- `python -m pytest tests -q` → **319 passed** (بک‌اند دست‌نخورده) ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- `npm run build` → موفق (۳۲ ماژول) ✅
+- زنده: صفحه‌ی سرو‌شده شامل داشبورد ✅
+- بدون migration ✅
+
+### Known issues
+- نمودار (chart) ندارد؛ جدول ساده است (تجسم در فازهای بعد).
+- کلید در localStorage متن ساده است (متناسب با تهدید local-dev).
+
+### Next step
+- Phase 41 — Daily Intelligence
+
+---
+
 ## Phase 39 — Self Evaluation
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
