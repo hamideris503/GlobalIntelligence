@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 50
+**Phase فعلی:** 51
 
 ---
 
@@ -365,7 +365,12 @@
 - workflow `gi-ops-monitor` (ساعتی: ops/status → alerts/evaluate) + import زنده (۶ workflow)
 - API: `GET /api/ops/monitoring`, `GET /api/ops/metrics`
 - تست شد: ۶ تست پاس؛ کل ۳۶۸ تست پاس؛ زنده status=pass + متریک‌های معتبر
-## Phase 51 — Long-Term Learning
+## Phase 51 — Long-Term Learning ✅ (این مرحله)
+- ۳ یادگیرنده‌ی قطعی: روند MAE (شیب حداقل‌مربعات + جهت + اعتماد)، نرخ پایه‌ی رژیم‌ها، چندک ۹۰ سیگنال‌ها
+- `LearningEngine`: استخراج + upsert ماهانه در `learning_insights` + migration `181fd4efd921`
+- API: `POST /api/learning/run`, `GET /api/learning/insights`
+- CLI: `python -m domains.learning.run_learn`
+- تست شد: ۸ تست پاس؛ کل ۳۷۶ تست پاس؛ زنده ۲ بینش رژیم + idempotent
 ## Phase 52 — Advanced Research (GraphRAG, Bayesian networks, causal discovery, …)
 
 ---

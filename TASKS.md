@@ -2,14 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 50
+**به‌روزرسانی:** Phase 51
 
 ---
 
 ## TODO
-- [ ] Phase 51: Long-Term Learning
-- [ ] BLOCKED — Phase 48 live: اجرای `--live` روی VPS (نیازمند host/user/key)
-- [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
+- [ ] Phase 52: Advanced Research
 - [ ] BLOCKED — Phase 48 live: اجرای `--live` روی VPS (نیازمند host/user/key)
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
@@ -21,11 +19,41 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 51: Long-Term Learning (روند دقت + نرخ رژیم + آستانه p90 + API + CLI + migration + تست)
 - [x] Phase 50: Production Monitoring (چک‌ها + متریک Prometheus + workflow + تست)
 - [x] Phase 49: 24/7 Automation (۵ workflow + ops status + تست)
 - [x] Phase 48: VPS Deployment automation + docs (اجرای زنده BLOCKED: بدون سرور)
+- [x] Phase 47: Staging (stack جدا + smoke سبز + docs + تست)
+- [x] Phase 46: Docker Production (compose prod + ایمیج nginx + راستی‌آزمایی ایمیج‌ها)
+- [x] Phase 45: Backup (dump/restore/verify + manifest + rotation + تست)
+- [x] Phase 44: Security Hardening (هدرها + rate limit + fail-fast + تست امنیتی)
+- [x] Phase 43: Alerts (قواعد آستانه + ارزیابی + API + CLI + migration + تست)
+- [x] Phase 42: Weekly Intelligence (خلاصه ۷ روزه + مقایسه‌ها + API + CLI + تست)
+- [x] Phase 41: Daily Intelligence (خلاصه ۲۴ ساعته + Briefing + API + CLI + migration + تست)
+- [x] Phase 40: Dashboard (۷ بخش زنده + کلید API + RTL + بیلد موفق)
+- [x] Phase 39: Self Evaluation (۶ چک + نمره/grade + API + CLI + migration + تست)
+- [x] Phase 38: Audit / Replay (لاگ افزودنی + بازپخش قطعی + API + CLI + migration + تست)
+- [x] Phase 37: Adaptive AI Router (ثبت عملکرد + زنجیره تطبیقی + API + CLI + migration + تست)
+- [x] Phase 36: Model Performance (ثبت دوره‌ای + leaderboard + API + CLI + migration + تست)
+- [x] Phase 35: Portfolio Intelligence (پورتفوی + snapshot + API + CLI + migration + تست)
+- [x] Phase 34: Iran Transmission (۴ کانال انتقال + assessment + API + CLI + migration + تست)
+- [x] Phase 33: Iran Mode (لنز تجمیعی ایران + API + CLI + تست)
+- [x] Phase 32: Decision Engine (تصمیم قانون‌مند + Recommendation + API + CLI + تست)
+- [x] Phase 31: Risk Engine (۸ دسته ریسک + assessment + API + CLI + migration + تست)
+- [x] Phase 30: Scenario Engine (۴ سناریوی قطعی + Ledger + API + CLI + تست)
+- [x] Phase 29: Forecast Tournament (رقابت مدل‌ها + leaderboard + API + CLI + migration + تست)
+- [x] Phase 28: Forecast Evaluation (متریک‌ها + کالیبراسیون + API + CLI + تست)
+- [x] Phase 27: Outcome Engine (تطبیق نتایج واقعی + resolved + API + CLI + تست)
+- [x] Phase 26: Forecast Ledger (سناریو + چرخه حیات + جانشینی + active as-of + migration + تست)
+- [x] Phase 25: Forecast Engine (baselineهای قطعی + Ledger + API + CLI + تست)
+- [x] Phase 24: Narrative Engine (خوشه‌بندی روایت + strength + API + CLI + migration + تست)
+- [x] Phase 23: Social Intelligence (فضای اجتماعی قلمروها + assessment + API + CLI + migration + تست)
+- [x] Phase 22: Geopolitical Engine (تنش بازیگران + assessment + API + CLI + migration + تست)
+- [x] Phase 21: Macro Engine (تحلیل قطعی سری‌ها + assessment + API + CLI + migration + تست)
+- [x] Audit Fix: اصلاحات ممیزی Phase 18/20 (cosine، پوشش no_data، پنجره drawdown، آرشیو تمیز، بیلد frontend)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
+- [x] Phase 18: World State (۹ سیگنال قطعی + رژیم‌ها + snapshot + API + CLI + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)
 - [x] Phase 16: Economic Data (World Bank fetcher + upsert idempotent + API + CLI + migration + تست)
 - [x] Phase 15: Knowledge Graph (entity resolution + relationship extraction + API + CLI + migration + تست)

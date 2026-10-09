@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 50 — Production Monitoring**
+**Phase فعلی: 51 — Long-Term Learning**
 **Status: DONE**
 
-> ⚠️ Production Monitoring ساخته شد: چک‌های مانیتورینگ + متریک‌های Prometheus + workflow پایش ساعتی فعال است. این آخرین فاز M4 است.
+> ⚠️ Long-Term Learning ساخته شد: روند دقت مدل‌ها، نرخ پایه‌ی رژیم‌ها و آستانه‌های داده‌محور از تاریخچه استخراج می‌شود. مرحله‌ی بعد Advanced Research است.
 
 ---
 

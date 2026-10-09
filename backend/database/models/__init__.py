@@ -14,6 +14,7 @@ from backend.database.models.evidence import Evidence
 from backend.database.models.forecast import Forecast, ForecastOutcome
 from backend.database.models.geopolitical_assessment import GeopoliticalAssessment
 from backend.database.models.job import JobRun
+from backend.database.models.learning_insight import LearningInsight
 from backend.database.models.macro_assessment import MacroAssessment
 from backend.database.models.market import MacroObservation, MarketObservation
 from backend.database.models.memory import MemoryRecord
@@ -48,6 +49,7 @@ __all__ = [
     "ForecastOutcome",
     "GeopoliticalAssessment",
     "JobRun",
+    "LearningInsight",
     "MacroAssessment",
     "MacroObservation",
     "MarketObservation",

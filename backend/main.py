@@ -33,6 +33,7 @@ from backend.api.routers import (
     ingestion,
     iran,
     jobs,
+    learning,
     macro,
     markets,
     memory,
@@ -141,6 +142,7 @@ def create_app() -> FastAPI:
     app.include_router(selfeval.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)
+    app.include_router(learning.router, dependencies=protected)
     app.include_router(iran.router, dependencies=protected)
     return app
 

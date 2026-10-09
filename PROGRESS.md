@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 51 — Long-Term Learning
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/learning/learners.py`: توابع خالص (شیب LS، جهت روند، نرخ پایه، چندک ۹۰) با حداقل نمونه‌ی مستند
+- `backend/database/models/learning_insight.py`: مدل + migration `181fd4efd921` (up/down موقت + زنده)
+- `domains/learning/engine.py`: `LearningEngine` (۳ یادگیرنده + upsert idempotent)
+- `domains/learning/run_learn.py`: CLI
+- API: `POST /api/learning/run`, `GET /api/learning/insights`
+- تست‌های `tests/test_learning.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **376 passed** ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- زنده: ۲ بینش رژیم (slowdown/risk_on ≈ 1.0 از ۳ state) + idempotent + CLI ✅
+
+### Known issues
+- با تاریخچه‌ی کوتاه، بینش‌ها کم‌اعتمادند (اعتماد از n می‌آید — صادقانه).
+- یادگیری پارامتری (به‌روزرسانی وزن‌ها) در scope نیست؛ فقط بینش توصیفی.
+
+### Next step
+- Phase 52 — Advanced Research
+
+---
+
 ## Phase 50 — Production Monitoring
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
