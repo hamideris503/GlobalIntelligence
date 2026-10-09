@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 22 — Geopolitical Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/geopolitics/analytics.py`: تابع خالص `tension` (v1) + `confidence_for`؛ n=0 → None (بدون assessment)
+- `backend/database/models/geopolitical_assessment.py`: `GeopoliticalAssessment` با یکتایی (actor, period)
+- migration `5cf8f59a349b`: جدول `geopolitical_assessments` (up/down موقت + زنده، head=`5cf8f59a349b`)
+- `domains/geopolitics/analysis.py`: `GeopoliticalEngine` (گروه‌بندی بازیگر، سهم مناقشه از CONFLICT_TYPES، یال‌های گراف بدون double-count، period ماه جاری، upsert idempotent)
+- `domains/geopolitics/run_analyze.py`: CLI
+- API: `POST /api/geopolitics/analyze`, `GET /api/geopolitics/assessments`, `GET /api/geopolitics/tensions`
+- تست‌های `tests/test_geopolitics.py` (۹ تست)
+
+### Tests
+- `python -m pytest tests -q` → **196 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۱ بازیگر (mock: tension=0.2، فقط حجم — صادقانه) + idempotent + CLI ✅
+- اصلاح حین کار: double-count نام‌های موجودیت در sanction_links (تست پیداش کرد)
+
+### Known issues
+- با mock فقط یک بازیگر «mock» است؛ با Provider واقعی بازیگران واقعی تفکیک می‌شوند.
+- تطبیق نام بازیگر↔موجودیت رشته‌ای است (fuzzy در آینده).
+
+### Next step
+- Phase 23 — Social Intelligence
+
+---
+
 ## Phase 21 — Macro Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

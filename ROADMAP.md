@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 21
+**Phase فعلی:** 22
 
 ---
 
@@ -187,7 +187,12 @@
 - API: `POST /api/macro/analyze`, `GET /api/macro/assessments`, `GET /api/macro/overview?country=`
 - CLI: `python -m domains.macro.run_analyze`
 - تست شد: ۱۰ تست پاس؛ کل ۱۸۷ تست پاس؛ زنده ۲ سری (USA inflation stable، IRN gdp decelerating)
-## Phase 22 — Geopolitical Engine
+## Phase 22 — Geopolitical Engine ✅ (این مرحله)
+- تابع خالص `tension` (v1 مستند: 0.2 حجم + 0.3 غافلگیری + 0.3 مناقشه + 0.2 تحریم) + confidence از تعداد رویداد
+- `GeopoliticalEngine`: گروه‌بندی رویدادها بر بازیگر (نرمال‌سازی نام) + شمارش یال‌های sanctions/competes گراف + upsert ماهانه در `geopolitical_assessments` + migration `5cf8f59a349b`
+- API: `POST /api/geopolitics/analyze`, `GET /api/geopolitics/assessments`, `GET /api/geopolitics/tensions`
+- CLI: `python -m domains.geopolitics.run_analyze`
+- تست شد: ۹ تست پاس؛ کل ۱۹۶ تست پاس؛ زنده ۱ بازیگر (mock: tension=0.2)
 ## Phase 23 — Social Intelligence
 ## Phase 24 — Narrative Engine
 ## Phase 25 — Forecast Engine

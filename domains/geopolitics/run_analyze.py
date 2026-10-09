@@ -1,0 +1,31 @@
+"""Analyze geopolitical tensions (Phase 22 CLI).
+
+اجرا:
+    python -m domains.geopolitics.run_analyze
+    python -m domains.geopolitics.run_analyze --period 2026-10
+"""
+from __future__ import annotations
+
+import argparse
+import json
+
+from backend.database.session import get_session_factory
+from domains.geopolitics.analysis import GeopoliticalEngine
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Analyze geopolitical tensions")
+    parser.add_argument("--period", type=str, default=None)
+    args = parser.parse_args()
+
+    session = get_session_factory()()
+    try:
+        outcome = GeopoliticalEngine(session).analyze_all(period=args.period)
+    finally:
+        session.close()
+    print(json.dumps(outcome.as_dict(), ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

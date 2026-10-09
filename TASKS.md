@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 21
+**به‌روزرسانی:** Phase 22
 
 ---
 
 ## TODO
-- [ ] Phase 22: Geopolitical Engine
+- [ ] Phase 23: Social Intelligence
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
@@ -18,8 +18,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 22: Geopolitical Engine (تنش بازیگران + assessment + API + CLI + migration + تست)
 - [x] Phase 21: Macro Engine (تحلیل قطعی سری‌ها + assessment + API + CLI + migration + تست)
-- [x] Audit Fix: اصلاحات ممیزی Phase 18/20 (cosine، پوشش no_data، پنجره drawdown، آرشیو تمیز، بیلد frontend)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)

@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 21 — Macro Engine**
+**Phase فعلی: 22 — Geopolitical Engine**
 **Status: DONE**
 
-> ⚠️ Macro Engine ساخته شد: تحلیل قطعی سری‌های macro (تغییر سالانه، شتاب، z-score، momentum) در `macro_assessments` ذخیره می‌شود. مرحله‌ی بعد Geopolitical Engine است.
+> ⚠️ Geopolitical Engine ساخته شد: تنش بازیگران از رویدادها و یال‌های گراف (sanctions/competes) به‌صورت قطعی تحلیل و در `geopolitical_assessments` ذخیره می‌شود. مرحله‌ی بعد Social Intelligence است.
 
 ---
 
