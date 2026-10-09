@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 38 — Audit / Replay
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/models/audit_record.py`: `AuditRecord` (افزودنی محض)
+- migration `56ede3ad3189` (up/down موقت + زنده، head=`56ede3ad3189`)
+- `domains/audit/service.py`: `log_action`
+- `domains/audit/replay.py`: `fingerprint`/`rerun`/`replay` برای ۵ موتور + `SUPPORTED_ENGINES`
+- `domains/audit/run_replay.py`: CLI
+- API: `POST /api/audit/log` (422 دقیق), `GET /api/audit/records|engines`, `POST /api/audit/replay` (422 موتور نامعتبر)
+- تست‌های `tests/test_audit.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **314 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: log + replay macro (match, ۲ ردیف) + CLI replay risk (match, ۷ ردیف) ✅
+- اصلاح حین کار: تست replay بدون analyze قبلی (mismatch درست بود، نه باگ)
+
+### Known issues
+- replay فقط موتورهای idempotent را پوشش می‌دهد (world-state افزودنی است و fingerprint معنادار ندارد).
+- لاگ حسابرسی رشد می‌کند؛ retention در فازهای ops آینده.
+
+### Next step
+- Phase 39 — Self Evaluation
+
+---
+
 ## Phase 37 — Adaptive AI Router
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0047 — Audit / Replay: اثبات تکرارپذیری با fingerprint کانونیکال
+**Date:** 2026-10-09
+**Context:** Phase 38 باید حسابرسی و بازتولیدپذیری را قابل آزمون کند.
+**Decision:**
+- لاگ افزودنی محض (بدون ویرایش/حذف، حتی برای تست زنده).
+- replay = fingerprint قبل/بعد روی فیلدهای کسب‌وکاری (بدون زمان/id)؛ mismatch یعنی drift واقعی.
+- فقط موتورهای idempotent؛ replay خودش لاگ می‌شود.
+**Alternatives:** لاگ قابل ویرایش؛ replay با مقایسه‌ی کامل ردیف‌ها (شکننده)
+**Why selected:** اثبات قطعی تکرارپذیری، حداقل نویز.
+**Consequences:** موتورهای افزودنی (world-state/forecast) تحت پوشش نیستند.
+
+---
+
 ## ADR-0046 — Adaptive AI Router: امتیاز لاپلاس + تزریق route بدون دست‌کاری gateway
 **Date:** 2026-10-09
 **Context:** Phase 37 باید مسیریابی را با شواهد عملکرد تطبیق دهد بدون اینکه fallback/retry موجود بشکند.

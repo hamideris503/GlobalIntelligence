@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 37 — Adaptive AI Router**
+**Phase فعلی: 38 — Audit / Replay**
 **Status: DONE**
 
-> ⚠️ Adaptive AI Router ساخته شد: عملکرد Providerها ثبت و زنجیره‌ی هر task بر اساس نرخ موفقیت لاپلاس‌هموار تطبیق داده می‌شود. مرحله‌ی بعد Audit / Replay است.
+> ⚠️ Audit / Replay ساخته شد: لاگ حسابرسی افزودنی و بازپخش قطعی موتورها با fingerprint قبل/بعد فعال است. مرحله‌ی بعد Self Evaluation است.
 
 ---
 

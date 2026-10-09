@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 37
+**Phase فعلی:** 38
 
 ---
 
@@ -289,7 +289,12 @@
 - API: `POST /api/ai-routing/record`, `GET /api/ai-routing/stats|routes`, `POST /api/ai-routing/apply`
 - CLI: `python -m domains.ai_routing.run_routes`
 - تست شد: ۷ تست پاس؛ کل ۳۰۶ تست پاس؛ زنده record/routes/apply/CLI
-## Phase 38 — Audit / Replay
+## Phase 38 — Audit / Replay ✅ (این مرحله)
+- جدول `audit_records` (افزودنی؛ بدون ویرایش/حذف) + migration `56ede3ad3189`
+- Replay قطعی ۵ موتور (macro/risk/geopolitics/society/performance) با fingerprint کانونیکال (بدون فیلد ناپایدار) + تشخیص drift
+- API: `POST /api/audit/log`, `GET /api/audit/records|engines`, `POST /api/audit/replay` (خودکار لاگ می‌شود)
+- CLI: `python -m domains.audit.run_replay`
+- تست شد: ۸ تست پاس؛ کل ۳۱۴ تست پاس؛ زنده replay macro/risk با match=true
 ## Phase 39 — Self Evaluation
 ## Phase 40 — Dashboard
 ## Phase 41 — Daily Intelligence
