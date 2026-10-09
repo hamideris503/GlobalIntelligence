@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 35 — Portfolio Intelligence**
+**Phase فعلی: 36 — Model Performance**
 **Status: DONE**
 
-> ⚠️ Portfolio Intelligence ساخته شد: پورتفوی‌های وزنی با snapshot ماهانه (بازده بخش پوشش‌یافته، عدم‌قطعیت، تمرکز/تنوع) تحلیل می‌شود. مرحله‌ی بعد Model Performance است.
+> ⚠️ Model Performance ساخته شد: عملکرد دوره‌ای هر مدل از outcomeها ثبت و leaderboard دقت نگهداری می‌شود. مرحله‌ی بعد Adaptive AI Router است.
 
 ---
 

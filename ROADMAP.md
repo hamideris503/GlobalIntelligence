@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 35
+**Phase فعلی:** 36
 
 ---
 
@@ -277,7 +277,12 @@
 - API: CRUD پورتفوی + `POST /{id}/snapshot` + تاریخچه (حذف آبشاری)
 - CLI: `python -m domains.portfolio.run_snapshot`
 - تست شد: ۸ تست پاس؛ کل ۲۹۵ تست پاس؛ زنده CRUD + snapshot + حذف
-## Phase 36 — Model Performance
+## Phase 36 — Model Performance ✅ (این مرحله)
+- ثبت دوره‌ای عملکرد هر مدل دارای outcome (n/MAE/RMSE/Brier/LogLoss) در `model_performance` + migration `a391e15c5db1`
+- `PerformanceEngine`: تجمیع از خلاصه‌ی evaluation + upsert ماهانه idempotent؛ مدل بی‌امتیاز skip
+- API: `POST /api/performance/record`, `GET /api/performance` (leaderboard), `GET /api/performance/history?model=`
+- CLI: `python -m domains.forecast.run_performance`
+- تست شد: ۴ تست پاس؛ کل ۲۹۹ تست پاس؛ زنده ۳ مدل skip صادقانه (بدون outcome)
 ## Phase 37 — Adaptive AI Router
 ## Phase 38 — Audit / Replay
 ## Phase 39 — Self Evaluation

@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 36 — Model Performance
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/models/model_performance.py`: `ModelPerformance` با یکتایی (model, period)
+- migration `a391e15c5db1` (up/down موقت + زنده، head=`a391e15c5db1`)
+- `domains/forecast/performance.py`: `PerformanceEngine` (تجمیع هر مدل + upsert idempotent + skip بی‌امتیاز)
+- `domains/forecast/run_performance.py`: CLI
+- API: `POST /api/performance/record`, `GET /api/performance`, `GET /api/performance/history`
+- تست‌های `tests/test_performance.py` (۴ تست)
+
+### Tests
+- `python -m pytest tests -q` → **299 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۳ مدل بدون outcome → skip صادقانه + board تهی + CLI ✅
+
+### Known issues
+- leaderboard فقط مدل‌های امتیازدار را دارد؛ مدل‌های تازه‌کار تا سررسید غایب‌اند (صادقانه).
+- ورودی Adaptive Router در Phase 37 آماده است.
+
+### Next step
+- Phase 37 — Adaptive AI Router
+
+---
+
 ## Phase 35 — Portfolio Intelligence
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
