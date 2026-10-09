@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 34
+**Phase فعلی:** 35
 
 ---
 
@@ -271,7 +271,12 @@
 - API: `POST /api/iran/transmission/analyze`, `GET /api/iran/transmission` (در router ایران)
 - CLI: `python -m domains.iran.run_transmission`
 - تست شد: ۷ تست پاس؛ کل ۲۸۷ تست پاس؛ زنده ۳ کانال + ۱ skip صادقانه
-## Phase 35 — Portfolio Intelligence
+## Phase 35 — Portfolio Intelligence ✅ (این مرحله)
+- پورتفوی وزنی (نام یکتا + positions) + snapshot ماهانه idempotent در `portfolio_snapshots` + migration `f606d7199126`
+- متریک‌های قطعی: بازده نرمال‌شده بر پوشش، عدم‌قطعیت وزنی، تمرکز هرفیندال، تنوع، coverage صادقانه
+- API: CRUD پورتفوی + `POST /{id}/snapshot` + تاریخچه (حذف آبشاری)
+- CLI: `python -m domains.portfolio.run_snapshot`
+- تست شد: ۸ تست پاس؛ کل ۲۹۵ تست پاس؛ زنده CRUD + snapshot + حذف
 ## Phase 36 — Model Performance
 ## Phase 37 — Adaptive AI Router
 ## Phase 38 — Audit / Replay

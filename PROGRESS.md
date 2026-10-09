@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 35 — Portfolio Intelligence
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/portfolio/analytics.py`: توابع خالص (نرمال‌سازی وزن، spread، تحلیل با coverage) + هشدار واحد مختلط
+- `backend/database/models/portfolio.py`: `Portfolio` + `PortfolioSnapshot` + migration `f606d7199126` (up/down موقت + زنده)
+- `domains/portfolio/engine.py`: `PortfolioEngine` (سناریوهای active + snapshot idempotent)
+- `domains/portfolio/run_snapshot.py`: CLI
+- API: CRUD + snapshot + تاریخچه (۴۰۹ نام تکراری، ۴۰۴ دقیق)
+- تست‌های `tests/test_portfolio.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **295 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: CRUD کامل + snapshot + حذف آبشاری (پورتفوی نمایشی پاک شد) ✅
+- زنده: CLI (خطای صریح برای شناسه ناموجود) ✅
+- اصلاح حین کار: کرش ۲۰۴ FastAPI (→۲۰۰ با بدنه)، بازده نرمال‌شده بر پوشش
+
+### Known issues
+- بازده برای ترکیب واحدها فقط جهت کلی می‌دهد (جزئیات در detail).
+- وزن‌ها ثابت‌اند؛ بازتوازن خودکار در آینده.
+
+### Next step
+- Phase 36 — Model Performance
+
+---
+
 ## Phase 34 — Iran Transmission
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

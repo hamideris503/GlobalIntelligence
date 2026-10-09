@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 34 — Iran Transmission**
+**Phase فعلی: 35 — Portfolio Intelligence**
 **Status: DONE**
 
-> ⚠️ Iran Transmission ساخته شد: اثر شوک‌های جهانی (انرژی/نرخ/ژئوپلیتیک/بازار) با وزن exposure بر ایران سنجیده می‌شود. مرحله‌ی بعد Portfolio Intelligence است.
+> ⚠️ Portfolio Intelligence ساخته شد: پورتفوی‌های وزنی با snapshot ماهانه (بازده بخش پوشش‌یافته، عدم‌قطعیت، تمرکز/تنوع) تحلیل می‌شود. مرحله‌ی بعد Model Performance است.
 
 ---
 
