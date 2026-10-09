@@ -5,6 +5,18 @@
 
 ---
 
+## ADR-0035 — Forecast Ledger: جانشینی صریح، حذف ممنوع
+**Date:** 2026-10-09
+**Context:** Phase 26 باید Ledger را از «انبار افزودنی» به «دفتر حساب» با چرخه‌ی حیات ارتقا دهد.
+**Decision:**
+- `scenario` + `status`؛ ثبت جدید هم‌خانواده قدیمی‌ها را superseded می‌کند؛ حذف هرگز؛ NULL قدیمی بازنویسی نمی‌شود.
+- active as-of با valid_from/target_date؛ naive رد می‌شود.
+**Alternatives:** حذف/به‌روزرسانی درجا؛ ابطال ضمنی بدون وضعیت
+**Why selected:** حسابرسی‌پذیری Ledger، انطباق با spec بند 40.
+**Consequences:** حجم Ledger رشد می‌کند (by design)؛ expired خودکار به Phase 27.
+
+---
+
 ## ADR-0034 — Forecast Engine: baseline اول، Ledger افزودنی
 **Date:** 2026-10-09
 **Context:** Phase 25 باید پیش‌بینی را با ساده‌ترین مدل‌های قابل اتکا شروع کند (طبق ROADMAP).

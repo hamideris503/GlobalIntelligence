@@ -21,6 +21,7 @@ from backend.core.logging import get_logger
 from backend.database.models.forecast import Forecast
 from backend.database.models.market import MacroObservation, MarketObservation
 from domains.forecast.baselines import METHODS
+from domains.forecast.ledger import ACTIVE, supersede_older
 
 logger = get_logger(__name__)
 
@@ -34,6 +35,7 @@ class ForecastOutcome:
     created: int = 0
     skipped: int = 0
     failed: int = 0
+    superseded: int = 0
     forecast_ids: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
@@ -42,6 +44,7 @@ class ForecastOutcome:
             "created": self.created,
             "skipped": self.skipped,
             "failed": self.failed,
+            "superseded": self.superseded,
             "forecast_ids": self.forecast_ids,
             "errors": self.errors,
         }
@@ -100,6 +103,7 @@ class ForecastEngine:
         target: str,
         method: str = "all",
         horizon: str = "short",
+        scenario: str = "base",
     ) -> ForecastOutcome:
         outcome = ForecastOutcome()
         if horizon not in HORIZON_DAYS:
@@ -146,6 +150,8 @@ class ForecastEngine:
                     confidence=result.confidence,
                     model=f"baseline_{name}",
                     model_version=MODEL_VERSION,
+                    scenario=scenario,
+                    status=ACTIVE,
                     data_version=f"n={len([v for v in values if v is not None])}"
                     f":{last_ref}",
                     evidence=json.dumps(
@@ -161,6 +167,14 @@ class ForecastEngine:
                 self.db.flush()
                 outcome.created += 1
                 outcome.forecast_ids.append(str(fc.id))
+                outcome.superseded += supersede_older(
+                    self.db,
+                    target=target,
+                    horizon=horizon,
+                    model=f"baseline_{name}",
+                    scenario=scenario,
+                    keep_id=fc.id,
+                )
             except Exception as exc:  # noqa: BLE001
                 outcome.failed += 1
                 outcome.errors.append(f"{type(exc).__name__}: {exc}")

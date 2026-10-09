@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 25
+**Phase فعلی:** 26
 
 ---
 
@@ -213,7 +213,11 @@
 - بدون migration (جدول `forecasts` از Phase 3 کامل بود — راستی‌آزمایی شد)
 - تست شد: ۱۱ تست پاس؛ کل ۲۲۴ تست پاس؛ زنده ۳ baseline روی تورم آمریکا (naive=2.95، mean=4.20، rw=3.38)
 
-## Phase 26 — Forecast Ledger
+## Phase 26 — Forecast Ledger ✅ (این مرحله)
+- فیلدهای `scenario` + `status` (active/superseded/expired/resolved) روی Forecast + migration `cb4b37bfa856` (ردیف‌های قدیمی با server_default به active درآمدند)
+- `domains/forecast/ledger.py`: جانشینی خودکار هم‌خانواده، ابطال دستی، `active_as_of`
+- API: `POST /api/forecasts/{id}/supersede`, `GET /api/forecasts/ledger/active?as_of=` (+scenario در run/read)
+- تست شد: ۵ تست پاس؛ کل ۲۲۹ تست پاس؛ زنده جانشینی و active
 ## Phase 27 — Outcome Engine
 ## Phase 28 — Forecast Evaluation (Brier, Log Loss, MAE, RMSE, Calibration)
 ## Phase 29 — Forecast Tournament

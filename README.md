@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 25 — Forecast Engine**
+**Phase فعلی: 26 — Forecast Ledger**
 **Status: DONE**
 
-> ⚠️ Forecast Engine ساخته شد: Baselineهای قطعی (naive/mean/random-walk) پیش‌بینی می‌کنند و در Ledger افزودنی ثبت می‌شود. مرحله‌ی بعد Forecast Ledger است.
+> ⚠️ Forecast Ledger ساخته شد: سناریو و چرخه‌ی حیات (active/superseded) به Ledger اضافه شد؛ جانشینی خودکار و پرس‌وجوی active as-of فعال است. مرحله‌ی بعد Outcome Engine است.
 
 ---
 

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from domains.forecast.engine import ForecastEngine
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,6 +25,7 @@ class ForecastOutcomeRead(BaseModel):
     created: int
     skipped: int
     failed: int
+    superseded: int
     forecast_ids: list[str]
     errors: list[str]
 
@@ -39,6 +41,8 @@ class ForecastRead(BaseModel):
     confidence: float | None
     model: str | None
     model_version: str | None
+    scenario: str | None
+    status: str
     data_version: str | None
     valid_from: str | None
 
@@ -55,6 +59,8 @@ def _to_forecast(f: Forecast) -> ForecastRead:
         confidence=f.confidence,
         model=f.model,
         model_version=f.model_version,
+        scenario=f.scenario,
+        status=f.status,
         data_version=f.data_version,
         valid_from=f.valid_from.isoformat() if f.valid_from else None,
     )
@@ -65,10 +71,13 @@ def run_forecast(
     target: str = Query(...),
     method: str = Query(default="all"),
     horizon: str = Query(default="short"),
+    scenario: str = Query(default="base"),
     db: Session = Depends(get_db),
 ) -> ForecastOutcomeRead:
-    """اجرای baseline برای یک هدف و ثبت در Ledger."""
-    outcome = ForecastEngine(db).run(target=target, method=method, horizon=horizon)
+    """اجرای baseline برای یک هدف و ثبت در Ledger (جانشینی خودکار)."""
+    outcome = ForecastEngine(db).run(
+        target=target, method=method, horizon=horizon, scenario=scenario
+    )
     return ForecastOutcomeRead(**outcome.as_dict())
 
 
@@ -87,11 +96,38 @@ def list_forecasts(
     return [_to_forecast(f) for f in db.execute(stmt).scalars().all()]
 
 
+@router.get("/ledger/active", response_model=list[ForecastRead])
+def ledger_active(
+    as_of: datetime = Query(..., description="ISO-8601 timezone-aware"),
+    limit: int = Query(default=500, ge=1, le=2000),
+    db: Session = Depends(get_db),
+) -> list[ForecastRead]:
+    """پیش‌بینی‌های فعال در زمان as_of."""
+    from domains.forecast.ledger import active_as_of
+
+    if as_of.tzinfo is None:
+        raise HTTPException(status_code=422, detail="as_of must be timezone-aware")
+    return [_to_forecast(f) for f in active_as_of(db, as_of=as_of, limit=limit)]
+
+
 @router.get("/{forecast_id}", response_model=ForecastRead)
 def get_forecast(
     forecast_id: uuid.UUID, db: Session = Depends(get_db)
 ) -> ForecastRead:
     forecast = db.get(Forecast, forecast_id)
+    if forecast is None:
+        raise HTTPException(status_code=404, detail="forecast not found")
+    return _to_forecast(forecast)
+
+
+@router.post("/{forecast_id}/supersede", response_model=ForecastRead)
+def supersede_forecast(
+    forecast_id: uuid.UUID, db: Session = Depends(get_db)
+) -> ForecastRead:
+    """ابطال دستی یک پیش‌بینی فعال (بدون حذف از Ledger)."""
+    from domains.forecast.ledger import mark_superseded
+
+    forecast = mark_superseded(db, forecast_id)
     if forecast is None:
         raise HTTPException(status_code=404, detail="forecast not found")
     return _to_forecast(forecast)

@@ -18,12 +18,16 @@ def main() -> int:
     parser.add_argument("--target", type=str, required=True)
     parser.add_argument("--method", type=str, default="all")
     parser.add_argument("--horizon", type=str, default="short")
+    parser.add_argument("--scenario", type=str, default="base")
     args = parser.parse_args()
 
     session = get_session_factory()()
     try:
         outcome = ForecastEngine(session).run(
-            target=args.target, method=args.method, horizon=args.horizon
+            target=args.target,
+            method=args.method,
+            horizon=args.horizon,
+            scenario=args.scenario,
         )
     finally:
         session.close()

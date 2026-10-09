@@ -175,3 +175,109 @@ def test_forecasts_api(client: TestClient) -> None:
 
     missing = client.get("/api/forecasts/00000000-0000-0000-0000-000000000000")
     assert missing.status_code == 404
+
+
+# --- Phase 26: Ledger tests ---
+def test_auto_supersede_on_rerun() -> None:
+    """ثبت جدید هم‌خانواده، قبلی active را superseded می‌کند (بدون حذف)."""
+    _seed_macro("gdp", "USA", [("2023", 100.0), ("2024", 103.0)])
+    session = TestingSession()
+    try:
+        first = ForecastEngine(session).run(target="macro:gdp:USA", method="naive")
+        assert first.created == 1 and first.superseded == 0
+        second = ForecastEngine(session).run(target="macro:gdp:USA", method="naive")
+        assert second.created == 1 and second.superseded == 1
+        rows = session.query(Forecast).order_by(Forecast.created_at).all()
+        assert len(rows) == 2  # Ledger افزودنی: هیچ حذفی نیست
+        assert rows[0].status == "superseded"
+        assert rows[1].status == "active"
+        assert rows[1].scenario == "base"
+    finally:
+        session.close()
+
+
+def test_different_scenario_not_superseded() -> None:
+    _seed_macro("gdp", "USA", [("2023", 100.0), ("2024", 103.0)])
+    session = TestingSession()
+    try:
+        ForecastEngine(session).run(
+            target="macro:gdp:USA", method="naive", scenario="base"
+        )
+        out = ForecastEngine(session).run(
+            target="macro:gdp:USA", method="naive", scenario="bull"
+        )
+        assert out.superseded == 0
+        assert session.query(Forecast).count() == 2
+    finally:
+        session.close()
+
+
+def test_manual_supersede() -> None:
+    from domains.forecast.ledger import mark_superseded
+
+    _seed_macro("gdp", "USA", [("2023", 100.0), ("2024", 103.0)])
+    session = TestingSession()
+    try:
+        out = ForecastEngine(session).run(target="macro:gdp:USA", method="naive")
+        fid = out.forecast_ids[0]
+        import uuid as _uuid
+
+        fc = mark_superseded(session, _uuid.UUID(fid))
+        assert fc is not None and fc.status == "superseded"
+        assert mark_superseded(session, _uuid.UUID(int=0)) is None
+    finally:
+        session.close()
+
+
+def test_active_as_of() -> None:
+    from datetime import timedelta
+
+    from domains.forecast.ledger import active_as_of
+
+    _seed_macro("gdp", "USA", [("2023", 100.0), ("2024", 103.0)])
+    session = TestingSession()
+    try:
+        ForecastEngine(session).run(
+            target="macro:gdp:USA", method="naive", horizon="short"
+        )
+        now = datetime.now(UTC)
+        assert len(active_as_of(session, as_of=now)) == 1
+        # بعد از target_date (۳۰ روز) دیگر فعال نیست
+        later = now + timedelta(days=60)
+        assert active_as_of(session, as_of=later) == []
+    finally:
+        session.close()
+
+
+def test_ledger_api(client: TestClient) -> None:
+    _seed_macro("inflation", "USA", [("2022", 8.0), ("2023", 4.12), ("2024", 2.95)])
+    r1 = client.post("/api/forecasts/run?target=macro:inflation:USA&method=naive")
+    assert r1.status_code == 200
+    fid1 = r1.json()["forecast_ids"][0]
+    r2 = client.post("/api/forecasts/run?target=macro:inflation:USA&method=naive")
+    assert r2.json()["superseded"] == 1
+
+    # ابطال دستی
+    sup = client.post(f"/api/forecasts/{r2.json()['forecast_ids'][0]}/supersede")
+    assert sup.status_code == 200
+    assert sup.json()["status"] == "superseded"
+
+    # active خالی است (هر دو باطل شدند)
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    act = client.get(f"/api/forecasts/ledger/active?as_of={now}")
+    assert act.status_code == 200
+    assert act.json() == []
+
+    # رکورد اول هنوز در Ledger است (بدون حذف)
+    one = client.get(f"/api/forecasts/{fid1}")
+    assert one.status_code == 200
+    assert one.json()["status"] == "superseded"
+
+    # naive-aware رد می‌شود
+    bad = client.get("/api/forecasts/ledger/active?as_of=2026-10-09T00:00:00")
+    assert bad.status_code == 422
+
+    missing = client.post(
+        "/api/forecasts/00000000-0000-0000-0000-000000000000/supersede"
+    )
+    assert missing.status_code == 404

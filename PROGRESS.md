@@ -4,6 +4,33 @@
 
 ---
 
+## Phase 26 — Forecast Ledger
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- مدل Forecast: `scenario` + `status` (پیش‌فرض active) — انطباق با spec بند 40 ARCHITECTURE
+- migration `cb4b37bfa856` (up/down موقت + زنده، head=`cb4b37bfa856`؛ ۵ ردیف قدیمی به active درآمدند)
+- `domains/forecast/ledger.py`: `supersede_older` (خودکار در run)، `mark_superseded` (دستی)، `active_as_of` (نیازمند aware)
+- engine: پارامتر `scenario` (پیش‌فرض base) + شمارش `superseded` در outcome
+- API: `POST /api/forecasts/{id}/supersede` (404 دقیق)، `GET /api/forecasts/ledger/active` (422 برای naive، قبل از `/{id}` ثبت شده تا route سایه نیفتد)
+- ۵ تست Ledger (جانشینی خودکار، تفکیک سناریو، ابطال دستی، active as-of، API)
+
+### Tests
+- `python -m pytest tests -q` → **229 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۷ active در Ledger؛ جانشینی و CLI ✅
+- تصمیم مستند: ردیف‌های scenario=NULL دوره‌ی پیش‌از-سناریو می‌مانند (بازنویسی تاریخچه ممنوع)
+
+### Known issues
+- `expired` خودکار محاسبه نمی‌شود (Phase 27 Outcome)؛ فقط query و وضعیت دستی.
+- سناریوهای bull/bear/tail هنوز تولیدکننده‌ی جدا ندارند (Phase 30).
+
+### Next step
+- Phase 27 — Outcome Engine
+
+---
+
 ## Phase 25 — Forecast Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
