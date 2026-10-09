@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routers import (
     ai,
     ai_routing,
+    alerts,
     analogues,
     audit,
     briefings,
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router, dependencies=protected)
     app.include_router(ai.router, dependencies=protected)
     app.include_router(ai_routing.router, dependencies=protected)
+    app.include_router(alerts.router, dependencies=protected)
     app.include_router(audit.router, dependencies=protected)
     app.include_router(briefings.router, dependencies=protected)
     app.include_router(sources.router, dependencies=protected)

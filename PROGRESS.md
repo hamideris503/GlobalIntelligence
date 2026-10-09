@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 43 — Alerts
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/alerts/metrics.py`: گرداننده‌ی ۵ خانواده متریک + `breached` (تهی هرگز نقض نیست)
+- `backend/database/models/alert.py`: `AlertRule` + `Alert` + migration `90d0c5b8761c` (up/down موقت + زنده)
+- `domains/alerts/engine.py`: `AlertEngine` (ارزیابی + cooldown + ack/resolve دستی)
+- `domains/alerts/run_alerts.py`: CLI
+- API: CRUD قواعد (۴۰۹/۴۲۲/۴۰۴ دقیق) + `/evaluate` + لیست/تک + `/ack` + `/resolve`
+- تست‌های `tests/test_alerts.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **336 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: rule + trigger واقعی (energy 0.4758>0.4) + ack + CLI + پاک‌سازی کامل ✅
+
+### Known issues
+- تحویل خارجی (webhook/email) نیست؛ هشدار فقط ثبت و query می‌شود (فازهای ops).
+- cooldown فقط هشدار active را می‌بیند (acknowledged دوباره trigger می‌سازد — مستند شد).
+
+### Next step
+- Phase 44 — Security Hardening
+
+---
+
 ## Phase 42 — Weekly Intelligence
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

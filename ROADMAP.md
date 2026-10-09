@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 42
+**Phase فعلی:** 43
 
 ---
 
@@ -318,7 +318,13 @@
 - `WeeklyBriefingService` با idempotent هفته‌ی ISO؛ بدون migration (جدول مشترک)
 - API: `POST /api/briefings/weekly` (در router briefings)؛ CLI: `run_weekly`
 - تست شد: ۴ تست پاس؛ کل ۳۲۸ تست پاس؛ زنده brief واقعی (۷۸ رویداد، رژیم پایدار)
-## Phase 43 — Alerts
+## Phase 43 — Alerts ✅ (این مرحله)
+- متریک‌های نام‌دار v1 (risk:/market:/market_change:/worldstate:/selfeval:) + عملگر gt/lt + cooldown هر قاعده
+- `AlertEngine`: ارزیابی، cooldown روی هشدار active، تأیید/حل دستی (بدون حذف)
+- مدل‌ها + migration `90d0c5b8761c` (دو جدول)
+- API: CRUD قواعد + `/evaluate` + لیست/تک + `/ack` + `/resolve`
+- CLI: `python -m domains.alerts.run_alerts`
+- تست شد: ۸ تست پاس؛ کل ۳۳۶ تست پاس؛ زنده trigger/ack + پاک‌سازی
 ## Phase 44 — Security Hardening
 ## Phase 45 — Backup
 ## Phase 46 — Docker Production
