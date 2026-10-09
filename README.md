@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 51 — Long-Term Learning**
+**Phase فعلی: 52 — Advanced Research**
 **Status: DONE**
 
-> ⚠️ Long-Term Learning ساخته شد: روند دقت مدل‌ها، نرخ پایه‌ی رژیم‌ها و آستانه‌های داده‌محور از تاریخچه استخراج می‌شود. مرحله‌ی بعد Advanced Research است.
+> ⚠️ Advanced Research انجام شد: GraphRAG-lite (بازیابی زیرگراف + سنتز) پیاده و Bayesian/causal با دلیل مستند به تعویق افتاد. این آخرین فاز نقشه‌ی راه ۵۲ فازی است. 🎉
 
 ---
 

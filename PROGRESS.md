@@ -4,6 +4,28 @@
 
 ---
 
+## Phase 52 — Advanced Research
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE (آخرین فاز نقشه‌ی راه 🎉)
+
+### Completed
+- `domains/research/graphrag.py`: `GraphRAGService` (resolve + k-hop + رتبه + سقف + `synthesize` دوحالته)
+- `domains/research/run_graphrag.py`: CLI
+- API: `POST /api/research/graphrag`, `GET /api/research/methods` (پیاده‌شده/به‌تعویق‌افتاده)
+- تست‌های `tests/test_graphrag.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **384 passed** ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- بدون migration ✅
+- زنده: retrieval روی گراف واقعی + methods + CLI ✅
+
+### Known issues
+- گراف زنده کوچک است (۱ گره mock)؛ با داده‌ی واقعی ارزش GraphRAG آشکار می‌شود.
+- Bayesian/causal deferred با دلیل ثبت‌شده (نه فراموش‌شده).
+
+---
+
 ## Phase 51 — Long-Term Learning
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
