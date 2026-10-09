@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 41 — Daily Intelligence**
+**Phase فعلی: 42 — Weekly Intelligence**
 **Status: DONE**
 
-> ⚠️ Daily Intelligence ساخته شد: خلاصه‌ی ۲۴ ساعته‌ی قطعی (رویداد/ادعا/حرکت بازار/جهان/تصمیم/ریسک/خودارزیابی) در `briefings` ثبت می‌شود. مرحله‌ی بعد Weekly Intelligence است.
+> ⚠️ Weekly Intelligence ساخته شد: خلاصه‌ی ۷ روزه با روند روزانه، حرکت هفته، تغییر رژیم و دلتای ریسک ثبت می‌شود. مرحله‌ی بعد Alerts است.
 
 ---
 

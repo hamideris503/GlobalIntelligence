@@ -4,6 +4,31 @@
 
 ---
 
+## Phase 42 — Weekly Intelligence
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/briefings/weekly.py`: `WeeklyBriefingService` (روند/حرکت/رژیم/دلتا/روایت/ترکیب) + idempotent هفته‌ی ISO
+- `domains/briefings/run_weekly.py`: CLI
+- API: `POST /api/briefings/weekly`
+- تست‌های `tests/test_weekly.py` (۴ تست)
+
+### Tests
+- `python -m pytest tests -q` → **328 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (جدول مشترک) ✅
+- زنده: brief واقعی (۷۸ رویداد ۸ اکتبر، ۱ mover، ۷ دلتا، رژیم پایدار) + CLI idempotent ✅
+- اصلاح حین کار: مقایسه‌ی naive/aware در هر ۴ نقطه‌ی زمانی + off-by-one پنجره (امروز جا مانده بود)
+
+### Known issues
+- سقف‌های حافظه‌ای ۵۰/۵۰۰ رکورد در فیلتر پایتونی (با رشد داده نیازمند بهینه‌سازی).
+
+### Next step
+- Phase 43 — Alerts
+
+---
+
 ## Phase 41 — Daily Intelligence
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

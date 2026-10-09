@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 41
+**به‌روزرسانی:** Phase 42
 
 ---
 
 ## TODO
-- [ ] Phase 42: Weekly Intelligence
+- [ ] Phase 43: Alerts
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
@@ -18,8 +18,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 42: Weekly Intelligence (خلاصه ۷ روزه + مقایسه‌ها + API + CLI + تست)
 - [x] Phase 41: Daily Intelligence (خلاصه ۲۴ ساعته + Briefing + API + CLI + migration + تست)
-- [x] Phase 40: Dashboard (۷ بخش زنده + کلید API + RTL + بیلد موفق)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)

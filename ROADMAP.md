@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 41
+**Phase فعلی:** 42
 
 ---
 
@@ -313,7 +313,11 @@
 - API: `POST /api/briefings/daily`, `GET /api/briefings`, `GET /api/briefings/{id}`
 - CLI: `python -m domains.briefings.run_daily`
 - تست شد: ۵ تست پاس؛ کل ۳۲۴ تست پاس؛ زنده brief واقعی (۵۰ رویداد، ۵۰ ادعا، جهان، ۲ تصمیم، نمره B)
-## Phase 42 — Weekly Intelligence
+## Phase 42 — Weekly Intelligence ✅ (این مرحله)
+- خلاصه‌ی ۷ روزه: روند روزانه (۷ روز منتهی به امروز)، movers اول→آخر هفته، تغییر رژیم، دلتای ریسک، روایت‌های هفته، ترکیب انواع
+- `WeeklyBriefingService` با idempotent هفته‌ی ISO؛ بدون migration (جدول مشترک)
+- API: `POST /api/briefings/weekly` (در router briefings)؛ CLI: `run_weekly`
+- تست شد: ۴ تست پاس؛ کل ۳۲۸ تست پاس؛ زنده brief واقعی (۷۸ رویداد، رژیم پایدار)
 ## Phase 43 — Alerts
 ## Phase 44 — Security Hardening
 ## Phase 45 — Backup

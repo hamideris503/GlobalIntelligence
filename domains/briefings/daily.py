@@ -58,6 +58,15 @@ def _pct_change(new: float, old: float) -> float | None:
     return round((new - old) / abs(old) * 100.0, 2)
 
 
+def _aware(dt: datetime | None) -> datetime | None:
+    """بک‌اندهای naive (SQLite) → UTC فرضی؛ مقایسه‌ی امن زمانی."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
 class DailyBriefingService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -107,13 +116,13 @@ class DailyBriefingService:
         outcome.period = period
         cutoff = now - timedelta(hours=window_hours)
 
+        # فیلتر زمانی دقیق در پایتون (مقایسه‌ی naive/aware در DB ناپایدار است)
         events: list[dict] = []
         for e in self.db.execute(
-            select(Event)
-            .where(Event.created_at >= cutoff)
-            .order_by(Event.created_at.desc())
-            .limit(50)
+            select(Event).order_by(Event.created_at.desc()).limit(200)
         ).scalars().all():
+            if (c := _aware(e.created_at)) is None or c < cutoff:
+                continue
             events.append(
                 {
                     "id": str(e.id),
@@ -121,14 +130,15 @@ class DailyBriefingService:
                     "action": (e.action or "")[:200],
                 }
             )
+            if len(events) >= 50:
+                break
 
         claims: list[dict] = []
         for c in self.db.execute(
-            select(Claim)
-            .where(Claim.created_at >= cutoff)
-            .order_by(Claim.created_at.desc())
-            .limit(50)
+            select(Claim).order_by(Claim.created_at.desc()).limit(200)
         ).scalars().all():
+            if (cc := _aware(c.created_at)) is None or cc < cutoff:
+                continue
             claims.append(
                 {
                     "id": str(c.id),
@@ -137,6 +147,8 @@ class DailyBriefingService:
                     "verification_status": c.verification_status,
                 }
             )
+            if len(claims) >= 50:
+                break
 
         movers = self._movers()
 
@@ -153,14 +165,15 @@ class DailyBriefingService:
 
         decisions: list[dict] = []
         for r in self.db.execute(
-            select(Recommendation)
-            .where(Recommendation.created_at >= cutoff)
-            .order_by(Recommendation.created_at.desc())
-            .limit(20)
+            select(Recommendation).order_by(Recommendation.created_at.desc()).limit(100)
         ).scalars().all():
+            if (c := _aware(r.created_at)) is None or c < cutoff:
+                continue
             decisions.append(
                 {"asset": r.asset, "decision": r.decision, "score": r.score}
             )
+            if len(decisions) >= 20:
+                break
 
         risks: list[dict] = []
         for r in self.db.execute(

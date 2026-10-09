@@ -10,6 +10,7 @@ import json
 import uuid
 
 from domains.briefings.daily import DailyBriefingService
+from domains.briefings.weekly import WeeklyBriefingService
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -63,6 +64,13 @@ def build_daily(
 ) -> DailyOutcomeRead:
     """ساخت خلاصه‌ی روزانه (idempotent در روز)."""
     outcome = DailyBriefingService(db).build(day=day, window_hours=window_hours)
+    return DailyOutcomeRead(**outcome.as_dict())
+
+
+@router.post("/weekly", response_model=DailyOutcomeRead)
+def build_weekly(db: Session = Depends(get_db)) -> DailyOutcomeRead:
+    """ساخت خلاصه‌ی هفتگی (idempotent در هفته‌ی ISO)."""
+    outcome = WeeklyBriefingService(db).build()
     return DailyOutcomeRead(**outcome.as_dict())
 
 
