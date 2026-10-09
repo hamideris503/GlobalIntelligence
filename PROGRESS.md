@@ -4,6 +4,31 @@
 
 ---
 
+## Phase 46 — Docker Production
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `docker-compose.prod.yml`: اورراید production (compose پایه دست‌نخورده)
+- `docker/frontend.prod.Dockerfile` + `docker/nginx-spa.conf`: سرو استاتیک به‌جای dev server
+- `.dockerignore`: پوشش backups/dump/manifest
+- تست‌های `tests/test_backup.py` بدون تغییر؛ کل **347 passed** ✅ + ruff تمیز ✅
+
+### Tests (زنده، بدون migration)
+- `docker compose config` معتبر ✅
+- ایمیج بک‌اند: بدون `/app/.env` + کاربر `appuser` ✅
+- ایمیج فرانت‌اند: `/` و `/healthz` با هدرهای امنیتی + SPA fallback ✅
+- اصلاح حین کار: `add_header` در location ارث‌بری را قطع می‌کرد (تکرار هدرها در healthz) + `Content-Type` با `default_type`
+
+### Known issues
+- اجرای واقعی stack در prod نیازمند secretهای واقعی و MOCK_MODE=false است (روی dev اجرا نشد تا اختلال نشود).
+- uvicorn تک‌worker است (rate limit درون‌حافظه‌ای؛ Phase 44 مستند شد).
+
+### Next step
+- Phase 47 — Staging
+
+---
+
 ## Phase 45 — Backup
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

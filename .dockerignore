@@ -9,6 +9,10 @@
 **/dist
 data/
 logs/
+backups/
+*.dump
+*.manifest.json
 .env
 *.md
+!.env.example
 !README.md

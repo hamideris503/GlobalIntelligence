@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 45 — Backup**
+**Phase فعلی: 46 — Docker Production**
 **Status: DONE**
 
-> ⚠️ Backup ساخته شد: dump/restore/verify دیتابیس با manifest و rotation از اسکریپت `scripts/db_backup.py` انجام می‌شود. مرحله‌ی بعد Docker Production است.
+> ⚠️ Docker Production آماده شد: compose مخصوص production (محدودیت منابع، restart، لاگ) + ایمیج nginx چندمرحله‌ای برای فرانت‌اند. مرحله‌ی بعد Staging است.
 
 ---
 

@@ -5,6 +5,18 @@
 
 ---
 
+## ADR-0055 — Docker Production: اورراید جدا، dev دست‌نخورده
+**Date:** 2026-10-09
+**Context:** Phase 46 باید production را بدون شکستن جریان dev آماده کند.
+**Decision:**
+- `docker-compose.prod.yml` فقط override (compose پایه دست‌نخورده)؛ فرانت‌اند prod با nginx چندمرحله‌ای؛ postgres بدون exposure.
+- راستی‌آزمایی ایمیج (بدون .env، non-root، healthz، fallback) بخشی از فاز است.
+**Alternatives:** تغییر compose اصلی؛ سرو dev در prod
+**Why selected:** جدایی محیط‌ها، امنیت، قابل بازگشت.
+**Consequences:** اجرای واقعی prod نیازمند secret واقعی است (تست Tess نشده روی dev).
+
+---
+
 ## ADR-0054 — Backup: اسکریپت testable با manifest و محافظ restore
 **Date:** 2026-10-09
 **Context:** Phase 45 باید بکاپ قابل اعتماد بدون ابزار خارجی جدید بسازد.

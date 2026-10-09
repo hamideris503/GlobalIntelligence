@@ -1,0 +1,77 @@
+# ============================================================
+# GlobalIntelligence — docker-compose.prod.yml (production overrides)
+# استفاده: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# الزامات محیط (.env): APP_ENV=production، MOCK_MODE=false، DEBUG=false،
+# API_KEY و SECRET_KEY قوی، POSTGRES_PASSWORD قوی، N8N_ENCRYPTION_KEY.
+# بک‌اند در startup با تنظیمات ناامن fail-fast می‌کند (بند 69).
+# ============================================================
+
+services:
+  postgres:
+    restart: always
+    ports: []  # دیتابیس فقط در شبکه‌ی داخلی؛ بدون exposure به host
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  backend:
+    restart: always
+    environment:
+      APP_ENV: production
+      MOCK_MODE: "false"
+      DEBUG: "false"
+      API_KEY: ${API_KEY:?API_KEY is required}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.prod.Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  n8n:
+    restart: always
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

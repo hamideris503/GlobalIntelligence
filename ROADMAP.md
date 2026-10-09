@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 45
+**Phase فعلی:** 46
 
 ---
 
@@ -337,7 +337,11 @@
 - تست‌های `tests/test_backup.py` (۴ تست توابع خالص)
 - بدون migration (ops محض)
 - تست شد: ۴ تست پاس؛ کل ۳۴۷ تست پاس؛ زنده چرخه‌ی کامل (dump→restore→verify: هر ۱۳ جدول برابر)
-## Phase 46 — Docker Production
+## Phase 46 — Docker Production ✅ (این مرحله)
+- `docker-compose.prod.yml`: restart always، محدودیت CPU/RAM، سقف لاگ، بستن پورت postgres، الزام secretها، prod env اجباری
+- `docker/frontend.prod.Dockerfile`: چندمرحله‌ای (build + nginx) + `docker/nginx-spa.conf` (fallback + healthz + هدرها)
+- `.dockerignore`: تکمیل (backups/dump/manifest)
+- تست شد: config معتبر؛ ایمیج بک‌اند بدون `.env` + کاربر appuser؛ nginx سرو + healthz + هدرها + SPA fallback؛ کل ۳۴۷ تست پاس
 ## Phase 47 — Staging
 ## Phase 48 — VPS Deployment
 ## Phase 49 — 24/7 Automation
