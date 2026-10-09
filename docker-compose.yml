@@ -73,6 +73,8 @@ services:
     restart: unless-stopped
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
+      # کلید بک‌اند برای HTTP nodeها (مقدار از .env؛ در repo فقط ارجاع است)
+      BACKEND_API_KEY: ${API_KEY:-}
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http

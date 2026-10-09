@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 48 — VPS Deployment**
-**Status: BLOCKED (docs + automation done)**
+**Phase فعلی: 49 — 24/7 Automation**
+**Status: DONE**
 
-> ⚠️ استقرار VPS: automation و مستندات آماده است؛ اجرای زنده نیازمند دسترسی به سرور است (BLOCKED). مرحله‌ی بعد 24/7 Automation است.
+> ⚠️ 24/7 Automation ساخته شد: ۵ workflow زمان‌بندی‌شده‌ی n8n (با احراز هویت) + endpoint وضعیت ops برای مانیتورینگ فعال است. مرحله‌ی بعد Production Monitoring است.
 
 ---
 

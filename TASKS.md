@@ -2,14 +2,13 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 48
+**به‌روزرسانی:** Phase 49
 
 ---
 
 ## TODO
-- [ ] Phase 49: 24/7 Automation
+- [ ] Phase 50: Production Monitoring
 - [ ] BLOCKED — Phase 48 live: اجرای `--live` روی VPS (نیازمند host/user/key)
-- [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
@@ -20,8 +19,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 49: 24/7 Automation (۵ workflow + ops status + تست)
 - [x] Phase 48: VPS Deployment automation + docs (اجرای زنده BLOCKED: بدون سرور)
-- [x] Phase 47: Staging (stack جدا + smoke سبز + docs + تست)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)

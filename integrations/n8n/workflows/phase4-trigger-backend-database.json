@@ -23,6 +23,15 @@
       "parameters": {
         "method": "POST",
         "url": "http://backend:8000/api/jobs/trigger",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_name\": \"scheduled_heartbeat\",\n  \"source\": \"n8n\",\n  \"payload\": { \"triggered_at\": \"{{ $now.toISO() }}\" }\n}",

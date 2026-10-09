@@ -4,6 +4,31 @@
 
 ---
 
+## Phase 49 — 24/7 Automation
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- ۳ workflow n8n جدید + اصلاح احراز هویت ۲ قدیمی (یافته: بدون هدر در برابر API محافظت‌شده خراب بودند)
+- `BACKEND_API_KEY` در compose + تست اعتبارسنج هر ۵ فایل (ساختار/اتصالات/هدر/زمان‌بندی)
+- `GET /api/ops/status` برای مانیتورینگ + تست (شکل + 401)
+- تست‌های `tests/test_n8n_workflows.py` (۵) و `tests/test_ops.py` (۲)
+
+### Tests
+- `python -m pytest tests -q` → **362 passed** ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- بدون migration ✅
+- زنده: import هر ۵ workflow در n8n + کلید در کانتینر + ops واقعی ✅
+
+### Known issues
+- workflowها `active: false` import شدند (فعال‌سازی دستی/خودکار در Phase 50).
+- تحویل alert (webhook/email) هنوز نیست.
+
+### Next step
+- Phase 50 — Production Monitoring
+
+---
+
 ## Phase 48 — VPS Deployment
 **تاریخ:** 2026-10-09
 **وضعیت:** BLOCKED (automation + docs DONE؛ اجرای زنده نیازمند سرور)

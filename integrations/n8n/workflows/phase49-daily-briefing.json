@@ -1,0 +1,177 @@
+{
+  "name": "GI — Daily Briefing & Risk",
+  "id": "gi-daily-briefing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Schedule Trigger (24h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/briefings/daily",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "step-briefing",
+      "name": "1. Daily briefing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/risk/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "step-risk",
+      "name": "2. Analyze risks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/alerts/evaluate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "step-alerts",
+      "name": "3. Evaluate alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/self-eval/run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "step-selfeval",
+      "name": "4. Self evaluation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1260, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (24h)": {
+      "main": [
+        [
+          {
+            "node": "1. Daily briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Daily briefing": {
+      "main": [
+        [
+          {
+            "node": "2. Analyze risks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Analyze risks": {
+      "main": [
+        [
+          {
+            "node": "3. Evaluate alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Evaluate alerts": {
+      "main": [
+        [
+          {
+            "node": "4. Self evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

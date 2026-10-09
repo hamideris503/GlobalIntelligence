@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0058 — 24/7 Automation: workflow احرازهویتی + ops خواندنی
+**Date:** 2026-10-09
+**Context:** Phase 49 باید اجرای شبانه‌روزی را بدون تضعیف امنیت ممکن کند.
+**Decision:**
+- همه‌ی HTTP nodeها هدر X-API-Key از `$env` می‌گیرند (نه هاردکد)؛ کلید فقط ارجاع compose است.
+- validator تست برای هر ۵ فایل (ساختار/اتصال/احراز/زمان‌بندی).
+- `/api/ops/status` فقط‌خواندنی برای مانیتورینگ؛ workflowها غیرفعال import می‌شوند.
+**Alternatives:** کلید هاردکد در workflow؛ فعال‌سازی خودکار زمان‌بندی
+**Why selected:** امنیت secret، احتیاط در فعال‌سازی خودکار.
+**Consequences:** فعال‌سازی زمان‌بندی و تحویل alert در Phase 50.
+
+---
+
 ## ADR-0057 — VPS Deployment: automation بدون secret، اجرای زنده مشروط
 **Date:** 2026-10-09
 **Context:** Phase 48 بدون دسترسی به سرور باید حداکثر ارزش قابل آزمون را بسازد.

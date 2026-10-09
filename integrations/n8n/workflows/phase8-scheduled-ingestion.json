@@ -23,6 +23,15 @@
       "parameters": {
         "method": "POST",
         "url": "http://backend:8000/api/ingest/all?limit=20",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
         "options": {
           "timeout": 60000
         }

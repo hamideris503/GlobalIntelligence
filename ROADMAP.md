@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 48
+**Phase فعلی:** 49
 
 ---
 
@@ -354,7 +354,11 @@
 - بدون migration
 - تست شد: ۵ تست پاس؛ کل ۳۵۵ تست پاس؛ dry-run زنده با ۵ گام صحیح
 - **BLOCKED**: اجرای `--live` نیازمند host/user/key واقعی VPS است (در دسترس نیست)
-## Phase 49 — 24/7 Automation
+## Phase 49 — 24/7 Automation ✅ (این مرحله)
+- ۳ workflow جدید (hourly-intelligence ۵ مرحله‌ای، hourly-markets، daily-briefing ۴ مرحله‌ای) + اصلاح ۲ قدیمی (هدر X-API-Key از `$env`)
+- `BACKEND_API_KEY` در compose (فقط ارجاع، نه مقدار)؛ validator تست برای هر ۵ فایل
+- `GET /api/ops/status`: DB/شمارش‌ها/آخرین jobها/خودارزیابی/هشدارها/جهان (فقط‌خواندنی)
+- تست شد: ۷ تست پاس؛ کل ۳۶۲ تست پاس؛ زنده import هر ۵ workflow + ops واقعی
 ## Phase 50 — Production Monitoring
 ## Phase 51 — Long-Term Learning
 ## Phase 52 — Advanced Research (GraphRAG, Bayesian networks, causal discovery, …)
