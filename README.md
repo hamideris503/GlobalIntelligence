@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 32 — Decision Engine**
+**Phase فعلی: 33 — Iran Mode**
 **Status: DONE**
 
-> ⚠️ Decision Engine ساخته شد: تصمیم قانون‌مند (accumulate/hold/reduce/avoid) از چولگی سناریو و سقف ریسک در `recommendations` ثبت می‌شود. مرحله‌ی بعد Iran Mode است.
+> ⚠️ Iran Mode ساخته شد: لنز تجمیعی ایران (رویداد/ادعا/macro/تصمیم + بستر جهان) فقط‌خواندنی ارائه می‌شود. مرحله‌ی بعد Iran Transmission است.
 
 ---
 

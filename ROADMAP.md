@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 32
+**Phase فعلی:** 33
 
 ---
 
@@ -258,7 +258,13 @@
 - CLI: `python -m domains.decision.run_decide`
 - بدون migration (جدول ۲۵ ستونه موجود — راستی‌آزمایی شد)
 - تست شد: ۶ تست پاس؛ کل ۲۷۵ تست پاس؛ زنده ۱ تصمیم (avoid صادقانه) + ۱ skip
-## Phase 33 — Iran Mode
+## Phase 33 — Iran Mode ✅ (این مرحله)
+- قواعد تطبیق مستند v1: کد IR/IRN، کلمه‌ی iran/iranian (نه زیررشته‌ای مثل Iraq)، target حاوی IRN/Iran، دامنه‌ی .ir
+- `IranModeService`: رویدادهای مرتبط + ادعاها + macro IRN + تصمیم‌های مرتبط + بستر WorldState — فقط‌خواندنی
+- API: `GET /api/iran/brief`, `GET /api/iran/events`
+- CLI: `python -m domains.iran.run_brief`
+- بدون migration
+- تست شد: ۵ تست پاس؛ کل ۲۸۰ تست پاس؛ زنده brief واقعی (۳ macro + بستر جهان)
 ## Phase 34 — Iran Transmission
 ## Phase 35 — Portfolio Intelligence
 ## Phase 36 — Model Performance

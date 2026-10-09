@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 33 — Iran Mode
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/iran/matching.py`: قواعد تطبیق خالص (کشور/نام/هدف/منبع) + تست Iraq منفی
+- `domains/iran/brief.py`: `IranModeService` (رویدادها با articles، ادعاها، macro IRN، تصمیم‌ها، بستر)
+- `domains/iran/run_brief.py`: CLI
+- API: `GET /api/iran/brief`, `GET /api/iran/events`
+- تست‌های `tests/test_iran.py` (۵ تست)
+
+### Tests
+- `python -m pytest tests -q` → **280 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (فقط‌خواندنی) ✅
+- زنده: brief واقعی (۰ رویداد mock، ۳ macro IRN، بستر slowdown/risk_on) + CLI ✅
+
+### Known issues
+- با mock هیچ رویداد ایرانی نیست؛ با داده واقعی پوشش می‌یابد.
+- تطبیق فارسی (ایران) هنوز نیست — فقط انگلیسی (v1 مستند).
+
+### Next step
+- Phase 34 — Iran Transmission
+
+---
+
 ## Phase 32 — Decision Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

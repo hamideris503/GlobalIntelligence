@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 32
+**به‌روزرسانی:** Phase 33
 
 ---
 
 ## TODO
-- [ ] Phase 33: Iran Mode
+- [ ] Phase 34: Iran Transmission
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
@@ -18,8 +18,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 33: Iran Mode (لنز تجمیعی ایران + API + CLI + تست)
 - [x] Phase 32: Decision Engine (تصمیم قانون‌مند + Recommendation + API + CLI + تست)
-- [x] Phase 31: Risk Engine (۸ دسته ریسک + assessment + API + CLI + migration + تست)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)

@@ -27,6 +27,7 @@ from backend.api.routers import (
     health,
     independence,
     ingestion,
+    iran,
     jobs,
     macro,
     markets,
@@ -109,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(scenarios.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)
+    app.include_router(iran.router, dependencies=protected)
     return app
 
 
