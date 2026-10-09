@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     api_key: str | None = None
     access_token_expire_minutes: int = 60
     allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+    rate_limit_per_minute: int = 600
+    rate_limit_enabled: bool = True
 
     # --- Mock / Offline mode ---
     mock_mode: bool = True
@@ -95,6 +97,8 @@ class Settings(BaseSettings):
             problems.append("API_KEY must be set")
         if self.mock_mode:
             problems.append("MOCK_MODE must be false in production")
+        if self.debug:
+            problems.append("DEBUG must be false in production")
         if problems:
             raise ValueError("insecure production configuration: " + "; ".join(problems))
 

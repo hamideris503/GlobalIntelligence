@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 43
+**Phase فعلی:** 44
 
 ---
 
@@ -325,7 +325,13 @@
 - API: CRUD قواعد + `/evaluate` + لیست/تک + `/ack` + `/resolve`
 - CLI: `python -m domains.alerts.run_alerts`
 - تست شد: ۸ تست پاس؛ کل ۳۳۶ تست پاس؛ زنده trigger/ack + پاک‌سازی
-## Phase 44 — Security Hardening
+## Phase 44 — Security Hardening ✅ (این مرحله)
+- `SecurityHeadersMiddleware` (nosniff/DENY/Referrer/Permissions) روی همه‌ی پاسخ‌ها + `RateLimitMiddleware` پنجره‌ی لغزان درون‌حافظه‌ای (پیش‌فرض ۶۰۰/دقیقه، قابل تنظیم، معافیت health)
+- docs/redoc/openapi در production غیرفعال؛ `DEBUG=true` در production → fail-fast
+- ممیزی: هر ۲۹ پیشوند API بدون کلید 401؛ health عمومی؛ secret در کد نیست
+- تست‌های `tests/test_security.py` (۷ تست)
+- بدون migration
+- تست شد: ۷ تست پاس؛ کل ۳۴۳ تست پاس؛ زنده headers/401/docs-dev
 ## Phase 45 — Backup
 ## Phase 46 — Docker Production
 ## Phase 47 — Staging

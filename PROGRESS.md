@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 44 — Security Hardening
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `backend/core/security.py`: دو middleware بدون وابستگی (هدرها + rate limit با پاک‌سازی حافظه و مستندات تک‌فرایندی)
+- `backend/core/config.py`: `rate_limit_per_minute`/`rate_limit_enabled` + بررسی DEBUG در `validate_production`
+- `backend/main.py`: غیرفعال‌سازی docs در production + ترتیب middleware (هدر بیرونی تا روی 429 هم بنشیند)
+- تست‌های `tests/test_security.py` (۷ تست: ۲۹ مسیر 401، health عمومی، هدرها، 429 + معافیت health، fail-fast، مخفی‌سازی docs)
+
+### Tests
+- `python -m pytest tests -q` → **343 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration ✅
+- زنده: هدر nosniff + 401 + docs در dev ✅
+- ممیزی routeها: فقط health/docs عمومی‌اند (docs در prod بسته می‌شود) ✅
+
+### Known issues
+- rate limit درون‌حافظه‌ای است (چندکارگری واقعی به Redis نیاز دارد — فازهای ops).
+- تحویل alert و احراز هویت کاربری (غیر از API key) خارج از scope.
+
+### Next step
+- Phase 45 — Backup
+
+---
+
 ## Phase 43 — Alerts
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

@@ -51,6 +51,7 @@ from backend.api.routers import (
 from backend.auth.deps import require_api_key
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
+from backend.core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
 logger = get_logger(__name__)
 
@@ -72,13 +73,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     configure_logging()
     settings = get_settings()
+    is_prod = settings.app_env == "production"
 
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         description="Global Intelligence, Economic Research, Forecasting & Decision Support Platform",
         lifespan=lifespan,
+        # مستندات تعاملی در production عمومی نیست (Phase 44)
+        docs_url=None if is_prod else "/docs",
+        redoc_url=None if is_prod else "/redoc",
+        openapi_url=None if is_prod else "/openapi.json",
     )
+
+    if settings.rate_limit_enabled:
+        app.add_middleware(
+            RateLimitMiddleware, per_minute=settings.rate_limit_per_minute
+        )
+    # هدرهای امنیتی بیرونی‌ترین لایه‌اند تا روی 429 هم بنشینند
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

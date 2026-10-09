@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 43 — Alerts**
+**Phase فعلی: 44 — Security Hardening**
 **Status: DONE**
 
-> ⚠️ Alerts ساخته شد: قواعد آستانه‌ای روی متریک‌های نام‌دار ارزیابی و هشدار با cooldown ثبت می‌شود. مرحله‌ی بعد Security Hardening است.
+> ⚠️ Security Hardening انجام شد: هدرهای امنیتی، محدودیت نرخ، fail-fast کامل production و مخفی‌سازی docs در production فعال است. مرحله‌ی بعد Backup است.
 
 ---
 
