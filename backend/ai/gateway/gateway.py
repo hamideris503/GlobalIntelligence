@@ -50,6 +50,10 @@ class AIGateway:
                 return self._routes[role]
         return resolve_route(request.role, request.task)
 
+    def set_routes(self, routes: dict[str, Route]) -> None:
+        """جایگزینی زنجیره‌ها در runtime (Adaptive AI Router، Phase 37)."""
+        self._routes = dict(routes)
+
     async def _call_with_retry(
         self, provider: AIProvider, request: AIRequest
     ) -> AIResponse:

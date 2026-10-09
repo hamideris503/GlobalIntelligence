@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0046 — Adaptive AI Router: امتیاز لاپلاس + تزریق route بدون دست‌کاری gateway
+**Date:** 2026-10-09
+**Context:** Phase 37 باید مسیریابی را با شواهد عملکرد تطبیق دهد بدون اینکه fallback/retry موجود بشکند.
+**Decision:**
+- نرخ لاپلاس (successes+1)/(calls+2) تا نمونه‌ی کوچک غلبه نکند؛ ترتیب موفقیت/تعداد/تأخیر.
+- `build_routes` خروجی سازگار با `AIGateway(routes=...)` می‌دهد؛ تنها تغییر gateway متد `set_routes` است.
+- تجمیع فقط‌خواندنی (بدون mutate ORM)؛ Provider بی‌سابقه در انتها.
+**Alternatives:** میانگین خام؛ دست‌کاری منطق fallback؛ وزن‌دهی پیچیده
+**Why selected:** پایداری آماری، حداقل تهاجم، سازگاری کامل.
+**Consequences:** بدون کاوش و بدون health لحظه‌ای (آینده).
+
+---
+
 ## ADR-0045 — Model Performance: ثبت دوره‌ای از outcome، نه حدس
 **Date:** 2026-10-09
 **Context:** Phase 36 باید دقت مدل‌ها را برای مقایسه و مسیریابی تطبیقی ثبت کند.

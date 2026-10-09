@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 36 — Model Performance**
+**Phase فعلی: 37 — Adaptive AI Router**
 **Status: DONE**
 
-> ⚠️ Model Performance ساخته شد: عملکرد دوره‌ای هر مدل از outcomeها ثبت و leaderboard دقت نگهداری می‌شود. مرحله‌ی بعد Adaptive AI Router است.
+> ⚠️ Adaptive AI Router ساخته شد: عملکرد Providerها ثبت و زنجیره‌ی هر task بر اساس نرخ موفقیت لاپلاس‌هموار تطبیق داده می‌شود. مرحله‌ی بعد Audit / Replay است.
 
 ---
 

@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 37 — Adaptive AI Router
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/models/provider_run_stat.py`: `ProviderRunStat` با یکتایی (provider, model, task, period)
+- migration `54c4fdb11fe7` (up/down موقت + زنده، head=`54c4fdb11fe7`)
+- `domains/ai_routing/router.py`: `AdaptiveRouter` (ثبت upsert + پیشنهاد مرتب + `build_routes`)
+- `AIGateway.set_routes` (تنها تغییر gateway؛ fallback/retry دست‌نخورده)
+- `domains/ai_routing/run_routes.py`: CLI (نمایش + `--apply`)
+- API: `POST /api/ai-routing/record` (422 دقیق), `GET /api/ai-routing/stats|routes`, `POST /api/ai-routing/apply`
+- تست‌های `tests/test_ai_routing.py` (۷ تست)
+
+### Tests
+- `python -m pytest tests -q` → **306 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: record → routes (لاپلاس 0.6667 قابل مشاهده) → apply → پاک‌سازی + CLI ✅
+- اصلاح حین کار: باگ mutate آبجکت ORM در تجمیع (تست نمی‌گرفتش؛ بازبینی کد)؛ زنجیره‌ی migration اشتباه (دو head → اصلاح down_revision)
+
+### Known issues
+- سلامت لحظه‌ای Provider در امتیاز نیست (فقط تاریخچه)؛ health-check زنده در آینده.
+- کاوش (exploration) ندارد؛ Provider بی‌سابقه همیشه آخر است.
+
+### Next step
+- Phase 38 — Audit / Replay
+
+---
+
 ## Phase 36 — Model Performance
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 36
+**Phase فعلی:** 37
 
 ---
 
@@ -283,7 +283,12 @@
 - API: `POST /api/performance/record`, `GET /api/performance` (leaderboard), `GET /api/performance/history?model=`
 - CLI: `python -m domains.forecast.run_performance`
 - تست شد: ۴ تست پاس؛ کل ۲۹۹ تست پاس؛ زنده ۳ مدل skip صادقانه (بدون outcome)
-## Phase 37 — Adaptive AI Router
+## Phase 37 — Adaptive AI Router ✅ (این مرحله)
+- جدول `provider_run_stats` (تجمیع ماهانه‌ی provider/model/task) + migration `54c4fdb11fe7`
+- `AdaptiveRouter`: نرخ لاپلاس (successes+1)/(calls+2) + ترتیب موفقیت/تعداد/تأخیر + تزریق به `AIGateway(routes=...)` بدون تغییر gateway (فقط متد `set_routes`)
+- API: `POST /api/ai-routing/record`, `GET /api/ai-routing/stats|routes`, `POST /api/ai-routing/apply`
+- CLI: `python -m domains.ai_routing.run_routes`
+- تست شد: ۷ تست پاس؛ کل ۳۰۶ تست پاس؛ زنده record/routes/apply/CLI
 ## Phase 38 — Audit / Replay
 ## Phase 39 — Self Evaluation
 ## Phase 40 — Dashboard

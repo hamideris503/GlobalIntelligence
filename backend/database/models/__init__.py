@@ -17,6 +17,7 @@ from backend.database.models.memory import MemoryRecord
 from backend.database.models.model_performance import ModelPerformance
 from backend.database.models.narrative import Narrative
 from backend.database.models.portfolio import Portfolio, PortfolioSnapshot
+from backend.database.models.provider_run_stat import ProviderRunStat
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.risk_assessment import RiskAssessment
 from backend.database.models.scenario import Scenario
@@ -47,6 +48,7 @@ __all__ = [
     "Narrative",
     "Portfolio",
     "PortfolioSnapshot",
+    "ProviderRunStat",
     "Recommendation",
     "RiskAssessment",
     "Scenario",
