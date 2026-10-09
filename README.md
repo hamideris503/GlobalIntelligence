@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 24 — Narrative Engine**
+**Phase فعلی: 25 — Forecast Engine**
 **Status: DONE**
 
-> ⚠️ Narrative Engine ساخته شد: رویدادهای به‌هم‌پیوسته (موجودیت/موضوع مشترک) به روایت غالب با قدرت و واگرایی موضع تبدیل می‌شوند. مرحله‌ی بعد Forecast Engine است.
+> ⚠️ Forecast Engine ساخته شد: Baselineهای قطعی (naive/mean/random-walk) پیش‌بینی می‌کنند و در Ledger افزودنی ثبت می‌شود. مرحله‌ی بعد Forecast Ledger است.
 
 ---
 

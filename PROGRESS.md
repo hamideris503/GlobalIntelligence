@@ -4,6 +4,33 @@
 
 ---
 
+## Phase 25 — Forecast Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/forecast/baselines.py`: سه baseline قطعی (`naive`/`historical_mean`/`random_walk`) با حداقل نقاط مستند و بازه‌ی تهی‌پذیر
+- `domains/forecast/engine.py`: `ForecastEngine` (پارس هدف، سری macro/market، افق→target_date، ثبت Ledger با data_version/assumptions/evidence)
+- `domains/forecast/run_forecast.py`: CLI
+- API: `POST /api/forecasts/run`, `GET /api/forecasts`, `GET /api/forecasts/{id}` (404 دقیق)
+- تست‌های `tests/test_forecast.py` (۱۱ تست)
+
+### Tests
+- `python -m pytest tests -q` → **224 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (۱۸ ستون جدول با مدل برابر — راستی‌آزمایی شد) ✅
+- زنده: ۳ baseline روی تورم آمریکا + ۱ روی WTI و XAUUSD + CLI ✅
+- اصلاح حین کار: تست بازه با تفاضل ثابت (واریانس صفر → None) + `strict=False` در zip
+
+### Known issues
+- بازه با افق مقیاس نمی‌شود (v1 ساده‌شده و ثبت‌شده در assumptions).
+- مدل‌های ARIMA/ETS/Theta/ML/Bayesian به فازهای بعد موکول شد (طبق ROADMAP).
+
+### Next step
+- Phase 26 — Forecast Ledger
+
+---
+
 ## Phase 24 — Narrative Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

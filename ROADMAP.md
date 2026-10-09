@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 24
+**Phase فعلی:** 25
 
 ---
 
@@ -205,8 +205,13 @@
 - API: `POST /api/narratives/build`, `GET /api/narratives`, `GET /api/narratives/{id}`
 - CLI: `python -m domains.narratives.run_build`
 - تست شد: ۹ تست پاس؛ کل ۲۱۳ تست پاس؛ زنده ۱ روایت (۷۸ رویداد mock)
-## Phase 25 — Forecast Engine
-- ابتدا Baselineها (naive, historical mean, random walk) سپس ARIMA/ETS/Theta/ML/Bayesian
+## Phase 25 — Forecast Engine ✅ (این مرحله)
+- Baselineهای قطعی v1: `naive` (≥۱ نقطه)، `historical_mean` (≥۲)، `random_walk` با رانش (≥۲)؛ بازه ۹۵٪ درون‌نمونه‌ای، وگرنه None
+- `ForecastEngine`: هدف `macro:{ind}:{cty}` / `market:{sym}`؛ افق short/medium/long؛ Ledger افزودنی (هرگز حذف/به‌روزرسانی)؛ data_version و assumptions ثبت می‌شود
+- API: `POST /api/forecasts/run`, `GET /api/forecasts`, `GET /api/forecasts/{id}`
+- CLI: `python -m domains.forecast.run_forecast`
+- بدون migration (جدول `forecasts` از Phase 3 کامل بود — راستی‌آزمایی شد)
+- تست شد: ۱۱ تست پاس؛ کل ۲۲۴ تست پاس؛ زنده ۳ baseline روی تورم آمریکا (naive=2.95، mean=4.20، rw=3.38)
 
 ## Phase 26 — Forecast Ledger
 ## Phase 27 — Outcome Engine

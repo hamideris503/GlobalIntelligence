@@ -19,6 +19,7 @@ from backend.api.routers import (
     dedup,
     economic,
     events,
+    forecasts,
     geopolitics,
     graph,
     health,
@@ -95,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(geopolitics.router, dependencies=protected)
     app.include_router(society.router, dependencies=protected)
     app.include_router(narratives.router, dependencies=protected)
+    app.include_router(forecasts.router, dependencies=protected)
     return app
 
 

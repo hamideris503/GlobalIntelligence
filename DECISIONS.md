@@ -5,6 +5,17 @@
 
 ---
 
+## ADR-0034 — Forecast Engine: baseline اول، Ledger افزودنی
+**Date:** 2026-10-09
+**Context:** Phase 25 باید پیش‌بینی را با ساده‌ترین مدل‌های قابل اتکا شروع کند (طبق ROADMAP).
+**Decision:**
+- سه baseline قطعی با حداقل نقاط و بازه‌ی تهی‌پذیر؛ افق→تاریخ ثابت؛ Ledger افزودنی بدون به‌روزرسانی؛ data_version/assumptions ثبت می‌شود.
+**Alternatives:** شروع با ARIMA/ML؛ بازه‌ی مقیاس‌شده با افق
+**Why selected:** شفافیت، قابل آزمون بودن، مبنای مقایسه‌ی مدل‌های بعدی.
+**Consequences:** بازه v1 ساده‌شده است و در assumptions اعلام می‌شود.
+
+---
+
 ## ADR-0033 — Narrative Engine: خوشه‌ی پیوندی با امضای هش
 **Date:** 2026-10-09
 **Context:** Phase 24 باید روایت‌های غالب را بدون AI از رویدادها استخراج کند.
