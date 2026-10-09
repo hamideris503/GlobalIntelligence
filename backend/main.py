@@ -28,6 +28,7 @@ from backend.api.routers import (
     macro,
     markets,
     memory,
+    society,
     sources,
     worldstate,
 )
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(analogues.router, dependencies=protected)
     app.include_router(macro.router, dependencies=protected)
     app.include_router(geopolitics.router, dependencies=protected)
+    app.include_router(society.router, dependencies=protected)
     return app
 
 

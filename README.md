@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 22 — Geopolitical Engine**
+**Phase فعلی: 23 — Social Intelligence**
 **Status: DONE**
 
-> ⚠️ Geopolitical Engine ساخته شد: تنش بازیگران از رویدادها و یال‌های گراف (sanctions/competes) به‌صورت قطعی تحلیل و در `geopolitical_assessments` ذخیره می‌شود. مرحله‌ی بعد Social Intelligence است.
+> ⚠️ Social Intelligence ساخته شد: فضای اجتماعی موضوعات و کشورها (میانگین احساس، سهم ناآرامی، ترکیب موضع) به‌صورت قطعی تحلیل و در `social_assessments` ذخیره می‌شود. مرحله‌ی بعد Narrative Engine است.
 
 ---
 

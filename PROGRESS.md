@@ -4,6 +4,35 @@
 
 ---
 
+## Phase 23 — Social Intelligence
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/society/analytics.py`: تابع خالص `mood` (میانگین احساس تهی‌پذیر، سهم ناآرامی، stance_mix) + `confidence_for`؛ بدون مقاله → None
+- `backend/database/models/social_assessment.py`: `SocialAssessment` با یکتایی (scope_type, scope, period)
+- migration `bdd7eabe4da2`: جدول `social_assessments` (up/down موقت + زنده، head=`bdd7eabe4da2`)
+- `domains/society/analysis.py`: `SocialEngine` (فقط مقالات done؛ قلمرو topic نرمال‌شده + country؛ upsert idempotent)
+- `domains/society/run_analyze.py`: CLI
+- API: `POST /api/society/analyze`, `GET /api/society/assessments`, `GET /api/society/mood`
+- تست‌های `tests/test_society.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **204 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: مقالات mock بدون topic/country → صادقانه skipped=1 (نه fabrication) ✅
+- زنده: مسیر واقعی با ۱ مقاله تستی → ۳ قلمرو ذخیره شد، سپس کامل پاک‌سازی شد (articles=135 دست‌نخورده) ✅
+- زنده: CLI ✅
+
+### Known issues
+- با mock هیچ قلمرویی ساخته نمی‌شود؛ با Provider واقعی topics/country پر می‌شود.
+- احساس مقالات از طبقه‌بندی می‌آید؛ سوگیری مدل طبقه‌بندی منتقل می‌شود.
+
+### Next step
+- Phase 24 — Narrative Engine
+
+---
+
 ## Phase 22 — Geopolitical Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

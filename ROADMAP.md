@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 22
+**Phase فعلی:** 23
 
 ---
 
@@ -193,7 +193,12 @@
 - API: `POST /api/geopolitics/analyze`, `GET /api/geopolitics/assessments`, `GET /api/geopolitics/tensions`
 - CLI: `python -m domains.geopolitics.run_analyze`
 - تست شد: ۹ تست پاس؛ کل ۱۹۶ تست پاس؛ زنده ۱ بازیگر (mock: tension=0.2)
-## Phase 23 — Social Intelligence
+## Phase 23 — Social Intelligence ✅ (این مرحله)
+- تابع خالص `mood` (میانگین احساس، سهم ناآرامی از SOCIAL_TOPICS، ترکیب موضع) + confidence از تعداد مقاله
+- `SocialEngine`: گروه‌بندی مقالات done بر قلمرو (topic|country) + upsert ماهانه در `social_assessments` + migration `bdd7eabe4da2`
+- API: `POST /api/society/analyze`, `GET /api/society/assessments`, `GET /api/society/mood`
+- CLI: `python -m domains.society.run_analyze`
+- تست شد: ۸ تست پاس؛ کل ۲۰۴ تست پاس؛ زنده مسیر واقعی با مقاله تستی (۳ قلمرو) + پاک‌سازی
 ## Phase 24 — Narrative Engine
 ## Phase 25 — Forecast Engine
 - ابتدا Baselineها (naive, historical mean, random walk) سپس ARIMA/ETS/Theta/ML/Bayesian

@@ -5,6 +5,18 @@
 
 ---
 
+## ADR-0032 — Social Intelligence: قلمروهای topic/country با میانگین صادقانه
+**Date:** 2026-10-09
+**Context:** Phase 23 باید فضای اجتماعی را بدون نظرسنجی واقعی، فقط از داده‌ی موجود بسنجد.
+**Decision:**
+- هر topic و هر country یک قلمرو؛ میانگین احساس تهی‌پذیر؛ مقالات pending نادیده؛ بدون قلمرو → skip صریح.
+- assessment ماهانه و idempotent.
+**Alternatives:** ترکیب همه‌ی مقالات در یک score؛ حدس topic/country تهی
+**Why selected:** شفافیت دامنه؛ بدون fabrication.
+**Consequences:** با mock خروجی تهی است (صادقانه)؛ کیفیت خروجی تابع طبقه‌بندی است.
+
+---
+
 ## ADR-0031 — Geopolitical Engine: تنش وزنی شفاف به تفکیک بازیگر
 **Date:** 2026-10-09
 **Context:** Phase 22 باید تنش ژئوپلیتیک را از داده‌های موجود (رویداد + گراف) بدون AI بسنجد.
