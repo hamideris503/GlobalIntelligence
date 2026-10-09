@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 31
+**Phase فعلی:** 32
 
 ---
 
@@ -251,7 +251,13 @@
 - API: `POST /api/risk/analyze`, `GET /api/risk/assessments`, `GET /api/risk/overview` (پرخطرترین اول)
 - CLI: `python -m domains.risk.run_analyze`
 - تست شد: ۸ تست پاس؛ کل ۲۶۹ تست پاس؛ زنده ۷ دسته (growth/uncertainty critical)
-## Phase 32 — Decision Engine
+## Phase 32 — Decision Engine ✅ (این مرحله)
+- قانون قطعی v1: bias چولگی × (1−سقف ریسک)؛ آستانه‌های accumulate/hold/reduce + avoid در penalty≥0.75
+- `DecisionEngine`: آخرین سناریوهای active + ریسک‌های جاری → Recommendation افزودنی با rank + invalidation صریح
+- API: `POST /api/decisions/run`, `GET /api/decisions`, `GET /api/decisions/{id}`
+- CLI: `python -m domains.decision.run_decide`
+- بدون migration (جدول ۲۵ ستونه موجود — راستی‌آزمایی شد)
+- تست شد: ۶ تست پاس؛ کل ۲۷۵ تست پاس؛ زنده ۱ تصمیم (avoid صادقانه) + ۱ skip
 ## Phase 33 — Iran Mode
 ## Phase 34 — Iran Transmission
 ## Phase 35 — Portfolio Intelligence

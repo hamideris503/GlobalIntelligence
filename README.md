@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 31 — Risk Engine**
+**Phase فعلی: 32 — Decision Engine**
 **Status: DONE**
 
-> ⚠️ Risk Engine ساخته شد: ۸ دسته ریسک (تورم/رشد/بازار/انرژی/ژئوپلیتیک/تجارت/اجتماعی/عدم‌قطعیت) از سیگنال‌ها و سناریوها ترکیب می‌شود. مرحله‌ی بعد Decision Engine است.
+> ⚠️ Decision Engine ساخته شد: تصمیم قانون‌مند (accumulate/hold/reduce/avoid) از چولگی سناریو و سقف ریسک در `recommendations` ثبت می‌شود. مرحله‌ی بعد Iran Mode است.
 
 ---
 

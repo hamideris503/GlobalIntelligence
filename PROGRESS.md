@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 32 — Decision Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/decision/analytics.py`: توابع خالص (`directional_bias`/`decide` با آستانه‌های مستند)
+- `domains/decision/engine.py`: `DecisionEngine` (سناریوهای active + ریسک‌ها → Recommendation با drivers/risks/invalidation صریح + `_rerank`)
+- `domains/decision/run_decide.py`: CLI
+- API: `POST /api/decisions/run`, `GET /api/decisions`, `GET /api/decisions/{id}` (404 دقیق)
+- تست‌های `tests/test_decision.py` (۶ تست)
+
+### Tests
+- `python -m pytest tests -q` → **275 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (۲۵ ستون برابر — راستی‌آزمایی شد) ✅
+- زنده: ۱ تصمیم (avoid به‌علت سقف ریسک — صادقانه) + ۱ skip (WTI بدون سناریو کامل) + CLI ✅
+
+### Known issues
+- تصمیم‌ها جهت‌مقداری‌اند؛ مطلوبیت/ریسک‌گریزی کاربر لحاظ نشده (فازهای بعد).
+- Ledger تصمیم افزودنی است و رشد می‌کند (by design، مثل Forecast).
+
+### Next step
+- Phase 33 — Iran Mode
+
+---
+
 ## Phase 31 — Risk Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
