@@ -14,6 +14,7 @@ from backend.database.models.job import JobRun
 from backend.database.models.macro_assessment import MacroAssessment
 from backend.database.models.market import MacroObservation, MarketObservation
 from backend.database.models.memory import MemoryRecord
+from backend.database.models.narrative import Narrative
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.scenario import Scenario
 from backend.database.models.social_assessment import SocialAssessment
@@ -37,6 +38,7 @@ __all__ = [
     "MacroObservation",
     "MarketObservation",
     "MemoryRecord",
+    "Narrative",
     "Recommendation",
     "Scenario",
     "SocialAssessment",

@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 23 — Social Intelligence**
+**Phase فعلی: 24 — Narrative Engine**
 **Status: DONE**
 
-> ⚠️ Social Intelligence ساخته شد: فضای اجتماعی موضوعات و کشورها (میانگین احساس، سهم ناآرامی، ترکیب موضع) به‌صورت قطعی تحلیل و در `social_assessments` ذخیره می‌شود. مرحله‌ی بعد Narrative Engine است.
+> ⚠️ Narrative Engine ساخته شد: رویدادهای به‌هم‌پیوسته (موجودیت/موضوع مشترک) به روایت غالب با قدرت و واگرایی موضع تبدیل می‌شوند. مرحله‌ی بعد Forecast Engine است.
 
 ---
 

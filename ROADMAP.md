@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 23
+**Phase فعلی:** 24
 
 ---
 
@@ -199,7 +199,12 @@
 - API: `POST /api/society/analyze`, `GET /api/society/assessments`, `GET /api/society/mood`
 - CLI: `python -m domains.society.run_analyze`
 - تست شد: ۸ تست پاس؛ کل ۲۰۴ تست پاس؛ زنده مسیر واقعی با مقاله تستی (۳ قلمرو) + پاک‌سازی
-## Phase 24 — Narrative Engine
+## Phase 24 — Narrative Engine ✅ (این مرحله)
+- پیوند رویدادها (۱ موجودیت مشترک یا ۲ موضوع مشترک) + Union-Find + عنوان از عبارت‌های پربسامد + strength/واگرایی موضع
+- `NarrativeEngine`: خوشه=روایت + signature هش + upsert ماهانه در `narratives` + migration `c5ae5339ede9`
+- API: `POST /api/narratives/build`, `GET /api/narratives`, `GET /api/narratives/{id}`
+- CLI: `python -m domains.narratives.run_build`
+- تست شد: ۹ تست پاس؛ کل ۲۱۳ تست پاس؛ زنده ۱ روایت (۷۸ رویداد mock)
 ## Phase 25 — Forecast Engine
 - ابتدا Baselineها (naive, historical mean, random walk) سپس ARIMA/ETS/Theta/ML/Bayesian
 

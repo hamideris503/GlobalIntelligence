@@ -4,6 +4,33 @@
 
 ---
 
+## Phase 24 — Narrative Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/narratives/analytics.py`: توابع خالص (`linked`/`strength`/`stance_split`/`build_title`/`confidence_for`/`UnionFind`)
+- `backend/database/models/narrative.py`: `Narrative` با یکتایی (period, signature)
+- migration `c5ae5339ede9`: جدول `narratives` (up/down موقت + زنده، head=`c5ae5339ede9`)
+- `domains/narratives/engine.py`: `NarrativeEngine` (ویژگی از مقالات+actors، خوشه‌بندی، upsert idempotent)
+- `domains/narratives/run_build.py`: CLI
+- API: `POST /api/narratives/build`, `GET /api/narratives`, `GET /api/narratives/{id}` (404 دقیق)
+- تست‌های `tests/test_narratives.py` (۹ تست)
+
+### Tests
+- `python -m pytest tests -q` → **213 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۱ روایت (۷۸ رویداد، ۱۳۵ مقاله، strength=1.0 — صادقانه برای mock) + idempotent + CLI ✅
+
+### Known issues
+- با mock همه‌ی رویدادها یک خوشه‌اند؛ با داده واقعی روایت‌های متعدد و معنادار.
+- برچسب عنوان آماری است، نه زبانی (تفسیر LLM در آینده).
+
+### Next step
+- Phase 25 — Forecast Engine
+
+---
+
 ## Phase 23 — Social Intelligence
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
