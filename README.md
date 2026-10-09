@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 44 — Security Hardening**
+**Phase فعلی: 45 — Backup**
 **Status: DONE**
 
-> ⚠️ Security Hardening انجام شد: هدرهای امنیتی، محدودیت نرخ، fail-fast کامل production و مخفی‌سازی docs در production فعال است. مرحله‌ی بعد Backup است.
+> ⚠️ Backup ساخته شد: dump/restore/verify دیتابیس با manifest و rotation از اسکریپت `scripts/db_backup.py` انجام می‌شود. مرحله‌ی بعد Docker Production است.
 
 ---
 

@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0054 — Backup: اسکریپت testable با manifest و محافظ restore
+**Date:** 2026-10-09
+**Context:** Phase 45 باید بکاپ قابل اعتماد بدون ابزار خارجی جدید بسازد.
+**Decision:**
+- pg_dump custom format + manifest sha256 + rotation + محافظ `--yes` برای restore.
+- منطق خالص (نام/rotation/مانیفست) unit-testable؛ مسیر docker فقط زنده.
+- خروجی‌ها در `.gitignore` (backups/dump/manifest).
+**Alternatives:** بکاپ n8n-native؛ سرویس ابری
+**Why selected:** سادگی، قابل آزمون بودن، بدون وابستگی.
+**Consequences:** زمان‌بندی خودکار ندارد (فازهای ops).
+
+---
+
 ## ADR-0053 — Security Hardening: دفاع لایه‌ای بدون وابستگی جدید
 **Date:** 2026-10-09
 **Context:** Phase 44 باید سطح حمله را کم کند بدون اینکه قرارداد API بشکند.

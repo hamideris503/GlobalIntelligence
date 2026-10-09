@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 GlobalIntelligence — Environment Check (Phase 1)
 

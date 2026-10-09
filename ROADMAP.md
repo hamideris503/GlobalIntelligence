@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 44
+**Phase فعلی:** 45
 
 ---
 
@@ -332,7 +332,11 @@
 - تست‌های `tests/test_security.py` (۷ تست)
 - بدون migration
 - تست شد: ۷ تست پاس؛ کل ۳۴۳ تست پاس؛ زنده headers/401/docs-dev
-## Phase 45 — Backup
+## Phase 45 — Backup ✅ (این مرحله)
+- `scripts/db_backup.py`: دستورات backup/restore/verify + manifest (sha256/size) + rotation + محافظ `--yes`
+- تست‌های `tests/test_backup.py` (۴ تست توابع خالص)
+- بدون migration (ops محض)
+- تست شد: ۴ تست پاس؛ کل ۳۴۷ تست پاس؛ زنده چرخه‌ی کامل (dump→restore→verify: هر ۱۳ جدول برابر)
 ## Phase 46 — Docker Production
 ## Phase 47 — Staging
 ## Phase 48 — VPS Deployment

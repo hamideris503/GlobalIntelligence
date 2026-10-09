@@ -4,6 +4,31 @@
 
 ---
 
+## Phase 45 — Backup
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `scripts/db_backup.py`: backup (pg_dump custom + manifest + rotation) / restore (تأیید manifest + محافظ `--yes`) / verify (مقایسه‌ی ۱۳ جدول کلیدی)
+- `backups/` + `*.dump` به `.gitignore` اضافه شد
+- رفع جانبی: کامنت coding زائد `check_env.py` (یافته‌ی ruff با گسترش scope به scripts)
+- تست‌های `tests/test_backup.py` (۴ تست)
+
+### Tests
+- `python -m pytest tests -q` → **347 passed** ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- بدون migration ✅
+- زنده: dump (manifest sha) → restore به DB موقت → verify (هر ۱۳ جدول برابر) → پاک‌سازی کامل ✅
+
+### Known issues
+- بکاپ دستی/زمان‌بندی‌نشده است (n8n/cron در فازهای ops آینده).
+- رمز دیتابیس از `.env` خوانده می‌شود و هرگز چاپ نمی‌شود.
+
+### Next step
+- Phase 46 — Docker Production
+
+---
+
 ## Phase 44 — Security Hardening
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

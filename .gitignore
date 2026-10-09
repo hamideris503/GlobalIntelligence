@@ -46,6 +46,9 @@ data/raw/*
 data/cache/
 *.sqlite
 *.db
+backups/
+*.dump
+*.manifest.json
 
 # --- OS / Editor ---
 .DS_Store
