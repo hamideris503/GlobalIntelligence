@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 26
+**به‌روزرسانی:** Phase 27
 
 ---
 
 ## TODO
-- [ ] Phase 27: Outcome Engine
+- [ ] Phase 28: Forecast Evaluation
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
@@ -18,8 +18,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 27: Outcome Engine (تطبیق نتایج واقعی + resolved + API + CLI + تست)
 - [x] Phase 26: Forecast Ledger (سناریو + چرخه حیات + جانشینی + active as-of + migration + تست)
-- [x] Phase 25: Forecast Engine (baselineهای قطعی + Ledger + API + CLI + تست)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)

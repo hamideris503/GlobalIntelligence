@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 26
+**Phase فعلی:** 27
 
 ---
 
@@ -218,7 +218,13 @@
 - `domains/forecast/ledger.py`: جانشینی خودکار هم‌خانواده، ابطال دستی، `active_as_of`
 - API: `POST /api/forecasts/{id}/supersede`, `GET /api/forecasts/ledger/active?as_of=` (+scenario در run/read)
 - تست شد: ۵ تست پاس؛ کل ۲۲۹ تست پاس؛ زنده جانشینی و active
-## Phase 27 — Outcome Engine
+## Phase 27 — Outcome Engine ✅ (این مرحله)
+- تطبیق نتیجه: macro → اولین شروع دوره ≥ target_date (سال/فصل/ماه)؛ market → اولین مشاهده ≥ target_date؛ actual_bool و امتیازها به فاز بعد
+- `OutcomeEngine`: `pending()` + `resolve_all()` idempotent + وضعیت resolved + یادداشت متد
+- API: `POST /api/outcomes/resolve`, `GET /api/outcomes`, `GET /api/outcomes/pending`
+- CLI: `python -m domains.forecast.run_resolve`
+- بدون migration (جدول از Phase 3 کامل — راستی‌آزمایی شد)
+- تست شد: ۸ تست پاس؛ کل ۲۳۷ تست پاس؛ زنده resolve واقعی (2.95) + پاک‌سازی
 ## Phase 28 — Forecast Evaluation (Brier, Log Loss, MAE, RMSE, Calibration)
 ## Phase 29 — Forecast Tournament
 ## Phase 30 — Scenario Engine (Base/Bull/Bear/Tail)

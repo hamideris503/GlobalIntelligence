@@ -30,6 +30,7 @@ from backend.api.routers import (
     markets,
     memory,
     narratives,
+    outcomes,
     society,
     sources,
     worldstate,
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(geopolitics.router, dependencies=protected)
     app.include_router(society.router, dependencies=protected)
     app.include_router(narratives.router, dependencies=protected)
+    app.include_router(outcomes.router, dependencies=protected)
     app.include_router(forecasts.router, dependencies=protected)
     return app
 

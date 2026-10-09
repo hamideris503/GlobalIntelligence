@@ -4,6 +4,35 @@
 
 ---
 
+## Phase 27 — Outcome Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/forecast/outcome.py`: `OutcomeEngine` + `period_start` (سال/فصل/ماه)
+  - قانون ضد look-ahead: دوره‌ی سالانه‌ی جاری قابل استفاده نیست (فقط شروع دوره ≥ target)
+  - نرمال‌سازی aware برای بک‌اندهای naive (درس SQLite در تست)
+  - `pending()` فقط active/expired سررسیده‌ی بدون outcome؛ idempotent
+- `domains/forecast/run_resolve.py`: CLI
+- API: `POST /api/outcomes/resolve`, `GET /api/outcomes`, `GET /api/outcomes/pending`
+- تست‌های `tests/test_outcome.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **237 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- بدون migration (۱۲ ستون برابر — راستی‌آزمایی شد) ✅
+- زنده: resolve واقعی (تورم 5.0→2.95، resolved) + پاک‌سازی کامل + CLI ✅
+- اصلاح حین کار: naive/aware، `session.get` با UUID، انتظار اشتباه تست (۴.۱۲→۲.۹۵ با استدلال look-ahead)
+
+### Known issues
+- actual_bool فقط برای پیش‌بینی‌های احتمالاتی (هنوز تولید نمی‌شود).
+- امتیازها (brier/log_loss/خطاها) در Phase 28 پر می‌شود.
+
+### Next step
+- Phase 28 — Forecast Evaluation
+
+---
+
 ## Phase 26 — Forecast Ledger
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

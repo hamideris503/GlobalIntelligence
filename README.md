@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 26 — Forecast Ledger**
+**Phase فعلی: 27 — Outcome Engine**
 **Status: DONE**
 
-> ⚠️ Forecast Ledger ساخته شد: سناریو و چرخه‌ی حیات (active/superseded) به Ledger اضافه شد؛ جانشینی خودکار و پرس‌وجوی active as-of فعال است. مرحله‌ی بعد Outcome Engine است.
+> ⚠️ Outcome Engine ساخته شد: نتیجه‌ی واقعی (اولین مشاهده در/پس از target_date) به پیش‌بینی‌های سررسیده تطبیق و وضعیت resolved می‌شود. مرحله‌ی بعد Forecast Evaluation است.
 
 ---
 
