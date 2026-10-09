@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 34 — Iran Transmission
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/iran/transmission_analytics.py`: وزن‌های exposure ثابت + تابع `transmit` (ورودی تهی → None)
+- `backend/database/models/transmission_assessment.py`: مدل + migration `94b508e36070` (up/down موقت + زنده)
+- `domains/iran/transmission.py`: `TransmissionEngine` (ورودی انرژی/نرخ از market، ژئوپلیتیک max جهان/Iran، بازار از drawdown Phase 18)
+- `domains/iran/run_transmission.py`: CLI
+- API در router ایران: `POST /api/iran/transmission/analyze`, `GET /api/iran/transmission`
+- تست‌های `tests/test_transmission.py` (۷ تست)
+
+### Tests
+- `python -m pytest tests -q` → **287 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۳ کانال (energy=0.43، rates=0.31، geo=0.24) + market skip صادقانه + idempotent + CLI ✅
+
+### Known issues
+- وزن‌های exposure ثابت کارشناسی v1 است (کالیبراسیون تجربی در آینده).
+- بدون داده‌ی مستقیم IRR؛ اثر ارزی از کانال rates پوشش داده می‌شود.
+
+### Next step
+- Phase 35 — Portfolio Intelligence
+
+---
+
 ## Phase 33 — Iran Mode
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

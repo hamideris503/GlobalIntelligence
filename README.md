@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 33 — Iran Mode**
+**Phase فعلی: 34 — Iran Transmission**
 **Status: DONE**
 
-> ⚠️ Iran Mode ساخته شد: لنز تجمیعی ایران (رویداد/ادعا/macro/تصمیم + بستر جهان) فقط‌خواندنی ارائه می‌شود. مرحله‌ی بعد Iran Transmission است.
+> ⚠️ Iran Transmission ساخته شد: اثر شوک‌های جهانی (انرژی/نرخ/ژئوپلیتیک/بازار) با وزن exposure بر ایران سنجیده می‌شود. مرحله‌ی بعد Portfolio Intelligence است.
 
 ---
 

@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 33
+**Phase فعلی:** 34
 
 ---
 
@@ -265,7 +265,12 @@
 - CLI: `python -m domains.iran.run_brief`
 - بدون migration
 - تست شد: ۵ تست پاس؛ کل ۲۸۰ تست پاس؛ زنده brief واقعی (۳ macro + بستر جهان)
-## Phase 34 — Iran Transmission
+## Phase 34 — Iran Transmission ✅ (این مرحله)
+- ۴ کانال با exposure ثابت مستند (energy 0.9، rates 0.6، geopolitical 0.8، market 0.5)؛ impact = input × exposure
+- `TransmissionEngine`: ورودی‌ها از market/worldstate/تنش Iran + upsert ماهانه در `transmission_assessments` + migration `94b508e36070`
+- API: `POST /api/iran/transmission/analyze`, `GET /api/iran/transmission` (در router ایران)
+- CLI: `python -m domains.iran.run_transmission`
+- تست شد: ۷ تست پاس؛ کل ۲۸۷ تست پاس؛ زنده ۳ کانال + ۱ skip صادقانه
 ## Phase 35 — Portfolio Intelligence
 ## Phase 36 — Model Performance
 ## Phase 37 — Adaptive AI Router
