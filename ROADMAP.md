@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 49
+**Phase فعلی:** 50
 
 ---
 
@@ -359,7 +359,12 @@
 - `BACKEND_API_KEY` در compose (فقط ارجاع، نه مقدار)؛ validator تست برای هر ۵ فایل
 - `GET /api/ops/status`: DB/شمارش‌ها/آخرین jobها/خودارزیابی/هشدارها/جهان (فقط‌خواندنی)
 - تست شد: ۷ تست پاس؛ کل ۳۶۲ تست پاس؛ زنده import هر ۵ workflow + ops واقعی
-## Phase 50 — Production Monitoring
+## Phase 50 — Production Monitoring ✅ (این مرحله)
+- ۷ چک مانیتورینگ با آستانه‌ی مستند (lag/backlog/پردازش‌نشده‌ها/خطا/هشدار/DB) + وضعیت کلی بدترین‌مورد
+- `MonitoringService`: گزارش + متریک‌های Prometheus exposition (بدون وابستگی)
+- workflow `gi-ops-monitor` (ساعتی: ops/status → alerts/evaluate) + import زنده (۶ workflow)
+- API: `GET /api/ops/monitoring`, `GET /api/ops/metrics`
+- تست شد: ۶ تست پاس؛ کل ۳۶۸ تست پاس؛ زنده status=pass + متریک‌های معتبر
 ## Phase 51 — Long-Term Learning
 ## Phase 52 — Advanced Research (GraphRAG, Bayesian networks, causal discovery, …)
 

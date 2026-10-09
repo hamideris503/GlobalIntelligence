@@ -5,6 +5,18 @@
 
 ---
 
+## ADR-0059 — Production Monitoring: آستانه‌ی ثابت + exposition بدون وابستگی
+**Date:** 2026-10-09
+**Context:** Phase 50 باید سلامت production را قابل scrape و قابل آزمون کند.
+**Decision:**
+- ۷ چک با آستانه‌ی مستند؛ وضعیت کلی بدترین‌مورد؛ متریک Prometheus دستی (بدون client lib).
+- workflow ساعتی ops→alerts؛ import زنده بخشی از فاز.
+**Alternatives:** کلاینت Prometheus؛ مانیتورینگ خارجی-only
+**Why selected:** بدون وابستگی، آزمون‌پذیر، استاندارد exposition.
+**Consequences:** سرور Prometheus جدا همچنان لازم است (خارج scope).
+
+---
+
 ## ADR-0058 — 24/7 Automation: workflow احرازهویتی + ops خواندنی
 **Date:** 2026-10-09
 **Context:** Phase 49 باید اجرای شبانه‌روزی را بدون تضعیف امنیت ممکن کند.

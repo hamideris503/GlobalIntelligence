@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 49 — 24/7 Automation**
+**Phase فعلی: 50 — Production Monitoring**
 **Status: DONE**
 
-> ⚠️ 24/7 Automation ساخته شد: ۵ workflow زمان‌بندی‌شده‌ی n8n (با احراز هویت) + endpoint وضعیت ops برای مانیتورینگ فعال است. مرحله‌ی بعد Production Monitoring است.
+> ⚠️ Production Monitoring ساخته شد: چک‌های مانیتورینگ + متریک‌های Prometheus + workflow پایش ساعتی فعال است. این آخرین فاز M4 است.
 
 ---
 

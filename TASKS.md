@@ -2,12 +2,14 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 49
+**به‌روزرسانی:** Phase 50
 
 ---
 
 ## TODO
-- [ ] Phase 50: Production Monitoring
+- [ ] Phase 51: Long-Term Learning
+- [ ] BLOCKED — Phase 48 live: اجرای `--live` روی VPS (نیازمند host/user/key)
+- [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] BLOCKED — Phase 48 live: اجرای `--live` روی VPS (نیازمند host/user/key)
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
@@ -19,6 +21,7 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 50: Production Monitoring (چک‌ها + متریک Prometheus + workflow + تست)
 - [x] Phase 49: 24/7 Automation (۵ workflow + ops status + تست)
 - [x] Phase 48: VPS Deployment automation + docs (اجرای زنده BLOCKED: بدون سرور)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)

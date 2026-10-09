@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 50 — Production Monitoring
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/ops/monitoring.py`: ۷ چک خالص با آستانه‌های مستند + وضعیت بدترین‌مورد
+- `domains/ops/service.py`: `MonitoringService` (گزارش + Prometheus exposition بدون وابستگی)
+- workflow `phase50-ops-monitor.json` (پوشش خودکار validator) + import زنده (۶ workflow)
+- API: `GET /api/ops/monitoring`, `GET /api/ops/metrics`
+- تست‌های `tests/test_monitoring.py` (۶ تست)
+
+### Tests
+- `python -m pytest tests -q` → **368 passed** ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- بدون migration ✅
+- زنده: monitoring با status=pass (۷ چک سبز) + متریک‌های معتبر Prometheus ✅
+
+### Known issues
+- scrape خودکار Prometheus (سرور جدا) در scope نیست؛ endpoint آماده است.
+- آستانه‌ها ثابت‌اند؛ پویاسازی با تاریخچه در آینده.
+
+### Next step
+- Phase 51 — Long-Term Learning (آغاز M4+/تحقیقات پیشرفته)
+
+---
+
 ## Phase 49 — 24/7 Automation
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
