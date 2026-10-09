@@ -78,7 +78,11 @@ class EvaluationEngine:
         return outcome
 
     def summary(
-        self, *, target: str | None = None, model: str | None = None
+        self,
+        *,
+        target: str | None = None,
+        targets: list[str] | None = None,
+        model: str | None = None,
     ) -> dict:
         """تجمیع live روی outcomeهای امتیازدار."""
         stmt = (
@@ -88,6 +92,8 @@ class EvaluationEngine:
         )
         if target:
             stmt = stmt.where(Forecast.target == target)
+        if targets:
+            stmt = stmt.where(Forecast.target.in_(targets))
         if model:
             stmt = stmt.where(Forecast.model == model)
         abs_e, sq_e, briers, loglosses, pairs = [], [], [], [], []

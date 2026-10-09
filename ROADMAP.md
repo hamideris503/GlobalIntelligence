@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 28
+**Phase فعلی:** 29
 
 ---
 
@@ -232,7 +232,12 @@
 - CLI: `python -m domains.forecast.run_evaluate` (+`--summary`)
 - بدون migration (فیلدها از Phase 3 — راستی‌آزمایی شد)
 - تست شد: ۱۰ تست پاس؛ کل ۲۴۷ تست پاس؛ زنده end-to-end (resolve→evaluate→summary: MAE=2.05)
-## Phase 29 — Forecast Tournament
+## Phase 29 — Forecast Tournament ✅ (این مرحله)
+- `TournamentEngine`: هر (هدف، روش) → forecast → resolve → evaluate → تجمیع هر مدل در scope تورنمنت → رتبه‌بندی (MAE، وگرنه brier، تساوی با تعداد) + ذخیره‌ی رکورد با leaderboard
+- مدل `Tournament` + migration `bb484db8621f`
+- API: `POST /api/tournaments/run` (targets خالی → 422), `GET /api/tournaments`, `GET /api/tournaments/{id}` (404)
+- CLI: `python -m domains.forecast.run_tournament`
+- تست شد: ۶ تست پاس؛ کل ۲۵۳ تست پاس؛ زنده برنده naive (MAE 0.05 در برابر 2.05)
 ## Phase 30 — Scenario Engine (Base/Bull/Bear/Tail)
 ## Phase 31 — Risk Engine
 ## Phase 32 — Decision Engine

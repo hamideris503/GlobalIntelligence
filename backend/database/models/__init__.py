@@ -20,6 +20,7 @@ from backend.database.models.scenario import Scenario
 from backend.database.models.social_assessment import SocialAssessment
 from backend.database.models.source import Source
 from backend.database.models.source_dependency import SourceDependency
+from backend.database.models.tournament import Tournament
 from backend.database.models.world_state import WorldState
 
 __all__ = [
@@ -44,5 +45,6 @@ __all__ = [
     "SocialAssessment",
     "Source",
     "SourceDependency",
+    "Tournament",
     "WorldState",
 ]

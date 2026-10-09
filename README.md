@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 28 — Forecast Evaluation**
+**Phase فعلی: 29 — Forecast Tournament**
 **Status: DONE**
 
-> ⚠️ Forecast Evaluation ساخته شد: امتیازهای Brier/LogLoss/MAE/RMSE و جدول کالیبراسیون برای outcomeها محاسبه می‌شود. مرحله‌ی بعد Forecast Tournament است.
+> ⚠️ Forecast Tournament ساخته شد: چند روش روی اهداف مشترک رقابت می‌کنند و جدول امتیازات با برنده ذخیره می‌شود. مرحله‌ی بعد Scenario Engine است.
 
 ---
 

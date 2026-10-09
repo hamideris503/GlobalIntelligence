@@ -34,6 +34,7 @@ from backend.api.routers import (
     outcomes,
     society,
     sources,
+    tournaments,
     worldstate,
 )
 from backend.auth.deps import require_api_key
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(outcomes.router, dependencies=protected)
     app.include_router(forecasts.router, dependencies=protected)
     app.include_router(evaluation.router, dependencies=protected)
+    app.include_router(tournaments.router, dependencies=protected)
     return app
 
 

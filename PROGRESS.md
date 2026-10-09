@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 29 — Forecast Tournament
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/models/tournament.py`: `Tournament` (نام/اهداف/روش‌ها/leaderboard/برنده)
+- migration `bb484db8621f` (up/down موقت + زنده، head=`bb484db8621f`)
+- `domains/forecast/tournament.py`: `TournamentEngine` + `rank_key` مستند
+- `domains/forecast/run_tournament.py`: CLI
+- API: `POST /api/tournaments/run`, `GET /api/tournaments`, `GET /api/tournaments/{id}`
+- `EvaluationEngine.summary` پذیرای `targets` شد تا board در scope تورنمنت باشد (نه سراسری)
+- تست‌های `tests/test_tournament.py` (۶ تست)
+
+### Tests
+- `python -m pytest tests -q` → **253 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: تورنمنت واقعی بدون امتیاز → winner=None صادقانه؛ مسیر برنده با داده تستی (naive برنده) + پاک‌سازی ✅
+- زنده: CLI ✅
+
+### Known issues
+- تورنمنت فقط baselineها را دارد؛ با آمدن مدل‌های جدید (ARIMA/ML) خودکار وارد رقابت می‌شوند.
+- resolve فقط اهداف سررسیده را پوشش می‌دهد؛ تورنمنت روی اهداف آینده امتیازی ندارد (صادقانه).
+
+### Next step
+- Phase 30 — Scenario Engine
+
+---
+
 ## Phase 28 — Forecast Evaluation
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
