@@ -4,6 +4,33 @@
 
 ---
 
+## Phase 31 — Risk Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/risk/analytics.py`: توابع خالص (`combine` mean/max، `growth_risk` دودمه، `spread_uncertainty`، `level_for`)
+- `backend/database/models/risk_assessment.py`: `RiskAssessment` با یکتایی (category, period)
+- migration `13f31836fdf1` (up/down موقت + زنده، head=`13f31836fdf1`)
+- `domains/risk/analysis.py`: `RiskEngine` (فقط سیگنال‌های معتبر با metadata، تنش ماکزیمم، گستردگی سناریو، upsert idempotent)
+- `domains/risk/run_analyze.py`: CLI
+- API: `POST /api/risk/analyze`, `GET /api/risk/assessments`, `GET /api/risk/overview`
+- تست‌های `tests/test_risk.py` (۸ تست)
+
+### Tests
+- `python -m pytest tests -q` → **269 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۷ دسته + ۱ skip (trade بدون داده)؛ growth/uncertainty critical؛ idempotent؛ CLI ✅
+
+### Known issues
+- uncertainty از یک هدف (تورم) می‌آید؛ با سناریوهای بیشتر پایدارتر می‌شود.
+- ریسک رشد از انحراف خنثی است (هر دو دم) — تفسیر جهت با مصرف‌کننده است.
+
+### Next step
+- Phase 32 — Decision Engine
+
+---
+
 ## Phase 30 — Scenario Engine
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

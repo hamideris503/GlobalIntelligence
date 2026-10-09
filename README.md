@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 30 — Scenario Engine**
+**Phase فعلی: 31 — Risk Engine**
 **Status: DONE**
 
-> ⚠️ Scenario Engine ساخته شد: ۴ سناریوی قطعی (base/bull/bear/tail) از baseline با شوک σ در Ledger ثبت می‌شود. مرحله‌ی بعد Risk Engine است.
+> ⚠️ Risk Engine ساخته شد: ۸ دسته ریسک (تورم/رشد/بازار/انرژی/ژئوپلیتیک/تجارت/اجتماعی/عدم‌قطعیت) از سیگنال‌ها و سناریوها ترکیب می‌شود. مرحله‌ی بعد Decision Engine است.
 
 ---
 

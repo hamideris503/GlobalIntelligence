@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 30
+**Phase فعلی:** 31
 
 ---
 
@@ -245,7 +245,12 @@
 - CLI: `python -m domains.scenarios.run_scenarios`
 - بدون migration (فیلد scenario از Phase 26)
 - تست شد: ۸ تست پاس؛ کل ۲۶۱ تست پاس؛ زنده ۴ سناریو تورم + base-only برای WTI تک‌نقطه‌ای
-## Phase 31 — Risk Engine
+## Phase 31 — Risk Engine ✅ (این مرحله)
+- ۸ دسته ریسک از ورودی‌های معتبر (no_data حذف می‌شود): سیگنال‌های WorldState + بیشینه تنش بازیگران + گستردگی سناریو
+- `RiskEngine`: ترکیب mean/max + سطح low/medium/high/critical + upsert ماهانه در `risk_assessments` + migration `13f31836fdf1`
+- API: `POST /api/risk/analyze`, `GET /api/risk/assessments`, `GET /api/risk/overview` (پرخطرترین اول)
+- CLI: `python -m domains.risk.run_analyze`
+- تست شد: ۸ تست پاس؛ کل ۲۶۹ تست پاس؛ زنده ۷ دسته (growth/uncertainty critical)
 ## Phase 32 — Decision Engine
 ## Phase 33 — Iran Mode
 ## Phase 34 — Iran Transmission
