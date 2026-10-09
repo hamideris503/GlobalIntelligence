@@ -22,6 +22,7 @@ from backend.database.models.provider_run_stat import ProviderRunStat
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.risk_assessment import RiskAssessment
 from backend.database.models.scenario import Scenario
+from backend.database.models.self_evaluation import SelfEvaluation
 from backend.database.models.social_assessment import SocialAssessment
 from backend.database.models.source import Source
 from backend.database.models.source_dependency import SourceDependency
@@ -54,6 +55,7 @@ __all__ = [
     "Recommendation",
     "RiskAssessment",
     "Scenario",
+    "SelfEvaluation",
     "SocialAssessment",
     "Source",
     "SourceDependency",

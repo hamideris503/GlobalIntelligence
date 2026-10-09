@@ -4,6 +4,33 @@
 
 ---
 
+## Phase 39 — Self Evaluation
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/selfeval/checks.py`: ۶ چک خالص با آستانه‌های مستند + نمره/grade
+- `backend/database/models/self_evaluation.py`: تاریخچه‌ی افزودنی + migration `b67115733d7f` (up/down موقت + زنده)
+- `domains/selfeval/service.py`: `SelfEvaluationService` (تجمیع شمارش‌ها + ثبت)
+- `domains/selfeval/run_selfeval.py`: CLI
+- API: `POST /api/self-eval/run`, `GET /api/self-eval/latest`, `GET /api/self-eval/history`
+- تست‌های `tests/test_selfeval.py` (۵ تست)
+
+### Tests
+- `python -m pytest tests -q` → **319 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: نمره‌ی واقعی **B (0.8333)** — classification/evidenc/freshness/memory پاس، forecast/graph هشدار صادقانه ✅
+- زنده: history + CLI ✅
+
+### Known issues
+- چک‌ها ساختاری‌اند، نه کیفی (درستی محتوا سنجیده نمی‌شود).
+- آستانه‌ها ثابت‌اند؛ کالیبراسیون تجربی در آینده.
+
+### Next step
+- Phase 40 — Dashboard
+
+---
+
 ## Phase 38 — Audit / Replay
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

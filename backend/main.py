@@ -40,6 +40,7 @@ from backend.api.routers import (
     portfolios,
     risk,
     scenarios,
+    selfeval,
     society,
     sources,
     tournaments,
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(evaluation.router, dependencies=protected)
     app.include_router(tournaments.router, dependencies=protected)
     app.include_router(scenarios.router, dependencies=protected)
+    app.include_router(selfeval.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)
     app.include_router(iran.router, dependencies=protected)

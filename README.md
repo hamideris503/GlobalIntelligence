@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 38 — Audit / Replay**
+**Phase فعلی: 39 — Self Evaluation**
 **Status: DONE**
 
-> ⚠️ Audit / Replay ساخته شد: لاگ حسابرسی افزودنی و بازپخش قطعی موتورها با fingerprint قبل/بعد فعال است. مرحله‌ی بعد Self Evaluation است.
+> ⚠️ Self Evaluation ساخته شد: سلامت پلتفرم (۶ چک قطعی + نمره و grade) به‌صورت دوره‌ای ثبت می‌شود. مرحله‌ی بعد Dashboard است.
 
 ---
 

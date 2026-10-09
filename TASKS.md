@@ -2,12 +2,12 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 38
+**به‌روزرسانی:** Phase 39
 
 ---
 
 ## TODO
-- [ ] Phase 39: Self Evaluation
+- [ ] Phase 40: Dashboard
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
@@ -18,8 +18,8 @@
 - (هیچ)
 
 ## DONE
+- [x] Phase 39: Self Evaluation (۶ چک + نمره/grade + API + CLI + migration + تست)
 - [x] Phase 38: Audit / Replay (لاگ افزودنی + بازپخش قطعی + API + CLI + migration + تست)
-- [x] Phase 37: Adaptive AI Router (ثبت عملکرد + زنجیره تطبیقی + API + CLI + migration + تست)
 - [x] Phase 20: Historical Analogue (فاصله‌ی برداری + رتبه‌بندی + aftermath + API + CLI + تست)
 - [x] Phase 19: Historical Memory (بایگانی ۳ لایه + timeline Point-in-Time + API + CLI + migration + تست)
 - [x] Phase 17: Market Data (کاتالوگ ۱۳ نماد + fetcherهای رایگان + upsert idempotent + API + CLI + تست)

@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 38
+**Phase فعلی:** 39
 
 ---
 
@@ -295,7 +295,12 @@
 - API: `POST /api/audit/log`, `GET /api/audit/records|engines`, `POST /api/audit/replay` (خودکار لاگ می‌شود)
 - CLI: `python -m domains.audit.run_replay`
 - تست شد: ۸ تست پاس؛ کل ۳۱۴ تست پاس؛ زنده replay macro/risk با match=true
-## Phase 39 — Self Evaluation
+## Phase 39 — Self Evaluation ✅ (این مرحله)
+- ۶ چک قطعی با آستانه‌ی مستند (classification/evidence/forecast/freshness/memory/graph) + نمره و grade A-D
+- `SelfEvaluationService`: اجرا + ثبت تاریخچه‌ی افزودنی در `self_evaluations` + migration `b67115733d7f`
+- API: `POST /api/self-eval/run`, `GET /api/self-eval/latest` (404 دقیق), `GET /api/self-eval/history`
+- CLI: `python -m domains.selfeval.run_selfeval`
+- تست شد: ۵ تست پاس؛ کل ۳۱۹ تست پاس؛ زنده نمره‌ی واقعی B (0.8333)
 ## Phase 40 — Dashboard
 ## Phase 41 — Daily Intelligence
 ## Phase 42 — Weekly Intelligence
