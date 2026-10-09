@@ -16,6 +16,7 @@ from backend.api.routers import (
     ai_routing,
     analogues,
     audit,
+    briefings,
     claims,
     classify,
     decisions,
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, dependencies=protected)
     app.include_router(ai_routing.router, dependencies=protected)
     app.include_router(audit.router, dependencies=protected)
+    app.include_router(briefings.router, dependencies=protected)
     app.include_router(sources.router, dependencies=protected)
     app.include_router(ingestion.router, dependencies=protected)
     app.include_router(dedup.router, dependencies=protected)

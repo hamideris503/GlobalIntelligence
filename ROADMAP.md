@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 40
+**Phase فعلی:** 41
 
 ---
 
@@ -307,7 +307,12 @@
 - استایل RTL + جدول‌ها در `styles.css`
 - بدون migration (فقط فرانت‌اند)؛ بک‌اند دست‌نخورده
 - تست شد: ۳۱۹ تست پاس؛ `npm run build` موفق؛ سرو زنده
-## Phase 41 — Daily Intelligence
+## Phase 41 — Daily Intelligence ✅ (این مرحله)
+- خلاصه‌ی ۲۴ ساعته‌ی قطعی: رویدادها/ادعاهای پنجره + ۳ حرکت بزرگ بازار + جهان + تصمیم‌ها + ۳ ریسک برتر + خودارزیابی
+- مدل مشترک `Briefing` (kind=daily/weekly، یکتایی kind+period) + migration `8521aee0c497`
+- API: `POST /api/briefings/daily`, `GET /api/briefings`, `GET /api/briefings/{id}`
+- CLI: `python -m domains.briefings.run_daily`
+- تست شد: ۵ تست پاس؛ کل ۳۲۴ تست پاس؛ زنده brief واقعی (۵۰ رویداد، ۵۰ ادعا، جهان، ۲ تصمیم، نمره B)
 ## Phase 42 — Weekly Intelligence
 ## Phase 43 — Alerts
 ## Phase 44 — Security Hardening

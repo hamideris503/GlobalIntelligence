@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 40 — Dashboard**
+**Phase فعلی: 41 — Daily Intelligence**
 **Status: DONE**
 
-> ⚠️ Dashboard ساخته شد: نمای زنده‌ی جهان/بازار/تصمیم/ریسک/پیش‌بینی/خودارزیابی/ایران با کلید API در فرانت‌اند. مرحله‌ی بعد Daily Intelligence است.
+> ⚠️ Daily Intelligence ساخته شد: خلاصه‌ی ۲۴ ساعته‌ی قطعی (رویداد/ادعا/حرکت بازار/جهان/تصمیم/ریسک/خودارزیابی) در `briefings` ثبت می‌شود. مرحله‌ی بعد Weekly Intelligence است.
 
 ---
 

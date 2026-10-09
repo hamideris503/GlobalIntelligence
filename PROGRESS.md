@@ -4,6 +4,32 @@
 
 ---
 
+## Phase 41 — Daily Intelligence
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `backend/database/models/briefing.py`: `Briefing` مشترک روزانه/هفتگی با یکتایی (kind, period)
+- migration `8521aee0c497` (up/down موقت + زنده، head=`8521aee0c497`)
+- `domains/briefings/daily.py`: `DailyBriefingService` (۷ بخش + movers از دو مشاهده‌ی آخر + idempotent روزانه)
+- `domains/briefings/run_daily.py`: CLI
+- API: `POST /api/briefings/daily`, `GET /api/briefings`, `GET /api/briefings/{id}` (404 دقیق)
+- تست‌های `tests/test_briefings.py` (۵ تست)
+
+### Tests
+- `python -m pytest tests -q` → **324 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: brief واقعی (۵۰ رویداد/ادعا، ۱ mover، جهان، ۲ تصمیم، ۳ ریسک، B) + CLI ✅
+
+### Known issues
+- تفسیر متنی (narrative) ندارد — فقط اعداد و فهرست (Report role در آینده).
+- سقف ۵۰ رویداد/ادعا در بخش‌ها (صفحه‌بندی کامل در آینده).
+
+### Next step
+- Phase 42 — Weekly Intelligence
+
+---
+
 ## Phase 40 — Dashboard
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
