@@ -1,0 +1,39 @@
+# ============================================================
+# GlobalIntelligence — docker-compose.staging.yml (staging overrides)
+# استفاده (پورت‌های جدا از dev تا اختلال نشود):
+#   docker compose -p gi_staging -f docker-compose.yml \
+#     -f docker-compose.staging.yml up -d --build
+# توقف و پاک‌سازی:
+#   docker compose -p gi_staging -f docker-compose.yml \
+#     -f docker-compose.staging.yml down -v
+#
+# staging امن است: MOCK_MODE=true، داده‌ی تازه (volume جدا با project name)،
+# migration خودکار در entrypoint (شکست → fail-fast در staging).
+# ============================================================
+
+services:
+  postgres:
+    container_name: gi_staging_postgres
+    ports: !override
+      - "127.0.0.1:${STAGING_POSTGRES_PORT:-5433}:5432"
+
+  backend:
+    container_name: gi_staging_backend
+    ports: !override
+      - "127.0.0.1:${STAGING_BACKEND_PORT:-8001}:8000"
+    environment:
+      APP_ENV: staging
+      MOCK_MODE: "true"
+      DEBUG: "false"
+
+  frontend:
+    container_name: gi_staging_frontend
+    ports: !override
+      - "127.0.0.1:${STAGING_FRONTEND_PORT:-5174}:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:${STAGING_BACKEND_PORT:-8001}
+
+  n8n:
+    container_name: gi_staging_n8n
+    ports: !override
+      - "127.0.0.1:${STAGING_N8N_PORT:-5679}:5678"

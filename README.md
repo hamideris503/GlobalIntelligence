@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 46 — Docker Production**
+**Phase فعلی: 47 — Staging**
 **Status: DONE**
 
-> ⚠️ Docker Production آماده شد: compose مخصوص production (محدودیت منابع، restart، لاگ) + ایمیج nginx چندمرحله‌ای برای فرانت‌اند. مرحله‌ی بعد Staging است.
+> ⚠️ Staging آماده شد: stack جدا (پورت/volume مجزا) با smoke test سبز و دستورالعمل `docs/STAGING.md`. مرحله‌ی بعد VPS Deployment است.
 
 ---
 

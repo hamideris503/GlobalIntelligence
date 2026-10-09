@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 46
+**Phase فعلی:** 47
 
 ---
 
@@ -342,7 +342,11 @@
 - `docker/frontend.prod.Dockerfile`: چندمرحله‌ای (build + nginx) + `docker/nginx-spa.conf` (fallback + healthz + هدرها)
 - `.dockerignore`: تکمیل (backups/dump/manifest)
 - تست شد: config معتبر؛ ایمیج بک‌اند بدون `.env` + کاربر appuser؛ nginx سرو + healthz + هدرها + SPA fallback؛ کل ۳۴۷ تست پاس
-## Phase 47 — Staging
+## Phase 47 — Staging ✅ (این مرحله)
+- `docker-compose.staging.yml`: پورت/کانتینر/volume جدا (`!override` برای ports، پیشوند `gi_staging_`) + staging امن (mock، بدون کلید واقعی)
+- `scripts/smoke_check.py`: ۹ چک فقط‌خواندنی (health/auth/endpointها) + تست‌های `tests/test_smoke.py`
+- `docs/STAGING.md`: رویه‌ی up/smoke/down + هشدار چاپ secret در `config` + عیب‌یابی
+- تست شد: staging واقعی بالا آمد (migration خودکار) + smoke ۹/۹ سبز + جمع‌سازی کامل؛ dev دست‌نخورده
 ## Phase 48 — VPS Deployment
 ## Phase 49 — 24/7 Automation
 ## Phase 50 — Production Monitoring

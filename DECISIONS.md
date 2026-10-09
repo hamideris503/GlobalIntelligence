@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0056 — Staging: ایزولاسیون با !override و smoke الزامی
+**Date:** 2026-10-09
+**Context:** Phase 47 باید انتشار را بدون ریسک برای dev تأیید کند.
+**Decision:**
+- compose جدا با پورت/کانتینر/volume مجزا؛ `!override` برای ports (merge پیش‌فرض خطرناک است)؛ staging امن با mock.
+- smoke فقط‌خواندنی با exit code؛ جمع‌سازی با `down -v`.
+- هشدار: `compose config` secret چاپ می‌کند.
+**Alternatives:** محیط دستی جدا؛ تست روی dev
+**Why selected:** تکرارپذیری، ایمنی dev، سرعت.
+**Consequences:** E2E مرورگر و n8n staging هنوز پوشش ندارد.
+
+---
+
 ## ADR-0055 — Docker Production: اورراید جدا، dev دست‌نخورده
 **Date:** 2026-10-09
 **Context:** Phase 46 باید production را بدون شکستن جریان dev آماده کند.

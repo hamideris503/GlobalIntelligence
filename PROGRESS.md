@@ -4,6 +4,30 @@
 
 ---
 
+## Phase 47 — Staging
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `docker-compose.staging.yml`: ایزولاسیون کامل (پورت 8001/5174/5433/5679، کانتینر/volume جدا)
+- `scripts/smoke_check.py`: ۹ چک فقط‌خواندنی با exit code + `tests/test_smoke.py` (۳ تست)
+- `docs/STAGING.md`: رویه + هشدار secret + عیب‌یابی
+- تست‌های موجود: کل **350 passed** ✅ + ruff تمیز ✅
+
+### Tests (زنده، بدون migration)
+- staging بالا آمد؛ migration خودکار موفق؛ smoke **۹/۹ سبز** ✅
+- جمع‌سازی با `down -v`؛ dev سالم ماند (health/db ok) ✅
+- اصلاح حین کار: تداخل `container_name`، merge لیست ports (→ `!override`)، خروجی secret در `config` (مستند شد)
+
+### Known issues
+- فرانت‌اند staging دودی نشد (فقط بک‌اند/DB در smoke است؛ E2E مرورگر در آینده).
+- n8n staging بالا آمد ولی workflow تست نشد.
+
+### Next step
+- Phase 48 — VPS Deployment
+
+---
+
 ## Phase 46 — Docker Production
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE
