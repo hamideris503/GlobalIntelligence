@@ -4,6 +4,35 @@
 
 ---
 
+## Phase 21 — Macro Engine
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE
+
+### Completed
+- `domains/macro/analytics.py`: توابع خالص (`yoy`/`acceleration`/`z_score`/`momentum_label`/`confidence_for`/`analyze_series`)
+  - yoy کسری دو مشاهده‌ی آخر؛ شتاب = اختلاف yoy؛ z نیازمند ≥۳ نقطه و واریانس مثبت (وگرنه None)؛ momentum=clamp(z/2) با برچسب accelerating/stable/decelerating/unknown؛ confidence از تعداد نقاط (0.1/0.4/0.6/0.8)
+- `backend/database/models/macro_assessment.py`: `MacroAssessment` با یکتایی (indicator, country, period)
+- migration `ce70a0fa41c3`: جدول `macro_assessments` (up/down روی DB موقت + اعمال زنده، head=`ce70a0fa41c3`)
+- `domains/macro/analysis.py`: `MacroEngine` (گروه‌بندی سری‌ها، تحلیل، upsert idempotent، فیلتر indicator/country)
+- `domains/macro/run_analyze.py`: CLI
+- API: `POST /api/macro/analyze`, `GET /api/macro/assessments`, `GET /api/macro/overview?country=`
+- تست‌های `tests/test_macro_engine.py` (۱۰ تست)
+
+### Tests
+- `python -m pytest tests -q` → **187 passed** ✅
+- `ruff check backend domains tests` → All checks passed ✅
+- زنده: ۲ سری تحلیل شد (USA inflation@2024: mom=-0.28 stable؛ IRN gdp@2025: mom=-0.70 decelerating) ✅
+- زنده: اجرای دوباره idempotent (۲ duplicate) + overview + CLI ✅
+
+### Known issues
+- سری‌های کم‌نقطه (۱–۲) yoy/شتاب تهی دارند و momentum ناشناخته است — صادقانه ثبت می‌شود، نه حدس.
+- دوره‌ها رشته‌ای مقایسه می‌شوند (مرتب نزولی)؛ فرمت دوره باید یکدست باشد (در seed فعلی هست).
+
+### Next step
+- Phase 22 — Geopolitical Engine
+
+---
+
 ## Audit Fix — یافته‌های ممیزی Phase 18/20 (بدون شروع Phase 21)
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE

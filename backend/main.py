@@ -24,6 +24,7 @@ from backend.api.routers import (
     independence,
     ingestion,
     jobs,
+    macro,
     markets,
     memory,
     sources,
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(worldstate.router, dependencies=protected)
     app.include_router(memory.router, dependencies=protected)
     app.include_router(analogues.router, dependencies=protected)
+    app.include_router(macro.router, dependencies=protected)
     return app
 
 

@@ -10,6 +10,7 @@ from backend.database.models.event import Event
 from backend.database.models.evidence import Evidence
 from backend.database.models.forecast import Forecast, ForecastOutcome
 from backend.database.models.job import JobRun
+from backend.database.models.macro_assessment import MacroAssessment
 from backend.database.models.market import MacroObservation, MarketObservation
 from backend.database.models.memory import MemoryRecord
 from backend.database.models.recommendation import Recommendation
@@ -29,6 +30,7 @@ __all__ = [
     "Forecast",
     "ForecastOutcome",
     "JobRun",
+    "MacroAssessment",
     "MacroObservation",
     "MarketObservation",
     "MemoryRecord",

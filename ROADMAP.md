@@ -3,7 +3,7 @@
 > نقشه راه GlobalIntelligence — ۵۲ فاز
 > اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
 
-**Phase فعلی:** 20
+**Phase فعلی:** 21
 
 ---
 
@@ -181,7 +181,12 @@
 - فقط خواندنی: بدون migration، بدون AI
 - تست شد: ۱۲ تست پاس؛ کل ۱۶۲ تست پاس؛ زنده ۲ آنالوگ با similarity=1.0
 
-## Phase 21 — Macro Engine
+## Phase 21 — Macro Engine ✅ (این مرحله)
+- توابع خالص `analytics`: yoy/شتاب/z-score/momentum برچسب‌دار + confidence بر اساس تعداد نقاط
+- `MacroEngine`: تحلیل هر سری (indicator×country) + upsert idempotent در `macro_assessments` + migration `ce70a0fa41c3`
+- API: `POST /api/macro/analyze`, `GET /api/macro/assessments`, `GET /api/macro/overview?country=`
+- CLI: `python -m domains.macro.run_analyze`
+- تست شد: ۱۰ تست پاس؛ کل ۱۸۷ تست پاس؛ زنده ۲ سری (USA inflation stable، IRN gdp decelerating)
 ## Phase 22 — Geopolitical Engine
 ## Phase 23 — Social Intelligence
 ## Phase 24 — Narrative Engine

@@ -8,10 +8,10 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 20 — Historical Analogue**
+**Phase فعلی: 21 — Macro Engine**
 **Status: DONE**
 
-> ⚠️ Historical Analogue ساخته شد: وضعیت فعلی با snapshotهای تاریخی (فاصله‌ی برداری ۹ سیگنال) مقایسه و «بعدش چه شد» (snapshotها و رویدادهای بعدی) بازیابی می‌شود. مرحله‌ی بعد Macro Engine است.
+> ⚠️ Macro Engine ساخته شد: تحلیل قطعی سری‌های macro (تغییر سالانه، شتاب، z-score، momentum) در `macro_assessments` ذخیره می‌شود. مرحله‌ی بعد Geopolitical Engine است.
 
 ---
 

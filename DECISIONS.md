@@ -5,6 +5,19 @@
 
 ---
 
+## ADR-0030 — Macro Engine: تحلیل سری بدون score تجمیعی جعلی
+**Date:** 2026-10-09
+**Context:** Phase 21 باید سری‌های macro را تحلیل کند بدون اینکه «امتیاز کل» بی‌پشتوانه بسازد.
+**Decision:**
+- هر سری مستقل تحلیل می‌شود (yoy/شتاب/z-score/momentum)؛ z-score معیار واحد-آزاد momentum است.
+- بدون score تجمیعی کشوری؛ overview فقط آخرین assessment هر شاخص را نشان می‌دهد.
+- داده‌ی کم → فیلد تهی + confidence پایین (نه حدس)؛ upsert idempotent.
+**Alternatives:** score وزنی کشوری؛ تفسیر LLM در همین فاز
+**Why selected:** صداقت آماری، Deterministic Core؛ تفسیر به فازهای بعد.
+**Consequences:** outlook کشوری بر عهده‌ی مصرف‌کننده (WorldState/Forecast) است.
+
+---
+
 ## ADR-0029 — اصلاحات ممیزی: cosine مرکزدهی‌شده، پوشش no_data، پنجره‌ی drawdown
 **Date:** 2026-10-09
 **Context:** ممیزی مستقل سه ایراد مهم در Phase 18/20 یافت: (۱) cosine روی مقادیر خام 0..1 اختلاف سطح را نادیده می‌گیرد؛ (۲) ابعاد no_data به‌عنوان خنثی واقعی مقایسه می‌شدند؛ (۳) drawdown نسبت به سقف کل تاریخچه بود و کل جدول را load می‌کرد.
