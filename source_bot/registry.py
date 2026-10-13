@@ -28,10 +28,14 @@ def pick_adapter(source: Source) -> SourcePlan:
             return SourcePlan(source, "skip", None, "rss method but no feed url")
         return SourcePlan(source, "rss", feed, "rss feed")
     if method == "api" or api:
-        if not source.api_url:
-            return SourcePlan(source, "specialized", None,
-                              "kept: macro/market specialized fetcher owns this source (no generic api_url)")
-        return SourcePlan(source, "rest_json", source.api_url, "api endpoint")
+        if source.api_url:
+            return SourcePlan(source, "rest_json", source.api_url, "api endpoint")
+        # BLS case: متد api ولی بدون api_url؛ feed ثبت‌شده → RSS.
+        # مالکیت تخصصی محفوظ است: منابع macro/market بدون feed همچنان specialized.
+        if feed:
+            return SourcePlan(source, "rss", feed, "fallback rss (no api_url)")
+        return SourcePlan(source, "specialized", None,
+                          "kept: macro/market specialized fetcher owns this source (no generic api_url)")
     if method == "dataset" or source.data_download_url:
         url = source.data_download_url or ""
         if not url:

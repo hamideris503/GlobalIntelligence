@@ -30,6 +30,30 @@ def test_pick_adapter_single_owner():
     assert pick_adapter(s3).adapter == "skip"
 
 
+def test_api_with_api_url_uses_rest_json():
+    """اولویت api_url صریح حتی با وجود feed (حفظ مالکیت مسیر تخصصی)."""
+    s = Source(name="t1", collection_method="api", type="api",
+               api_url="https://example.test/api",
+               feed_url="https://example.test/f.xml")
+    plan = pick_adapter(s)
+    assert plan.adapter == "rest_json" and plan.url == "https://example.test/api"
+
+
+def test_api_without_api_url_with_feed_falls_back_to_rss():
+    """حالت BLS: متد api بدون api_url ولی با feed معتبر → rss."""
+    s = Source(name="t2", collection_method="api", type="official",
+               feed_url="https://example.test/f.xml")
+    plan = pick_adapter(s)
+    assert plan.adapter == "rss" and plan.url == "https://example.test/f.xml"
+
+
+def test_api_without_feed_nor_api_url_stays_specialized():
+    """قفل مالکیت تخصصی: api بدون هیچ endpoint → specialized (حالت FRED)."""
+    s = Source(name="t3", collection_method="api", type="api")
+    plan = pick_adapter(s)
+    assert plan.adapter == "specialized" and plan.url is None
+
+
 def test_deliver_to_existing_pipeline_and_provenance():
     db = _mem_db()
     src = Source(name="t-src", collection_method="rss", type="rss", feed_url="https://ex.com/rss")
