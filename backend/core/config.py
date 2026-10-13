@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://gi_user:change-me-in-production@localhost:5432/globalintelligence"
     )
+    # E2E FIND: burst ساعتی n8n pool پیش‌فرض (5+10) را تمام می‌کرد (QueuePool timeout → 500)
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = "globalintelligence"
