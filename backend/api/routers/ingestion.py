@@ -49,21 +49,36 @@ async def ingest(payload: IngestRequest, db: Session = Depends(get_db)) -> Inges
 
 @router.post("/all", response_model=list[IngestResultRead])
 async def ingest_all(
-    limit: int = Query(default=20, ge=1, le=200), db: Session = Depends(get_db)
+    limit: int = Query(default=20, ge=1, le=200), db: Session = Depends(get_db),
+    mock: bool | None = Query(default=None,
+                              description="override دریافت: true=mock، false=واقعی، تهی=پیش‌فرض env"),
 ) -> list[IngestResultRead]:
     """اجرای دریافت برای منابع فعالی که روش rss و feed_url دارند.
 
     در MOCK_MODE همه‌ی منابع فعال با fetcher نمونه پردازش می‌شوند.
     در حالت واقعی فقط منابع news (rss با feed_url) انتخاب می‌شوند (P0-2).
+    E2E FIND: زمان‌بند باید mock=false بدهد تا سند نمونه زیر نام واقعی نرود.
     """
     from backend.core.config import get_settings
+    from domains.news.fetchers import MockFetcher, RSSFetcher
 
+    use_mock = get_settings().mock_mode if mock is None else mock
     stmt = select(Source).where(Source.active.is_(True))
-    if not get_settings().mock_mode:
+    if not use_mock:
         stmt = stmt.where(Source.collection_method == "rss", Source.feed_url.is_not(None))
     sources = list(db.execute(stmt).scalars().all())
 
-    pipeline = NewsIngestionPipeline(db)
+    if mock is None:
+        pipeline = NewsIngestionPipeline(db)
+    else:
+        settings = get_settings()
+        pipeline = NewsIngestionPipeline(
+            db,
+            fetcher=MockFetcher() if mock else RSSFetcher(
+                timeout=float(settings.ai_request_timeout_seconds),
+                user_agent=settings.user_agent,
+            ),
+        )
     results = []
     for source in sources:
         result = await pipeline.ingest_source_async(source, limit=limit)
