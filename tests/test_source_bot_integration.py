@@ -54,6 +54,27 @@ def test_api_without_feed_nor_api_url_stays_specialized():
     assert plan.adapter == "specialized" and plan.url is None
 
 
+def test_old_model_without_census_columns_never_raises():
+    """مدل قدیمی (بدون api_url/rss_url/homepage/data_download_url) نباید
+    AttributeError بدهد؛ رفتار با مدل جدید یکسان است (رگرسیون prod)."""
+    from types import SimpleNamespace
+
+    def old_model(**kw):
+        base = dict(collection_method="api", type="official",
+                    feed_url="https://example.test/f.xml")
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    plan = pick_adapter(old_model())
+    assert plan.adapter == "rss" and plan.url == "https://example.test/f.xml"
+    plan = pick_adapter(old_model(collection_method="api", type="api",
+                                  feed_url=None))
+    assert plan.adapter == "specialized"
+    plan = pick_adapter(old_model(collection_method="scrape", type="official",
+                                  feed_url=None))
+    assert plan.adapter == "skip"
+
+
 def test_deliver_to_existing_pipeline_and_provenance():
     db = _mem_db()
     src = Source(name="t-src", collection_method="rss", type="rss", feed_url="https://ex.com/rss")
