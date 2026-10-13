@@ -39,3 +39,19 @@ class AIProviderHealth(BaseModel):
     provider: str
     healthy: bool
     detail: str = ""
+
+
+class AIStatusRead(BaseModel):
+    mock_mode: bool
+    default_provider: str
+    roles: list[str]
+
+
+class AIChatRequest(BaseModel):
+    """گفت‌وگوی متنی: انتخاب صریح provider/model (اعتبارسنجی سمت سرور)."""
+
+    provider: str | None = Field(default=None, max_length=128)
+    model: str | None = Field(default=None, max_length=128)
+    messages: list[AIMessage] = Field(..., min_length=1, max_length=50)
+    temperature: float = Field(default=0.3, ge=0.0, le=1.5)
+    max_tokens: int | None = Field(default=1024, ge=1, le=4000)

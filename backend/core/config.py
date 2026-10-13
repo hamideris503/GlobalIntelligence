@@ -75,6 +75,19 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openai/gpt-4o-mini"
 
+    groq_api_key: str | None = None
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "openai/gpt-oss-20b"
+
+    cloudflare_api_token: str | None = None
+    cloudflare_account_id: str | None = None
+
+    # --- Settings panel encryption (Step 8) ---
+    # کلید Fernet برای رمزنگاری اعتبارنامه‌ها در DB؛ بدون آن ذخیره‌ی کلید رد می‌شود.
+    app_encryption_key: str | None = None
+    # اجازه‌ی base_url خصوصی برای Provider سفارشی (پیش‌فرض بسته؛ ضد SSRF)
+    allow_private_base_url: bool = False
+
     # --- Data collection ---
     source_min_interval_seconds: int = 60
     user_agent: str = "GlobalIntelligenceBot/0.1 (+https://example.local; contact@example.local)"
