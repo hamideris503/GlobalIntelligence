@@ -30,3 +30,20 @@ class DocumentRead(BaseModel):
     published_at: datetime | None
     retrieved_at: datetime | None
     content_hash: str | None
+
+
+class BotRunRequest(BaseModel):
+    source_name: str | None = None
+    limit: int = Field(default=20, ge=1, le=200)
+
+
+class BotRunRead(BaseModel):
+    sources_checked: int
+    sources_ok: int
+    sources_failed: dict[str, str]
+    fetched: int
+    stored: int
+    duplicates: int
+    by_priority: dict[str, int]
+    ai_used: int
+    ai_fallback: int

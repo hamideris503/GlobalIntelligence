@@ -55,6 +55,15 @@ Status: Proposed | Approved | In-Use | Rejected
 | pmdarima / statsforecast | MIT / Apache-2.0 | ARIMA/ETS baselines | Proposed |
 | pymc | Apache-2.0 | Bayesian (later) | Proposed |
 
+## Source bot dependencies (In-Use — 2026-10-12)
+| Name | Version | License | Usage | Status |
+|---|---|---|---|---|
+| Scrapy | 2.13.4 | BSD-3-Clause | موتور دریافت/crawl صفحات HTML ربات مرکزی (robots/concurrency/depth/retry) | In-Use |
+| Trafilatura | 2.0.0 | Apache-2.0 | استخراج متن/metadata از همان HTML دریافتی Scrapy (بدون دانلود مجدد) | In-Use |
+| defusedxml | 0.7.1 | PSF-2.0 | پارسر امن XML (XXE/DTD بسته) | In-Use |
+| courlan | 1.4.0 | Apache-2.0 | وابستگی trafilatura (URL handling) | In-Use |
+| htmldate | 1.11.0 | Apache-2.0 | وابستگی trafilatura (date extraction) | In-Use |
+
 ## Integrations (Planned / To Evaluate)
 | Name | License | Usage | Status |
 |---|---|---|---|

@@ -24,6 +24,7 @@ DEFAULT_ROUTES: dict[str, Route] = {
     "deep_analysis": Route("deep_analysis", []),
     "critic": Route("critic", []),
     "report": Route("report", []),
+    "source_priority": Route("source_priority", []),
     "default": Route("default", []),
 }
 

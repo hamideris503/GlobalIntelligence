@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.api.schemas.ingestion import (
+    BotRunRead,
+    BotRunRequest,
     DocumentRead,
     IngestRequest,
     IngestResultRead,
@@ -67,6 +69,25 @@ async def ingest_all(
         result = await pipeline.ingest_source_async(source, limit=limit)
         results.append(IngestResultRead(**result.as_dict()))
     return results
+
+
+@router.post("/bot", response_model=BotRunRead)
+async def run_bot(payload: BotRunRequest, db: Session = Depends(get_db)) -> BotRunRead:
+    """اجرای کنترل‌شده‌ی Source Bot (تک‌منبع یا dueها).
+
+    احراز هویت از include_router در main می‌آید. اجرای هم‌زمان دوم 409 می‌گیرد (قفل).
+    فقط استخراج/dedup/اولویت؛ ذخیره‌سازی همان NewsIngestionPipeline است.
+    """
+    from source_bot.runner import run_once
+
+    try:
+        metrics = await run_once(source_name=payload.source_name,
+                                 limit_sources=payload.limit, db=db)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return BotRunRead(**metrics.as_dict())
 
 
 @router.get("/documents", response_model=list[DocumentRead])

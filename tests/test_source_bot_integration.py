@@ -1,0 +1,73 @@
+"""Integration: deliver به pipeline موجود + provenance + lock + migration سازگار."""
+from __future__ import annotations
+
+import json
+
+from backend.database.base import Base
+from backend.database.models.document import Document
+from backend.database.models.source import Source
+from domains.news.fetchers import RawItem
+from source_bot.output import deliver, merge_priority_metadata
+from source_bot.registry import pick_adapter
+from source_bot.runner import _acquire_lock, _release_lock
+
+
+def _mem_db():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    eng = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(eng)
+    return sessionmaker(bind=eng)()
+
+
+def test_pick_adapter_single_owner():
+    s = Source(name="n1", feed_url="https://ex.com/rss", collection_method="rss", type="rss")
+    assert pick_adapter(s).adapter == "rss"
+    s2 = Source(name="n2", api_url="https://ex.com/api", collection_method="api", type="api")
+    assert pick_adapter(s2).adapter == "rest_json"
+    s3 = Source(name="n3", collection_method="rss", type="rss")
+    assert pick_adapter(s3).adapter == "skip"
+
+
+def test_deliver_to_existing_pipeline_and_provenance():
+    db = _mem_db()
+    src = Source(name="t-src", collection_method="rss", type="rss", feed_url="https://ex.com/rss")
+    db.add(src)
+    db.commit()
+    item = RawItem(title="T", url="https://ex.com/a", raw_text="body text here", metadata={})
+    assert deliver(db, src, item, priority="P2", score=60.0, reason="r",
+                   priority_source="rules", priority_status="RULES_ONLY",
+                   duplicate_status="new", canonical_url="https://ex.com/a") is True
+    # دوباره همان محتوا -> تکراری درون منبع
+    from domains.news.ingestion import NewsIngestionPipeline
+
+    assert NewsIngestionPipeline(db).store_item(src, item) is False
+    docs = db.query(Document).all()
+    assert len(docs) == 1
+    meta = json.loads(docs[0].doc_metadata or "{}")
+    assert meta["ingestion_priority"] == "P2"  # provenance حفظ شده
+
+
+def test_merge_metadata_no_data_loss():
+    out = merge_priority_metadata('{"a": 1}', {"ingestion_priority": "P0"})
+    assert json.loads(out)["a"] == 1
+
+
+def test_lock_prevents_concurrent_run():
+    assert _acquire_lock() is True
+    assert _acquire_lock() is False
+    _release_lock()
+    assert _acquire_lock() is True
+    _release_lock()
+
+
+def test_ai_gateway_not_called_for_clear_rules():
+    from datetime import UTC, datetime
+
+    from source_bot.priority_engine import score_item
+
+    r = score_item(title="central bank raises interest rates sharply",
+                   body=("detailed market analysis with complete data " * 60),
+                   published_at=datetime.now(UTC), has_author=True)
+    assert r.needs_ai is False  # پس runner نباید gateway را صدا بزند

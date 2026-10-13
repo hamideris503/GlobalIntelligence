@@ -25,6 +25,7 @@ RUN pip install -r backend/requirements.txt
 # کپی سورس backend + domains + تنظیمات alembic + migrations
 COPY backend ./backend
 COPY domains ./domains
+COPY source_bot ./source_bot
 COPY alembic.ini ./alembic.ini
 COPY db ./db
 
