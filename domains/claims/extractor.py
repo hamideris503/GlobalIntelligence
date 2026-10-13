@@ -35,6 +35,7 @@ class ClaimOutcome:
     events_processed: int = 0
     claims_created: int = 0
     failed: int = 0
+    skipped: int = 0
     errors: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
@@ -42,6 +43,7 @@ class ClaimOutcome:
             "events_processed": self.events_processed,
             "claims_created": self.claims_created,
             "failed": self.failed,
+            "skipped": self.skipped,
             "errors": self.errors,
         }
 
@@ -157,7 +159,19 @@ class ClaimExtractor:
         )
         events = list(self.db.execute(stmt).scalars().all())
         outcome = ClaimOutcome()
+        # Production guard: events with any explicit-mock article are skipped
+        # before any new claim is created. Unknown provenance is processed.
+        mock_events: set = set()
+        if not self._settings.mock_mode and events:
+            from backend.database.models.document import events_with_mock_articles
+
+            mock_events = events_with_mock_articles(
+                self.db, [e.id for e in events]
+            )
         for event in events:
+            if event.id in mock_events:
+                outcome.skipped += 1
+                continue
             try:
                 created = await self.extract_for_event(event)
                 outcome.events_processed += 1

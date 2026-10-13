@@ -6,12 +6,80 @@
 """
 from __future__ import annotations
 
+import json
 import uuid
+from collections.abc import Collection
+from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, PointInTimeMixin, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+Provenance = Literal["mock", "real", "unknown"]
+
+
+def provenance_of(doc_metadata: str | None) -> Provenance:
+    """منشأ رکورد از روی metadata — سه‌حالته‌ی صریح.
+
+    فقط `mock: true` بولی معتبر → "mock"؛ `mock: false` صریح → "real"؛
+    هر چیز دیگر (تهی/None/JSON خراب/ساختار غیرمنتظره) → "unknown".
+    unknown هرگز مدرک real بودن نیست. رکورد را تغییر نمی‌دهد.
+    """
+    if not isinstance(doc_metadata, str) or not doc_metadata.strip():
+        return "unknown"
+    try:
+        data = json.loads(doc_metadata)
+    except Exception:  # noqa: BLE001
+        return "unknown"
+    if not isinstance(data, dict):
+        return "unknown"
+    flag = data.get("mock", None)
+    if flag is True:
+        return "mock"
+    if flag is False:
+        return "real"
+    return "unknown"
+
+
+def is_mock_record(doc_metadata: str | None) -> bool:
+    """True فقط برای رکورد صریحاً mock — برای unknown هرگز True نیست."""
+    return provenance_of(doc_metadata) == "mock"
+
+
+def mock_document_ids(db: Session, doc_ids: Collection) -> set:
+    """زیرمجموعه‌ی mock از شناسه‌ها با یک کوئری (برای guardها)."""
+    ids = [i for i in set(doc_ids) if i is not None]
+    if not ids:
+        return set()
+    rows = db.execute(
+        select(Document.id, Document.doc_metadata).where(Document.id.in_(ids))
+    ).all()
+    return {doc_id for doc_id, meta in rows if is_mock_record(meta)}
+
+
+def events_with_mock_articles(db: Session, event_ids: Collection) -> set:
+    """رویدادهایی که حداقل یک مقاله‌ی صریحاً mock دارند (یک کوئری)."""
+    from backend.database.models.article import Article
+
+    eids = [i for i in set(event_ids) if i is not None]
+    if not eids:
+        return set()
+    rows = (
+        db.execute(
+            select(Article.event_id, Document.doc_metadata)
+            .join(Document, Document.id == Article.document_id)
+            .where(Article.event_id.in_(eids))
+        ).all()
+    )
+    flagged: set = set()
+    for event_id, meta in rows:
+        if is_mock_record(meta):
+            flagged.add(event_id)
+    return flagged
 
 
 class Document(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):

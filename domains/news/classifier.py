@@ -86,6 +86,7 @@ def compute_importance(inputs: ImportanceInputs) -> int:
 class ClassifyOutcome:
     classified: int = 0
     failed: int = 0
+    skipped: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -144,7 +145,19 @@ class ArticleClassifier:
         )
         articles = list(self.db.execute(stmt).scalars().all())
         outcome = ClassifyOutcome()
+        # Historical mock rows must not enter new classification in production.
+        # Dev/test (mock_mode) keeps existing behavior: everything is processed.
+        mock_ids: set = set()
+        if not self._settings.mock_mode and articles:
+            from backend.database.models.document import mock_document_ids
+
+            mock_ids = mock_document_ids(
+                self.db, [a.document_id for a in articles]
+            )
         for article in articles:
+            if article.document_id in mock_ids:
+                outcome.skipped += 1
+                continue
             article.classification_attempts = (article.classification_attempts or 0) + 1
             try:
                 result = await self.classify_article(article)
@@ -168,7 +181,8 @@ class ArticleClassifier:
             self.db.commit()
 
         logger.info(
-            "classify done | classified=%d failed=%d", outcome.classified, outcome.failed
+            "classify done | classified=%d failed=%d skipped=%d",
+            outcome.classified, outcome.failed, outcome.skipped,
         )
         return outcome
 

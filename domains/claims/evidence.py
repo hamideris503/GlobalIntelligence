@@ -38,6 +38,7 @@ class EvidenceOutcome:
     contradicts: int = 0
     rejected: int = 0
     failed: int = 0
+    skipped: int = 0
     errors: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
@@ -48,6 +49,7 @@ class EvidenceOutcome:
             "contradicts": self.contradicts,
             "rejected": self.rejected,
             "failed": self.failed,
+            "skipped": self.skipped,
             "errors": self.errors,
         }
 
@@ -206,7 +208,20 @@ class EvidenceEngine:
         )
         claims = list(self.db.execute(stmt).scalars().all())
         outcome = EvidenceOutcome()
+        # Production guard BEFORE the attempts counter: claims on mock-linked
+        # events are skipped without burning attempts or creating evidence.
+        mock_events: set = set()
+        if not self._settings.mock_mode and claims:
+            from backend.database.models.document import events_with_mock_articles
+
+            mock_events = events_with_mock_articles(
+                self.db, [c.event_id for c in claims]
+            )
         for claim in claims:
+            if claim.event_id in mock_events:
+                outcome.skipped += 1
+                continue
+            claim.evidence_attempts = (claim.evidence_attempts or 0) + 1
             try:
                 result = await self.collect_for_claim(claim)
                 self.db.refresh(claim)

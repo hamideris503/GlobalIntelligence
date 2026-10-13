@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.database.models.claim import Claim
 from backend.database.models.event import Event
@@ -95,8 +96,14 @@ class WorldStateBuilder:
             select(MarketObservation)
             .where(MarketObservation.symbol == symbol)
             .order_by(MarketObservation.observed_at.desc())
+            .limit(50)
         )
-        return self.db.execute(stmt).scalars().first()
+        rows = list(self.db.execute(stmt).scalars().all())
+        if not get_settings().mock_mode:
+            from backend.database.models.document import provenance_of
+
+            rows = [r for r in rows if provenance_of(r.raw) != "mock"]
+        return rows[0] if rows else None
 
     def _spx_drawdown(self) -> float | None:
         """افت SPX از سقف پنجره‌ی اخیر (کسری مثبت؛ None یعنی داده‌ی ناکافی).
@@ -115,7 +122,7 @@ class WorldStateBuilder:
             return None
         cutoff = latest.observed_at - timedelta(days=DRAWDOWN_WINDOW_DAYS)
         stmt = (
-            select(MarketObservation.value)
+            select(MarketObservation.value, MarketObservation.raw)
             .where(
                 MarketObservation.symbol == "SPX",
                 MarketObservation.value.is_not(None),
@@ -127,7 +134,12 @@ class WorldStateBuilder:
             .order_by(MarketObservation.observed_at.desc())
             .limit(DRAWDOWN_MAX_POINTS)
         )
-        vals = [v for v in self.db.execute(stmt).scalars().all() if v and v > 0]
+        pairs = list(self.db.execute(stmt).all())
+        if not get_settings().mock_mode:
+            from backend.database.models.document import provenance_of
+
+            pairs = [(v, r) for v, r in pairs if provenance_of(r) != "mock"]
+        vals = [v for v, _ in pairs if v and v > 0]
         if len(vals) < 2:
             return None
         peak = max(vals)
@@ -157,11 +169,20 @@ class WorldStateBuilder:
         now = datetime.now(UTC)
         now_iso = now.isoformat()
 
-        # 1) macro inputs
+        # 1) macro inputs (production: exclude explicit-mock observations;
+        # dev/test keeps existing behavior)
+        prod_mode = not get_settings().mock_mode
         gdp_rows = self._latest_macro("gdp")
         cpi_rows = self._latest_macro("inflation")
         liq_rows = self._latest_macro("liquidity")
         trade_rows = self._latest_macro("trade_balance")
+        if prod_mode:
+            from backend.database.models.document import provenance_of as _prov
+
+            gdp_rows = [r for r in gdp_rows if _prov(r.meta) != "mock"]
+            cpi_rows = [r for r in cpi_rows if _prov(r.meta) != "mock"]
+            liq_rows = [r for r in liq_rows if _prov(r.meta) != "mock"]
+            trade_rows = [r for r in trade_rows if _prov(r.meta) != "mock"]
         gdp_yoy = self._yoy(self._country_values(gdp_rows))
         liq_yoy = self._yoy(self._country_values(liq_rows))
         cpi_vals = self._country_values(cpi_rows)
@@ -175,9 +196,24 @@ class WorldStateBuilder:
         tnx = self._latest_market("US10Y")
         drawdown = self._spx_drawdown()
 
-        # 3) event/claim inputs
+        # 3) event/claim inputs (production: exclude mock-linked rows;
+        # dev/test keeps existing behavior)
         events = list(self.db.execute(select(Event)).scalars().all())
         claims = list(self.db.execute(select(Claim)).scalars().all())
+        mock_skipped_events = 0
+        mock_skipped_claims = 0
+        if prod_mode and (events or claims):
+            from backend.database.models.document import events_with_mock_articles
+
+            flagged = events_with_mock_articles(
+                self.db, [e.id for e in events] + [c.event_id for c in claims]
+            )
+            kept_events = [e for e in events if e.id not in flagged]
+            mock_skipped_events = len(events) - len(kept_events)
+            events = kept_events
+            kept_claims = [c for c in claims if c.event_id not in flagged]
+            mock_skipped_claims = len(claims) - len(kept_claims)
+            claims = kept_claims
         n_events = len(events)
         surprises = [e.surprise for e in events if e.surprise is not None]
         avg_surprise = sum(surprises) / len(surprises) if surprises else None
@@ -250,7 +286,9 @@ class WorldStateBuilder:
             market_regime=market_r,
             value_metadata=json.dumps(meta, ensure_ascii=False),
             confidence=confidence,
-            notes=f"build v1 from {len(gdp_rows)} gdp / {n_events} events / {len(claims)} claims",
+            notes=f"build v1 from {len(gdp_rows)} gdp / {n_events} events / {len(claims)} claims"
+            + (f" / mock_skipped events={mock_skipped_events} claims={mock_skipped_claims}"
+               if (mock_skipped_events or mock_skipped_claims) else ""),
         )
         for name, s in computed.items():
             setattr(snapshot, name, round(s.value, 4))

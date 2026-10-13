@@ -34,6 +34,7 @@ class EventOutcome:
     events_created: int = 0
     articles_linked: int = 0
     failed: int = 0
+    skipped: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -138,7 +139,21 @@ class EventExtractor:
     async def run(self, *, limit: int = 50) -> EventOutcome:
         outcome = EventOutcome()
         clusters = self._pending_clusters(limit=limit)
+        # Cluster policy (production): a cluster containing ANY explicit-mock
+        # article is skipped so mock evidence cannot seed a new event. Unknown
+        # provenance is processed (it is not proof of mock). Dev/test unchanged.
+        mock_docs: set = set()
+        if not self._settings.mock_mode and clusters:
+            from backend.database.models.document import mock_document_ids
+
+            mock_docs = mock_document_ids(
+                self.db,
+                [a.document_id for _, arts in clusters for a in arts],
+            )
         for _, articles in clusters:
+            if mock_docs and any(a.document_id in mock_docs for a in articles):
+                outcome.skipped += 1
+                continue
             try:
                 event = await self.extract_event_from_cluster(articles)
                 if event is None:
@@ -151,8 +166,9 @@ class EventExtractor:
                 logger.warning("event cluster failed | err=%s", exc)
             self.db.commit()
         logger.info(
-            "event extraction done | events=%d linked=%d failed=%d",
+            "event extraction done | events=%d linked=%d failed=%d skipped=%d",
             outcome.events_created, outcome.articles_linked, outcome.failed,
+            outcome.skipped,
         )
         return outcome
 
