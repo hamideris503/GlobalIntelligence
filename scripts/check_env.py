@@ -25,6 +25,79 @@ for _stream in (sys.stdout, sys.stderr):
 MIN_PYTHON = (3, 11)
 MIN_NODE_MAJOR = 18
 
+# متغیرهایی که مقدار placeholder آن‌ها در production خطرناک است.
+PLACEHOLDER_SECRETS = ("SECRET_KEY", "POSTGRES_PASSWORD", "N8N_ENCRYPTION_KEY")
+_PLACEHOLDER_VALUES = ("", "change-me", "change-me-in-production", "changeme", "example", "xxx", "test")
+
+
+def _repo_root() -> str:
+    import os
+
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_dotenv() -> dict[str, str]:
+    """فایل .env را می‌خواند و فقط (نام → مقدار) برمی‌گرداند.
+
+    مقادیر هرگز چاپ یا لاگ نمی‌شوند؛ فقط برای تشخیص mock/placeholder استفاده می‌شود.
+    """
+    import os
+
+    env: dict[str, str] = {}
+    path = os.path.join(_repo_root(), ".env")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key:
+                    env[key] = value
+    except OSError:
+        pass
+    return env
+
+
+def _is_placeholder(value: str) -> bool:
+    low = value.strip().lower()
+    return low in _PLACEHOLDER_VALUES or len(value.strip()) < 8
+
+
+def check_mock_mode(env: dict[str, str]) -> Result:
+    """هشدار حالت mock: نتایج واقعی نیستند (اطلاع‌رسانی، نه خطا)."""
+    mock_mode = env.get("MOCK_MODE", "true").strip().lower() == "true"
+    provider = env.get("AI_DEFAULT_PROVIDER", "mock").strip().lower()
+    if mock_mode or provider == "mock":
+        return Result(
+            "AI Mode",
+            True,
+            "حالت mock فعال است (MOCK_MODE=true یا AI_DEFAULT_PROVIDER=mock)؛ "
+            "نتایج واقعی نیستند. برای تحلیل واقعی کلید Provider و MOCK_MODE=false لازم است.",
+            required=False,
+        )
+    return Result(
+        "AI Mode",
+        True,
+        f"حالت واقعی (AI_DEFAULT_PROVIDER={provider})",
+        required=False,
+    )
+
+
+def check_secret_placeholders(env: dict[str, str]) -> Result:
+    """هشدار اگر secretهای حیاتی هنوز placeholder هستند (نام متغیر فقط، بدون مقدار)."""
+    weak = [name for name in PLACEHOLDER_SECRETS if _is_placeholder(env.get(name, ""))]
+    if weak:
+        return Result(
+            "Secrets",
+            True,
+            "مقادیر placeholder/خالی برای: " + ", ".join(weak) + " — پیش از production عوض کنید.",
+            required=False,
+        )
+    return Result("Secrets", True, "کلیدهای حیاتی placeholder نیستند.", required=False)
+
 
 @dataclass
 class Result:
@@ -137,6 +210,7 @@ def check_docker_daemon() -> Result:
 
 
 def main() -> int:
+    dotenv = _load_dotenv()
     checks = [
         check_git(),
         check_python(),
@@ -146,6 +220,8 @@ def main() -> int:
         check_docker_cli(),
         check_docker_compose(),
         check_docker_daemon(),
+        check_mock_mode(dotenv),
+        check_secret_placeholders(dotenv),
     ]
 
     print("=" * 60)
@@ -164,10 +240,11 @@ def main() -> int:
         print("نتیجه: کمبود حیاتی وجود دارد. موارد بالا را نصب کنید.")
         return 1
 
-    if not checks[-1].ok:
-        print("نتیجه: همه ابزارهای حیاتی OK. (Docker Daemon هنوز اجرا نشده)")
-    else:
+    docker_daemon_ok = checks[7].ok
+    if docker_daemon_ok:
         print("نتیجه: همه ابزارها OK. محیط آماده است.")
+    else:
+        print("نتیجه: همه ابزارهای حیاتی OK. (Docker Daemon هنوز اجرا نشده)")
     return 0
 
 

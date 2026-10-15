@@ -69,6 +69,26 @@ def test_protected_routes_require_key(client: TestClient) -> None:
         for path in paths:
             res = authed.get(path)
             assert res.status_code in (401, 403, 405), f"{path} -> {res.status_code}"
+        # AUDIT-REPAIR: مسیرهای نوشتنی با POST هم باید 401 بدهند (نه فقط GET)
+        post_paths = [
+            "/api/ingest/all",
+            "/api/dedup/run",
+            "/api/classify/run",
+            "/api/claims/evidence",
+            "/api/world-state/build",
+            "/api/macro/analyze",
+            "/api/risk/analyze",
+            "/api/decisions/run",
+            "/api/forecasts/run?target=market:WTI",
+            "/api/alerts/evaluate",
+            "/api/self-eval/run",
+            "/api/audit/replay?engine=macro",
+            "/api/learning/run",
+            "/api/ai-routing/apply",
+        ]
+        for path in post_paths:
+            res = authed.post(path)
+            assert res.status_code in (401, 403, 405), f"POST {path} -> {res.status_code}"
     finally:
         import os
 
@@ -131,6 +151,8 @@ def test_production_validation() -> None:
                 "SECRET_KEY": "s3cret!",
                 "MOCK_MODE": "false",
                 "DEBUG": "true",  # ناامن
+                "POSTGRES_PASSWORD": "strong-pw-123",
+                "ADMIN_PASSWORD": "changed-admin-pw",
             }
         )
         get_settings.cache_clear()
@@ -138,7 +160,38 @@ def test_production_validation() -> None:
             get_settings().validate_production()
         os.environ["DEBUG"] = "false"
         get_settings.cache_clear()
-        get_settings().validate_production()  # بدون خطا
+        get_settings().validate_production()
+        os.environ["ADMIN_PASSWORD"] = "admin"
+        get_settings.cache_clear()
+        with pytest.raises(ValueError, match="ADMIN_PASSWORD"):
+            get_settings().validate_production()  # بدون خطا
+    finally:
+        os.environ.clear()
+        os.environ.update(old)
+        get_settings.cache_clear()
+
+
+def test_production_rejects_default_db_password() -> None:
+    """AUDIT-REPAIR: رمز پیش‌فرض دیتابیس در production رد می‌شود."""
+    import os
+
+    from backend.core.config import get_settings
+
+    old = dict(os.environ)
+    try:
+        os.environ.update(
+            {
+                "APP_ENV": "production",
+                "API_KEY": "k",
+                "SECRET_KEY": "s3cret!",
+                "MOCK_MODE": "false",
+                "DEBUG": "false",
+                "POSTGRES_PASSWORD": "change-me-in-production",
+            }
+        )
+        get_settings.cache_clear()
+        with pytest.raises(ValueError, match="POSTGRES_PASSWORD"):
+            get_settings().validate_production()
     finally:
         os.environ.clear()
         os.environ.update(old)
@@ -157,6 +210,8 @@ def test_production_hides_docs() -> None:
                 "SECRET_KEY": "s3cret!",
                 "MOCK_MODE": "false",
                 "DEBUG": "false",
+                "POSTGRES_PASSWORD": "strong-pw-123",
+                "ADMIN_PASSWORD": "changed-admin-pw",
             }
         )
         from backend.core.config import get_settings as gs

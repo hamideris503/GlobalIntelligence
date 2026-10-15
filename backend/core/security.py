@@ -46,7 +46,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app,
         *,
         per_minute: int = 600,
-        exempt_paths: tuple[str, ...] = ("/health", "/health/db", "/"),
+        # AUDIT-REPAIR: فقط probeهای سلامت معاف‌اند ("/" اسکن‌پذیر بود)
+        exempt_paths: tuple[str, ...] = ("/health", "/health/db"),
     ) -> None:
         super().__init__(app)
         self.per_minute = max(1, per_minute)

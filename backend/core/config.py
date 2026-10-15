@@ -117,6 +117,12 @@ class Settings(BaseSettings):
             problems.append("MOCK_MODE must be false in production")
         if self.debug:
             problems.append("DEBUG must be false in production")
+        # AUDIT-REPAIR: رمز پیش‌فرض دیتابیس و CORS باز هم ناامن‌اند
+        # (DATABASE_URL عمداً چک نمی‌شود: ممکن است رمز را جداگانه بگیرد)
+        if self.postgres_password in ("", "change-me-in-production"):
+            problems.append("POSTGRES_PASSWORD must be set")
+        if "*" in self.cors_origins:
+            problems.append("ALLOWED_ORIGINS must not contain '*' in production")
         if self.admin_password == "admin":
             problems.append("ADMIN_PASSWORD must be changed in production")
         if problems:
