@@ -145,6 +145,7 @@ class ClassificationResult:
     provider: str | None = None
     model: str | None = None
     is_mock: bool = False
+    repair_retry: bool = False  # متادیتای اجرا: آیا fallback «یک retry تعمیری» استفاده شد
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ClassificationResult:

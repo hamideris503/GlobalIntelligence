@@ -97,7 +97,13 @@ class ArticleClassifier:
         self._settings = get_settings()
 
     async def classify_article(self, article: Article) -> ClassificationResult:
-        text = f"{article.title or ''}\n{article.summary or ''}".strip()
+        # AUDIT-REPAIR: متن کامل سند هم لحاظ می‌شود (قبلاً فقط title+summary که
+        # summary در ingest تهی بود). ترتیب اهمیت: عنوان، خلاصه، بدنه.
+        parts = [article.title or "", article.summary or ""]
+        document = article.document
+        if document is not None and document.raw_text:
+            parts.append(document.raw_text)
+        text = "\n".join(p for p in parts if p).strip()
         if not text:
             raise ValueError("empty article text")
 
@@ -119,13 +125,64 @@ class ArticleClassifier:
         )
         response = await self.gateway.structured_generate(request, CLASSIFY_SCHEMA)
         data = response.structured or _safe_json(response.text)
+        repair_attempted = False
         if not isinstance(data, dict):
-            raise ValueError("provider did not return a JSON object")
+            # FALLBACK مستند: مدل responseMimeType را رعایت نکرد؛ یک retry با
+            # دستور صریح «فقط JSON» (parse + validate + یک retry).
+            repair_attempted = True
+            logger.warning("classify non-JSON output; one repair retry | article=%s", article.id)
+            repair_request = AIRequest(
+                messages=[
+                    Message.system(
+                        "You output ONLY a JSON object compatible with the schema. "
+                        "No prose, no markdown fences, no explanations."
+                    ),
+                    Message.user(prompt),
+                ],
+                role="fast_extraction",
+                task="classify_article",
+                temperature=0.0,
+                json_schema=CLASSIFY_SCHEMA,
+                metadata={"prompt_version": f"{CLASSIFY_ARTICLE.version}+repair1"},
+            )
+            response = await self.gateway.structured_generate(repair_request, CLASSIFY_SCHEMA)
+            data = response.structured or _safe_json(response.text)
+        if not isinstance(data, dict):
+            raise ValueError("provider did not return a JSON object (after 1 repair retry)")
 
         # اعتبارسنجی با jsonschema
-        _validate(data, CLASSIFY_SCHEMA)
+        try:
+            _validate(data, CLASSIFY_SCHEMA)
+        except ValueError as exc:
+            if repair_attempted:
+                raise
+            # FALLBACK مستند: اعتبارسنجی ناموفق؛ یک retry با دستور صریح.
+            logger.warning("classify schema-invalid; one repair retry | article=%s", article.id)
+            repair_request = AIRequest(
+                messages=[
+                    Message.system(
+                        "You output ONLY a JSON object compatible with the schema. "
+                        "No prose, no markdown fences, no explanations."
+                    ),
+                    Message.user(prompt),
+                ],
+                role="fast_extraction",
+                task="classify_article",
+                temperature=0.0,
+                json_schema=CLASSIFY_SCHEMA,
+                metadata={"prompt_version": f"{CLASSIFY_ARTICLE.version}+repair1"},
+            )
+            response = await self.gateway.structured_generate(repair_request, CLASSIFY_SCHEMA)
+            data = response.structured or _safe_json(response.text)
+            if not isinstance(data, dict):
+                raise ValueError(
+                    "provider did not return a JSON object (after 1 repair retry)"
+                ) from exc
+            _validate(data, CLASSIFY_SCHEMA)
+            repair_attempted = True
 
         result = ClassificationResult.from_dict(data)
+        result.repair_retry = repair_attempted
         result.prompt_version = response.prompt_version or CLASSIFY_ARTICLE.version
         result.provider = response.provider
         result.model = response.model
@@ -211,6 +268,7 @@ class ArticleClassifier:
             "model": result.model,
             "prompt_version": result.prompt_version,
             "is_mock": result.is_mock,
+            "repair_retry": result.repair_retry,
             "classified_at": datetime.now(UTC).isoformat(),
             "importance_inputs": result.importance_inputs.as_dict(),
             "response_hash": hashlib.sha256(
@@ -226,6 +284,8 @@ def _validate(data: dict, schema: dict) -> None:
 
         jsonschema.validate(instance=data, schema=schema)
     except ImportError:  # pragma: no cover - اگر jsonschema نصب نبود
+        # AUDIT-REPAIR: سکوت ممنوع؛ نبود اعتبارسنج باید دیده شود
+        logger.warning("jsonschema not installed; skipping validation")
         return
     except Exception as exc:
         raise ValueError(f"schema validation failed: {exc}") from exc
