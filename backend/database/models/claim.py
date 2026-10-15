@@ -34,6 +34,10 @@ class Claim(UUIDMixin, TimestampMixin, Base):
         String(32), default=VerificationStatus.unverified.value, nullable=False
     )
     evidence_extracted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # --- Step 6: شمارنده‌ی تلاش شواهد (خرابی دائمی retry بی‌نهایت نمی‌شود) ---
+    evidence_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
 
     # --- Phase 14: Source Independence ---
     # تعداد کل منابعی که Claim را mention کرده‌اند (mention count)
