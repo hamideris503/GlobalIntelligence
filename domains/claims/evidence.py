@@ -2,7 +2,7 @@
 
 مسیر: Claim → Evidence (supports/contradicts).
 
-- برای هر Claim یک‌بار اجرا می‌شود (`evidence_extracted`).
+- برای هر Claim حداکثر ۵ بار تلاش می‌شود (`evidence_attempts`؛ Step 6).
 - داده‌ی نامزد: متن مقالات همان Event.
 - از AI برای یافتن شواهد موافق/مخالف استفاده می‌شود (structured JSON).
 - وضعیت تأیید Claim از توازن شواهد به‌روزرسانی می‌شود (بند 25 و 59).
@@ -28,6 +28,8 @@ logger = get_logger(__name__)
 
 MAX_EVIDENCE = 10
 MAX_TEXT_CHARS = 8000
+# سقف تلاش شواهد برای هر Claim (Step 6؛ خرابی دائمی retry بی‌نهایت نمی‌شود)
+MAX_EVIDENCE_ATTEMPTS = 5
 
 
 @dataclass
@@ -91,16 +93,16 @@ class EvidenceEngine:
         self._settings = get_settings()
 
     def _candidate_text(self, claim: Claim) -> str:
+        # AUDIT-REPAIR: مقالات شماره‌دار تا article_index معنادار باشد
         parts = []
         event: Event | None = claim.event
         if event is not None:
             if event.action:
                 parts.append(event.action)
-            for article in event.articles[:8]:
-                if article.title:
-                    parts.append(article.title)
-                if article.summary:
-                    parts.append(article.summary)
+            for idx, article in enumerate(event.articles[:8]):
+                block = f"[{idx}] {article.title or ''}\n{article.summary or ''}".strip()
+                if block != f"[{idx}]":
+                    parts.append(block)
         return "\n".join(parts)[:MAX_TEXT_CHARS]
 
     async def collect_for_claim(self, claim: Claim) -> CollectResult:
@@ -129,10 +131,17 @@ class EvidenceEngine:
                 if response.is_mock and not self._settings.mock_mode:
                     raise ValueError("mock evidence rejected in production mode")
                 parsed = response.structured or _safe_json(response.text) or {}
-                items = parsed.get("evidence") or []
+                # E2E FIND: بعضی مدل‌ها آرایه‌ی تاپ‌لول می‌دهند، نه آبجکت؛ بردبار باش
+                if isinstance(parsed, list):
+                    items = parsed
+                else:
+                    items = parsed.get("evidence") or []
                 used_ai = bool(items)
             except Exception as exc:  # noqa: BLE001
+                # AUDIT-REPAIR: شکست AI دیگر done جعلی نمی‌سازد؛ خطا بالا می‌رود
+                # تا run() آن را failed بشمارد و در اجرای بعد retry شود.
                 logger.warning("evidence collection failed | claim=%s err=%s", claim.id, exc)
+                raise
 
         result = self._ingest_items(claim, items)
 
@@ -146,11 +155,19 @@ class EvidenceEngine:
         return result
 
     def _ingest_items(self, claim: Claim, items: list) -> CollectResult:
-        """پردازش پاسخ AI: ساخت Evidence از موارد معتبر + شمارش موارد ردشده."""
+        """پردازش پاسخ AI: ساخت Evidence از موارد معتبر + شمارش موارد ردشده.
+
+        AUDIT-REPAIR: هر شاهد به مقاله‌ی ارجاع‌شده (article_index) منتسب می‌شود؛
+        اندیس نامعتبر/تهی → مقاله‌ی اول (fallback مستند).
+        """
         created: list[Evidence] = []
         rejected = 0
-        document_id = self._claim_document_id(claim)
-        source_id = self._claim_source_id(claim)
+        articles = list(claim.event.articles[:8]) if claim.event is not None else []
+        # IDEMPOTENCY (E2E): همان شاهد برای یک claim دوباره ساخته نمی‌شود
+        seen = {(e.direction, e.summary, e.weight)
+                for e in self.db.execute(
+                    select(Evidence).where(Evidence.claim_id == claim.id)
+                ).scalars().all()}
         for item in list(items)[:MAX_EVIDENCE]:
             if not isinstance(item, dict):
                 rejected += 1
@@ -165,34 +182,43 @@ class EvidenceEngine:
                     "evidence rejected | claim=%s direction=%r", claim.id, direction
                 )
                 continue
+            try:
+                index = int(item.get("article_index"))  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                index = 0
+            if not 0 <= index < max(1, len(articles)):
+                logger.warning(
+                    "evidence article_index out of range | claim=%s index=%r",
+                    claim.id, item.get("article_index"),
+                )
+                index = 0
+            document_id, source_id = None, None
+            if articles:
+                target = articles[index]
+                document_id = target.document_id
+                document = target.document
+                if document is not None:
+                    source_id = document.source_id
+            summary = (str(item.get("summary") or "").strip() or None)
+            weight = _clamp01(item.get("weight"), 0.5)
+            if (direction, summary, weight) in seen:
+                rejected += 1
+                logger.warning("evidence duplicate skipped | claim=%s", claim.id)
+                continue
+            seen.add((direction, summary, weight))
             ev = Evidence(
                 claim_id=claim.id,
                 direction=direction,
-                summary=(str(item.get("summary") or "").strip() or None),
+                summary=summary,
                 source_id=source_id,
                 document_id=document_id,
-                weight=_clamp01(item.get("weight"), 0.5),
+                weight=weight,
                 confidence=_clamp01(item.get("confidence"), 0.5),
             )
             self.db.add(ev)
             created.append(ev)
         self.db.flush()
         return CollectResult(created=created, rejected=rejected)
-
-    def _claim_document_id(self, claim: Claim):
-        event = claim.event
-        if event is not None and event.articles:
-            return event.articles[0].document_id
-        return None
-
-    def _claim_source_id(self, claim: Claim):
-        """منبع سندِ مبنا برای Evidence (برای Source Independence در Phase 14)."""
-        event = claim.event
-        if event is not None and event.articles:
-            document = event.articles[0].document
-            if document is not None:
-                return document.source_id
-        return None
 
     def _refresh_status(self, claim: Claim) -> None:
         supports = sum(1 for e in claim.evidence if e.direction == "supports")
