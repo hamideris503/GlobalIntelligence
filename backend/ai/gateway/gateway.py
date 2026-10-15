@@ -11,7 +11,7 @@ import time
 from typing import Any
 
 from backend.ai.providers.base import AIProvider
-from backend.ai.providers.registry import build_provider
+from backend.ai.providers.registry import build_provider_with_store
 from backend.ai.routing.router import Route, resolve_route
 from backend.ai.schemas.types import (
     AIError,
@@ -35,11 +35,20 @@ class AIGateway:
         self._routes = routes
         self._providers: dict[str, AIProvider] = {}
         self._max_retries = settings.ai_max_retries
+        from backend.ai import credentials_store as store
+
+        self._cred_version = store.get_version()
 
     # --- provider cache ---
     def _provider(self, name: str) -> AIProvider:
+        # Step 8: اگر تنظیمات عوض شده، کش را دور بریز (بدون ری‌استارت)
+        from backend.ai import credentials_store as store
+
+        if store.get_version() != self._cred_version:
+            self._providers = {}
+            self._cred_version = store.get_version()
         if name not in self._providers:
-            self._providers[name] = build_provider(name)
+            self._providers[name] = build_provider_with_store(name)
         return self._providers[name]
 
     # --- route resolution ---
@@ -86,15 +95,21 @@ class AIGateway:
         route = self._route(request)
         chain = list(route.providers)
 
+        from backend.ai import credentials_store as _store
+        effective_default = _store.effective_default_provider()
+
         if not chain:
-            default = self._settings.ai_default_provider
-            chain = [default] if default else []
+            chain = [effective_default] if effective_default else []
 
         if self._settings.mock_mode:
             chain = ["mock"]
         else:
             # حذف mock در production
             chain = [p for p in chain if p != "mock"]
+            # Step 8: force_provider از نگاشت agent (اولویت) + fallback به زنجیره
+            forced = request.metadata.get("force_provider")
+            if isinstance(forced, str) and forced and forced != "mock":
+                chain = [forced] + [p for p in chain if p != forced]
             if not chain:
                 raise AIError(
                     "no real provider configured (MOCK_MODE=false and no provider)",

@@ -12,11 +12,12 @@ class AnthropicProvider(HTTPProvider):
     name = "anthropic"
     api_key_env = "ANTHROPIC_API_KEY"
 
-    def __init__(self) -> None:
+    def __init__(self, *, api_key: str | None = None, base_url: str | None = None,
+                 default_model: str | None = None) -> None:
         s = get_settings()
-        self.api_key = getattr(s, "anthropic_api_key", None) or None
-        self.base_url = getattr(s, "anthropic_base_url", "https://api.anthropic.com")
-        self.default_model = getattr(s, "anthropic_model", "claude-3-5-haiku-latest")
+        self.api_key = api_key or getattr(s, "anthropic_api_key", None) or None
+        self.base_url = base_url or getattr(s, "anthropic_base_url", "https://api.anthropic.com")
+        self.default_model = default_model or getattr(s, "anthropic_model", "claude-3-5-haiku-latest")
         self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def _headers(self) -> dict[str, str]:
@@ -26,7 +27,7 @@ class AnthropicProvider(HTTPProvider):
             "anthropic-version": "2023-06-01",
         }
 
-    def _endpoint(self) -> str:
+    def _endpoint(self, request: AIRequest | None = None) -> str:
         return f"{self.base_url.rstrip('/')}/v1/messages"
 
     def _payload(self, request: AIRequest) -> dict[str, Any]:

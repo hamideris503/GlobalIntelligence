@@ -116,3 +116,36 @@ def test_gateway_real_provider_preferred_over_mock() -> None:
     resp = asyncio.run(gateway.generate(_req("ping")))
     assert resp.provider == "realish"
     assert resp.is_mock is False
+
+
+def test_ai_status_endpoint(client) -> None:
+    """GET /api/ai/status: حالت Mock، ارائه‌دهندهٔ پیش‌فرض و نقش‌ها."""
+    res = client.get("/api/ai/status")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["mock_mode"] is True
+    assert isinstance(body["default_provider"], str)
+    assert "fast_extraction" in body["roles"]
+    assert "deep_analysis" in body["roles"]
+
+
+def test_no_real_provider_fails_loudly(monkeypatch) -> None:
+    """MOCK_MODE=false با پیش‌فرض mock: خطای صریح، نه خروجی ساختگی."""
+    import asyncio
+
+    from backend.ai.gateway import AIGateway
+    from backend.ai.schemas.types import AIError, AIErrorKind, AIRequest, Message
+
+    monkeypatch.setenv("MOCK_MODE", "false")
+    monkeypatch.setenv("AI_DEFAULT_PROVIDER", "mock")
+    from backend.core.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(AIError) as exc_info:
+            asyncio.run(AIGateway().generate(
+                AIRequest(messages=[Message.user("hi")])))
+        assert exc_info.value.kind == AIErrorKind.auth
+        assert "no real provider" in str(exc_info.value)
+    finally:
+        get_settings.cache_clear()

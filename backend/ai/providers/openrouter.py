@@ -12,11 +12,12 @@ class OpenRouterProvider(HTTPProvider):
     name = "openrouter"
     api_key_env = "OPENROUTER_API_KEY"
 
-    def __init__(self) -> None:
+    def __init__(self, *, api_key: str | None = None, base_url: str | None = None,
+                 default_model: str | None = None) -> None:
         s = get_settings()
-        self.api_key = getattr(s, "openrouter_api_key", None) or None
-        self.base_url = getattr(s, "openrouter_base_url", "https://openrouter.ai/api/v1")
-        self.default_model = getattr(s, "openrouter_model", "openai/gpt-4o-mini")
+        self.api_key = api_key or getattr(s, "openrouter_api_key", None) or None
+        self.base_url = base_url or getattr(s, "openrouter_base_url", "https://openrouter.ai/api/v1")
+        self.default_model = default_model or getattr(s, "openrouter_model", "openai/gpt-4o-mini")
         self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def _headers(self) -> dict[str, str]:
@@ -25,7 +26,7 @@ class OpenRouterProvider(HTTPProvider):
             "Authorization": f"Bearer {self.api_key}",
         }
 
-    def _endpoint(self) -> str:
+    def _endpoint(self, request: AIRequest | None = None) -> str:
         return f"{self.base_url.rstrip('/')}/chat/completions"
 
     def _payload(self, request: AIRequest) -> dict[str, Any]:

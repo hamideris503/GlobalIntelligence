@@ -33,7 +33,15 @@ class HTTPProvider(BaseProvider):
     def _headers(self) -> dict[str, str]:
         return {"Content-Type": "application/json"}
 
-    def _endpoint(self) -> str:
+    def _request_model(self, request: AIRequest | None) -> str:
+        """مدل درخواستی از metadata (override سازگار با عقب) یا پیش‌فرض Provider."""
+        if request is not None:
+            override = request.metadata.get("model")
+            if isinstance(override, str) and override.strip():
+                return override.strip()
+        return self.default_model
+
+    def _endpoint(self, request: AIRequest | None = None) -> str:
         raise NotImplementedError
 
     def _payload(self, request: AIRequest) -> dict[str, Any]:
@@ -62,7 +70,7 @@ class HTTPProvider(BaseProvider):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(
-                    self._endpoint(),
+                    self._endpoint(request),
                     headers=self._headers(),
                     json=self._payload(request),
                 )
@@ -97,14 +105,15 @@ class HTTPProvider(BaseProvider):
                           retryable=False) from exc
 
         latency = (time.perf_counter() - started) * 1000
+        resolved_model = model or self._request_model(request)
         return AIResponse(
             text=text,
             provider=self.name,
-            model=model or self.default_model,
+            model=resolved_model,
             usage=usage,
             latency_ms=latency,
             raw=data,
-            model_version=model or self.default_model,
+            model_version=resolved_model,
             prompt_version=request.metadata.get("prompt_version", "v0"),
         )
 
