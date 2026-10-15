@@ -38,7 +38,7 @@ class Alert(UUIDMixin, TimestampMixin, Base):
     message: Mapped[str | None] = mapped_column(Text)
     severity: Mapped[str | None] = mapped_column(String(16))
     status: Mapped[str] = mapped_column(
-        String(16), default="active", nullable=False
+        String(16), default="active", nullable=False, index=True
     )  # active/acknowledged/resolved
 
     observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

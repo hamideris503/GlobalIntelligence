@@ -16,7 +16,7 @@ from backend.database.base import Base, TimestampMixin, UUIDMixin
 class Tournament(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "tournaments"
 
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
     targets: Mapped[str | None] = mapped_column(Text)  # JSON لیست اهداف
     methods: Mapped[str | None] = mapped_column(Text)  # JSON لیست روش‌ها
     horizon: Mapped[str | None] = mapped_column(String(32))
