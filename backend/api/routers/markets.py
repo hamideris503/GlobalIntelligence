@@ -60,6 +60,13 @@ async def fetch_markets(
     db: Session = Depends(get_db),
 ) -> MarketOutcomeRead:
     """دریافت داده‌ی بازار برای یک نماد، یک کلاس دارایی یا همه."""
+    from fastapi import HTTPException
+
+    from backend.core.config import get_settings
+
+    # AUDIT-REPAIR: mock فقط در MOCK_MODE مجاز است (قبلاً production هم می‌نوشت)
+    if fetcher == "mock" and not get_settings().mock_mode:
+        raise HTTPException(status_code=422, detail="mock fetcher not allowed in production mode")
     service = MarketDataService(db, fetcher_name=fetcher)
     if symbol:
         outcome = await service.fetch_symbol(symbol=symbol)

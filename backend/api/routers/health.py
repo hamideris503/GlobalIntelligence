@@ -16,13 +16,12 @@ router = APIRouter(tags=["system"])
 
 @router.get("/")
 def root() -> dict[str, str]:
+    # AUDIT-REPAIR: env فاش نمی‌شود و لینک docs در production حذف است
     settings = get_settings()
-    return {
-        "name": settings.app_name,
-        "env": settings.app_env,
-        "status": "ok",
-        "docs": "/docs",
-    }
+    info: dict[str, str] = {"name": settings.app_name, "status": "ok"}
+    if settings.app_env != "production":
+        info["docs"] = "/docs"
+    return info
 
 
 @router.get("/health")

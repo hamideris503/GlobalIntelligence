@@ -125,3 +125,19 @@ def test_markets_api_latest(client: TestClient) -> None:
     assert res.status_code == 200
     symbols = {o["symbol"] for o in res.json()}
     assert {"WTI", "BRENT"} <= symbols
+
+
+def test_mock_fetcher_rejected_in_production(client: TestClient) -> None:
+    """AUDIT-REPAIR: mock در production (MOCK_MODE=false) با 422 رد می‌شود."""
+    import os
+
+    from backend.core.config import get_settings
+
+    os.environ["MOCK_MODE"] = "false"
+    get_settings.cache_clear()
+    try:
+        res = client.post("/api/markets/fetch?symbol=WTI&fetcher=mock")
+        assert res.status_code == 422
+    finally:
+        os.environ["MOCK_MODE"] = "true"
+        get_settings.cache_clear()

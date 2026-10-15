@@ -75,6 +75,13 @@ async def fetch_economic(
     db: Session = Depends(get_db),
 ) -> EconomicOutcomeRead:
     """دریافت داده‌ی اقتصادی از World Bank."""
+    from fastapi import HTTPException
+
+    from backend.core.config import get_settings
+
+    # AUDIT-REPAIR: mock فقط در MOCK_MODE مجاز است (قبلاً production هم می‌نوشت)
+    if fetcher == "mock" and not get_settings().mock_mode:
+        raise HTTPException(status_code=422, detail="mock fetcher not allowed in production mode")
     service = EconomicDataService(db, fetcher_name=fetcher)
     if indicator:
         outcome = await service.fetch_indicator(

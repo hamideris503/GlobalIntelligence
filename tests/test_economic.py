@@ -129,3 +129,21 @@ def test_economic_api_latest(client: TestClient) -> None:
     # آخرین period باید بالاترین سال باشد
     periods = [o["period"] for o in body]
     assert "2024" in periods
+
+
+def test_mock_fetcher_rejected_in_production(client: TestClient) -> None:
+    """AUDIT-REPAIR: mock در production (MOCK_MODE=false) با 422 رد می‌شود."""
+    import os
+
+    from backend.core.config import get_settings
+
+    os.environ["MOCK_MODE"] = "false"
+    get_settings.cache_clear()
+    try:
+        res = client.post(
+            "/api/economic/fetch?indicator=inflation&country=USA&limit=1&fetcher=mock"
+        )
+        assert res.status_code == 422
+    finally:
+        os.environ["MOCK_MODE"] = "true"
+        get_settings.cache_clear()
