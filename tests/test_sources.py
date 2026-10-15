@@ -56,6 +56,67 @@ def test_get_missing_source_404(client: TestClient) -> None:
     assert res.status_code == 404
 
 
+def test_census_fields_and_filters(client: TestClient) -> None:
+    """فیلدهای census جدا ذخیره می‌شوند و فیلتر category/validation کار می‌کند."""
+    res = client.post("/api/sources", json={
+        "name": "CensusA", "type": "official", "country": "US",
+        "homepage_url": "https://example.gov/", "canonical_url": "https://example.gov/",
+        "geography": "country", "category": " stats", "api_url": "https://api.example.gov/v1",
+        "api_documentation_url": "https://example.gov/docs",
+        "rss_url": "https://example.gov/feed", "validation_status": "NEEDS_REVIEW",
+        "priority": 1, "access_model": "free",
+    })
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["homepage_url"] == "https://example.gov/"
+    assert body["api_url"] == "https://api.example.gov/v1"
+    assert body["rss_url"] == "https://example.gov/feed"
+    assert body["validation_status"] == "NEEDS_REVIEW"
+    assert body["category"] == " stats"
+    got = client.get("/api/sources?validation_status=NEEDS_REVIEW").json()
+    assert any(s["name"] == "CensusA" for s in got)
+    cat = client.get("/api/sources?category=%20stats").json()
+    assert any(s["name"] == "CensusA" for s in cat)
+    # پیش‌فرض وضعیت برای رکورد جدید
+    plain = client.post("/api/sources", json={"name": "CensusB"}).json()
+    assert plain["validation_status"] == "PENDING_VALIDATION"
+
+
+def test_recheck_updates_status(monkeypatch, client: TestClient) -> None:
+    """بررسی مجدد: بدون شبکه (mock fetch) وضعیت و canonical به‌روز می‌شود."""
+    from domains.news import source_verify as sv
+
+    sid = client.post("/api/sources",
+                      json={"name": "RC", "homepage_url": "https://example.gov/"}).json()["id"]
+    monkeypatch.setattr(
+        sv, "fetch_url",
+        lambda url, **kw: sv.FetchResult(url=url, final_url="https://example.gov/home",
+                                        status_code=200, ok=True))
+    res = client.post(f"/api/sources/{sid}/recheck")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["validation_status"] == "VERIFIED"
+    assert body["canonical_url"] == "https://example.gov/home"
+
+
+def test_recheck_without_homepage_422(client: TestClient) -> None:
+    sid = client.post("/api/sources", json={"name": "NH"}).json()["id"]
+    res = client.post(f"/api/sources/{sid}/recheck")
+    assert res.status_code == 422
+
+
+def test_export_json_csv(client: TestClient) -> None:
+    client.post("/api/sources", json={"name": "EX1", "category": "economy"})
+    js = client.get("/api/sources/export/all?format=json")
+    assert js.status_code == 200
+    rows = js.json()
+    assert any(r["name"] == "EX1" and r["category"] == "economy" for r in rows)
+    assert all("api_key" not in r for r in rows)
+    csv = client.get("/api/sources/export/all?format=csv")
+    assert csv.status_code == 200
+    assert "EX1" in csv.text and "homepage_url" in csv.text.splitlines()[0]
+
+
 def test_seed_data_is_valid() -> None:
     from db.seed.sources import INITIAL_SOURCES
 
