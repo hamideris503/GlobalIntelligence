@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from domains.ai_routing.router import AdaptiveRouter
+from domains.ai_routing.router import AdaptiveRouter, smoothed_rate
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -103,7 +103,8 @@ def stats(
                 calls=calls,
                 successes=r.successes or 0,
                 failures=r.failures or 0,
-                success_rate=round((r.successes or 0) / calls, 4) if calls else 0.0,
+                # AUDIT-REPAIR: همان نرخ لاپلاس suggest تا دو endpoint یک رتبه بدهند
+                success_rate=smoothed_rate(r.successes or 0, calls),
             )
         )
     return out

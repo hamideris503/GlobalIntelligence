@@ -125,6 +125,8 @@ def test_ai_routing_api(client: TestClient) -> None:
     stats = client.get("/api/ai-routing/stats?task=cls")
     assert stats.status_code == 200
     assert len(stats.json()) == 1
+    # AUDIT-REPAIR: stats هم نرخ لاپلاس می‌دهد (مثل suggest)، نه میانگین خام
+    assert stats.json()[0]["success_rate"] == 0.6667
 
     routes = client.get("/api/ai-routing/routes?tasks=cls")
     assert routes.status_code == 200
