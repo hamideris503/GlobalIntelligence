@@ -37,10 +37,12 @@ class Forecast(UUIDMixin, TimestampMixin, Base):
     # --- Phase 26: Forecast Ledger ---
     # سناریو (base/bull/bear/tail — جزئیات در Phase 30)
     scenario: Mapped[str | None] = mapped_column(String(32), index=True)
-    # چرخه‌ی حیات: active/superseded/expired/resolved (هرگز حذف نمی‌شود)
+    # چرخه‌ی حیات: active/superseded/expired/resolved/void (هرگز حذف نمی‌شود)
     status: Mapped[str] = mapped_column(
         String(16), default="active", nullable=False, server_default="active"
     )
+    # Step 8: دلیل باطل‌کردن به‌جای حذف
+    void_reason: Mapped[str | None] = mapped_column(Text)
 
     outcome: Mapped[ForecastOutcome | None] = relationship(
         back_populates="forecast", uselist=False, cascade="all, delete-orphan"
