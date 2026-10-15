@@ -2,11 +2,18 @@
 
 همه‌ی مدل‌ها برای `Alembic autogenerate` باید در `backend.database.models` import شوند.
 """
+from backend.database.models.ai_settings import (
+    AgentAssignment,
+    AIModelRow,
+    AIProviderRow,
+    AppSetting,
+)
 from backend.database.models.alert import Alert, AlertRule
 from backend.database.models.article import Article
 from backend.database.models.audit_record import AuditRecord
 from backend.database.models.briefing import Briefing
 from backend.database.models.claim import Claim
+from backend.database.models.debate import DebateMessage, DebateRun
 from backend.database.models.document import Document
 from backend.database.models.entity import Entity, EntityRelationship
 from backend.database.models.event import Event
@@ -34,12 +41,18 @@ from backend.database.models.transmission_assessment import TransmissionAssessme
 from backend.database.models.world_state import WorldState
 
 __all__ = [
+    "AgentAssignment",
+    "AIModelRow",
+    "AIProviderRow",
     "Alert",
     "AlertRule",
+    "AppSetting",
     "Article",
     "AuditRecord",
     "Briefing",
     "Claim",
+    "DebateMessage",
+    "DebateRun",
     "Document",
     "Entity",
     "EntityRelationship",

@@ -52,6 +52,8 @@ from backend.api.routers import (
     tournaments,
     worldstate,
 )
+from backend.api.routers import auth as auth_router
+from backend.api.routers import settings as settings_router
 from backend.auth.deps import require_api_key
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
@@ -70,6 +72,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.app_env,
         settings.mock_mode,
     )
+    try:
+        from backend.ai import credentials_store as _store
+        from backend.database.session import get_session_factory as _gsf
+
+        _store.set_session_factory(_gsf())
+    except Exception:  # noqa: BLE001
+        logger.warning("credentials store factory not wired; .env only")
     yield
     logger.info("shutdown | app=%s", settings.app_name)
 
@@ -107,6 +116,7 @@ def create_app() -> FastAPI:
 
     # /health بدون احراز هویت (برای probe)، بقیه محافظت‌شده
     app.include_router(health.router)
+    app.include_router(auth_router.router)
     protected = [Depends(require_api_key)]
     app.include_router(jobs.router, dependencies=protected)
     app.include_router(ai.router, dependencies=protected)
@@ -141,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(tournaments.router, dependencies=protected)
     app.include_router(scenarios.router, dependencies=protected)
     app.include_router(selfeval.router, dependencies=protected)
+    app.include_router(settings_router.router, dependencies=protected)
     app.include_router(research.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)

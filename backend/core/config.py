@@ -88,6 +88,8 @@ class Settings(BaseSettings):
     # اجازه‌ی base_url خصوصی برای Provider سفارشی (پیش‌فرض بسته؛ ضد SSRF)
     allow_private_base_url: bool = False
 
+    admin_username: str = "admin"
+    admin_password: str = "admin"
     # --- Data collection ---
     source_min_interval_seconds: int = 60
     user_agent: str = "GlobalIntelligenceBot/0.1 (+https://example.local; contact@example.local)"
@@ -115,6 +117,8 @@ class Settings(BaseSettings):
             problems.append("MOCK_MODE must be false in production")
         if self.debug:
             problems.append("DEBUG must be false in production")
+        if self.admin_password == "admin":
+            problems.append("ADMIN_PASSWORD must be changed in production")
         if problems:
             raise ValueError("insecure production configuration: " + "; ".join(problems))
 
