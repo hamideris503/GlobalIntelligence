@@ -54,6 +54,9 @@ class GeminiProvider(HTTPProvider):
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
         if system_parts:
             payload["systemInstruction"] = {"parts": [{"text": "\n".join(system_parts)}]}
+        if request.json_schema is not None:
+            # AUDIT-REPAIR: خروجی ساختاریافته روی Gemini هم اعمال می‌شد نه (قبلاً نادیده)
+            payload["generationConfig"]["responseMimeType"] = "application/json"
         return payload
 
     def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:

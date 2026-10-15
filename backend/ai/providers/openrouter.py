@@ -37,6 +37,9 @@ class OpenRouterProvider(HTTPProvider):
         }
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+        if request.json_schema is not None:
+            # AUDIT-REPAIR: مثل OpenAI (سازگار) — قبلاً schema نادیده گرفته می‌شد
+            payload["response_format"] = {"type": "json_object"}
         return payload
 
     def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:

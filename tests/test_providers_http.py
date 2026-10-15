@@ -80,3 +80,29 @@ def test_provider_not_configured_raises_auth() -> None:
     with pytest.raises(AIError) as exc:
         asyncio.run(p.generate(AIRequest(messages=[Message.user("hi")])))
     assert exc.value.kind == AIErrorKind.auth
+
+
+def test_gemini_sets_json_mime_for_schema() -> None:
+    """AUDIT-REPAIR: schema روی Gemini هم به MimeType ترجمه می‌شود."""
+    from backend.ai.providers.gemini import GeminiProvider
+
+    p = GeminiProvider()
+    plain = p._payload(AIRequest(messages=[Message.user("hi")]))
+    assert "responseMimeType" not in plain.get("generationConfig", {})
+    with_schema = p._payload(
+        AIRequest(messages=[Message.user("hi")], json_schema={"type": "object"})
+    )
+    assert with_schema["generationConfig"]["responseMimeType"] == "application/json"
+
+
+def test_openrouter_sets_json_object_for_schema() -> None:
+    """AUDIT-REPAIR: schema روی OpenRouter هم مثل OpenAI اعمال می‌شود."""
+    from backend.ai.providers.openrouter import OpenRouterProvider
+
+    p = OpenRouterProvider()
+    plain = p._payload(AIRequest(messages=[Message.user("hi")]))
+    assert "response_format" not in plain
+    with_schema = p._payload(
+        AIRequest(messages=[Message.user("hi")], json_schema={"type": "object"})
+    )
+    assert with_schema["response_format"] == {"type": "json_object"}
