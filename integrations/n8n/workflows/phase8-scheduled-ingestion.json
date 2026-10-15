@@ -22,7 +22,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/ingest/all?limit=20",
+        "url": "http://backend:8000/api/ingest/all?limit=20&mock=false",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

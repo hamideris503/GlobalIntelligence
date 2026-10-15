@@ -132,3 +132,88 @@ def test_ingest_api(client: TestClient) -> None:
 def test_ingest_unknown_source_404(client: TestClient) -> None:
     res = client.post("/api/ingest", json={"source_name": "nope"})
     assert res.status_code == 404
+
+
+def test_ingest_all_mock_override(client: TestClient, monkeypatch) -> None:
+    """E2E: mock=false صریح، fetcher واقعی و فیلتر rss را تحمیل می‌کند (بدون شبکه)."""
+    import domains.news.fetchers as fetchers_mod
+
+    seen: dict = {}
+
+    class _RSS:
+        name = "rss"
+
+        async def fetch(self, *, url, limit=20):
+            seen["url"] = url
+            return []
+
+    # ایمپورت داخل تابعی endpoint است؛ پچ روی ماژول fetchers اثر می‌کند
+    monkeypatch.setattr(fetchers_mod, "RSSFetcher", lambda **kw: _RSS())
+    created = client.post("/api/sources", json={
+        "name": "RSST", "type": "rss", "collection_method": "rss",
+        "feed_url": "https://example.com/feed", "active": True})
+    assert created.status_code == 201
+    res = client.post("/api/ingest/all?limit=5&mock=false")
+    assert res.status_code == 200
+    assert seen.get("url") == "https://example.com/feed"  # fetcher واقعی صدا زده شد
+
+
+def test_rss_fetcher_ssrf_refused() -> None:
+    """فید خصوصی/داخلی بدون هیچ اتصالی رد می‌شود (census §7)."""
+    import asyncio
+
+    import pytest
+
+    from domains.news.fetchers import RSSFetcher
+
+    for bad in ("http://localhost:9/feed", "http://127.0.0.1/feed",
+                "http://10.0.0.5/feed", "http://169.254.169.254/x"):
+        with pytest.raises(ValueError, match="non-public"):
+            asyncio.run(RSSFetcher().fetch(url=bad))
+
+
+def test_rss_fetcher_retry_then_success(monkeypatch) -> None:
+    """timeout اول → یک retry → موفقیت (بدون شبکه‌ی واقعی)."""
+    import asyncio
+
+    import httpx
+
+    from domains.news import fetchers as fetchers_mod
+    from domains.news.fetchers import RSSFetcher
+
+    rss = (b'<?xml version="1.0"?><rss version="2.0"><channel><title>T</title>'
+           b'<item><title>A</title><link>https://x.local/1</link></item>'
+           b'</channel></rss>')
+    calls = {"n": 0}
+
+    class _Resp:
+        status_code = 200
+        headers: dict = {}
+        url = "https://example.com/feed"
+
+        def __init__(self, content: bytes):
+            self.content = content
+
+        def raise_for_status(self) -> None:
+            pass
+
+    class _Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, url, headers=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise httpx.TimeoutException("slow")
+            return _Resp(rss)
+
+    monkeypatch.setattr(fetchers_mod.httpx, "AsyncClient", _Client)
+    items = asyncio.run(RSSFetcher().fetch(url="https://example.com/feed"))
+    assert calls["n"] == 2
+    assert len(items) == 1 and items[0].title == "A"
