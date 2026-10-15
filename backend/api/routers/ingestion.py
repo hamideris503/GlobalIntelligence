@@ -15,6 +15,7 @@ from backend.api.schemas.ingestion import (
     IngestRequest,
     IngestResultRead,
 )
+from backend.core.config import get_settings
 from backend.database.models.document import Document
 from backend.database.models.source import Source
 from backend.database.session import get_db
@@ -59,10 +60,11 @@ async def ingest_all(
     در حالت واقعی فقط منابع news (rss با feed_url) انتخاب می‌شوند (P0-2).
     E2E FIND: زمان‌بند باید mock=false بدهد تا سند نمونه زیر نام واقعی نرود.
     """
-    from backend.core.config import get_settings
     from domains.news.fetchers import MockFetcher, RSSFetcher
 
-    use_mock = get_settings().mock_mode if mock is None else mock
+    from backend.core.mock_mode import effective_mock_mode
+
+    use_mock = effective_mock_mode() if mock is None else mock
     stmt = select(Source).where(Source.active.is_(True))
     if not use_mock:
         stmt = stmt.where(Source.collection_method == "rss", Source.feed_url.is_not(None))

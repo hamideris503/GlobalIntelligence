@@ -20,6 +20,7 @@ from backend.ai.gateway import get_gateway
 from backend.ai.schemas.types import AIRequest, Message
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.article import Article
 from backend.database.models.event import Event
 from domains.events.prompts import EVENT_SCHEMA, EXTRACT_EVENT
@@ -95,7 +96,7 @@ class EventExtractor:
                 metadata={"prompt_version": EXTRACT_EVENT.version},
             )
             response = await self.gateway.structured_generate(request, EVENT_SCHEMA)
-            if response.is_mock and not self._settings.mock_mode:
+            if response.is_mock and not effective_mock_mode():
                 raise ValueError("mock event rejected in production mode")
             data = response.structured or _safe_json(response.text) or {}
             confidence = data.get("confidence")
@@ -143,7 +144,7 @@ class EventExtractor:
         # article is skipped so mock evidence cannot seed a new event. Unknown
         # provenance is processed (it is not proof of mock). Dev/test unchanged.
         mock_docs: set = set()
-        if not self._settings.mock_mode and clusters:
+        if not effective_mock_mode() and clusters:
             from backend.database.models.document import mock_document_ids
 
             mock_docs = mock_document_ids(

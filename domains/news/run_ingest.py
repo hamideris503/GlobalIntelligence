@@ -10,7 +10,7 @@ import argparse
 
 from sqlalchemy import select
 
-from backend.core.config import get_settings
+from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.source import Source
 from backend.database.session import get_session_factory
 from domains.news.ingestion import NewsIngestionPipeline
@@ -28,7 +28,7 @@ def main() -> int:
         # AUDIT-REPAIR: همان فیلتر API (قبلاً همه‌ی منابع فعال بدون فیلتر بودند
         # و در production بی‌صدا ۰ ذخیره با موفقیت ثبت می‌شد)
         stmt = select(Source).where(Source.active.is_(True))
-        if not get_settings().mock_mode:
+        if not effective_mock_mode():
             stmt = stmt.where(
                 Source.collection_method == "rss", Source.feed_url.is_not(None)
             )
@@ -37,7 +37,7 @@ def main() -> int:
         sources = list(session.execute(stmt).scalars().all())
 
         # RELIABILITY: منابع ردشده دیگر بی‌صدا نیستند (E2E FIND)
-        if not get_settings().mock_mode and not args.source:
+        if not effective_mock_mode() and not args.source:
             skipped = list(session.execute(
                 select(Source).where(
                     Source.active.is_(True),

@@ -19,6 +19,7 @@ from backend.ai.gateway import get_gateway
 from backend.ai.schemas.types import AIRequest, Message
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.mock_mode import effective_mock_mode
 from backend.database.enums import EvidenceDirection, VerificationStatus
 from backend.database.models.claim import Claim, Evidence
 from backend.database.models.event import Event
@@ -128,7 +129,7 @@ class EvidenceEngine:
                     metadata={"prompt_version": EXTRACT_EVIDENCE.version},
                 )
                 response = await self.gateway.structured_generate(request, EVIDENCE_SCHEMA)
-                if response.is_mock and not self._settings.mock_mode:
+                if response.is_mock and not effective_mock_mode():
                     raise ValueError("mock evidence rejected in production mode")
                 parsed = response.structured or _safe_json(response.text) or {}
                 # E2E FIND: بعضی مدل‌ها آرایه‌ی تاپ‌لول می‌دهند، نه آبجکت؛ بردبار باش
@@ -240,7 +241,7 @@ class EvidenceEngine:
         # Production guard BEFORE the attempts counter: claims on mock-linked
         # events are skipped without burning attempts or creating evidence.
         mock_events: set = set()
-        if not self._settings.mock_mode and claims:
+        if not effective_mock_mode() and claims:
             from backend.database.models.document import events_with_mock_articles
 
             mock_events = events_with_mock_articles(

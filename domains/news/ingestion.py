@@ -51,8 +51,10 @@ class IngestionResult:
 
 def select_fetcher() -> BaseFetcher:
     """انتخاب fetcher بر اساس MOCK_MODE (بند 72-73)."""
+    from backend.core.mock_mode import effective_mock_mode
+
     settings = get_settings()
-    if settings.mock_mode:
+    if effective_mock_mode():
         return MockFetcher()
     return RSSFetcher(
         timeout=float(settings.ai_request_timeout_seconds),

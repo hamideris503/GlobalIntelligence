@@ -17,8 +17,8 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.claim import Claim
 from backend.database.models.event import Event
 from backend.database.models.market import MacroObservation, MarketObservation
@@ -99,7 +99,7 @@ class WorldStateBuilder:
             .limit(50)
         )
         rows = list(self.db.execute(stmt).scalars().all())
-        if not get_settings().mock_mode:
+        if not effective_mock_mode():
             from backend.database.models.document import provenance_of
 
             rows = [r for r in rows if provenance_of(r.raw) != "mock"]
@@ -135,7 +135,7 @@ class WorldStateBuilder:
             .limit(DRAWDOWN_MAX_POINTS)
         )
         pairs = list(self.db.execute(stmt).all())
-        if not get_settings().mock_mode:
+        if not effective_mock_mode():
             from backend.database.models.document import provenance_of
 
             pairs = [(v, r) for v, r in pairs if provenance_of(r) != "mock"]
@@ -171,7 +171,7 @@ class WorldStateBuilder:
 
         # 1) macro inputs (production: exclude explicit-mock observations;
         # dev/test keeps existing behavior)
-        prod_mode = not get_settings().mock_mode
+        prod_mode = not effective_mock_mode()
         gdp_rows = self._latest_macro("gdp")
         cpi_rows = self._latest_macro("inflation")
         liq_rows = self._latest_macro("liquidity")

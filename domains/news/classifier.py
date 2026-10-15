@@ -22,6 +22,7 @@ from backend.ai.prompts.classification import CLASSIFY_ARTICLE
 from backend.ai.schemas.types import AIRequest, Message
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.article import Article
 from domains.news.classifier_schema import (
     ALLOWED_ENTITY_TYPES,
@@ -205,7 +206,7 @@ class ArticleClassifier:
         # Historical mock rows must not enter new classification in production.
         # Dev/test (mock_mode) keeps existing behavior: everything is processed.
         mock_ids: set = set()
-        if not self._settings.mock_mode and articles:
+        if not effective_mock_mode() and articles:
             from backend.database.models.document import mock_document_ids
 
             mock_ids = mock_document_ids(
@@ -220,7 +221,7 @@ class ArticleClassifier:
                 result = await self.classify_article(article)
 
                 # در production، نتیجه‌ی mock ذخیره نمی‌شود (P0-1)
-                if result.is_mock and not self._settings.mock_mode:
+                if result.is_mock and not effective_mock_mode():
                     raise ValueError("mock result rejected in production mode")
 
                 self._apply(article, result)

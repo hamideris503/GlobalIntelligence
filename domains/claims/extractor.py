@@ -19,6 +19,7 @@ from backend.ai.gateway import get_gateway
 from backend.ai.schemas.types import AIRequest, Message
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.mock_mode import effective_mock_mode
 from backend.database.enums import VerificationStatus
 from backend.database.models.claim import Claim
 from backend.database.models.event import Event
@@ -92,7 +93,7 @@ class ClaimExtractor:
                     metadata={"prompt_version": EXTRACT_CLAIMS.version},
                 )
                 response = await self.gateway.structured_generate(request, CLAIMS_SCHEMA)
-                if response.is_mock and not self._settings.mock_mode:
+                if response.is_mock and not effective_mock_mode():
                     raise ValueError("mock claims rejected in production mode")
                 data = response.structured or _safe_json(response.text) or {}
                 claims_data = data.get("claims") or []
@@ -162,7 +163,7 @@ class ClaimExtractor:
         # Production guard: events with any explicit-mock article are skipped
         # before any new claim is created. Unknown provenance is processed.
         mock_events: set = set()
-        if not self._settings.mock_mode and events:
+        if not effective_mock_mode() and events:
             from backend.database.models.document import events_with_mock_articles
 
             mock_events = events_with_mock_articles(

@@ -96,12 +96,15 @@ class AIGateway:
         chain = list(route.providers)
 
         from backend.ai import credentials_store as _store
+        from backend.core.mock_mode import effective_mock_mode
+
+        effective_mock = effective_mock_mode()
         effective_default = _store.effective_default_provider()
 
         if not chain:
             chain = [effective_default] if effective_default else []
 
-        if self._settings.mock_mode:
+        if effective_mock:
             chain = ["mock"]
         else:
             # حذف mock در production
