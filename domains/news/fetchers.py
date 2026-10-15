@@ -66,23 +66,54 @@ class RSSFetcher(BaseFetcher):
     """پارس RSS 2.0 / Atom با feedparser (استاندارد)."""
 
     name = "rss"
+    max_bytes = 5_000_000
 
     def __init__(self, timeout: float = 20.0, user_agent: str | None = None) -> None:
         self._timeout = timeout
         self._user_agent = user_agent or "GlobalIntelligenceBot/0.1"
 
     async def fetch(self, *, url: str | None, limit: int = 20) -> list[RawItem]:
+        import asyncio as _asyncio
+
         if not url:
             return []
+        # SSRF guard (census §7): فید مدیریتی هم باید عمومی باشد
+        from urllib.parse import urlparse as _up
+
+        from domains.news.source_verify import host_is_private
+        host = (_up(url).hostname or "").lower()
+        if not host or host_is_private(host):
+            raise ValueError(f"refusing non-public feed host: {host or '?'}")
         headers = {
             "User-Agent": self._user_agent,
             "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
         }
-        async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
-            resp.raise_for_status()
-            content = resp.content
-        return self.parse(content, limit=limit)
+        last_exc: Exception | None = None
+        for attempt in range(2):  # یک retry با backoff برای timeout/5xx
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout,
+                                             follow_redirects=True) as client:
+                    resp = await client.get(url, headers=headers)
+                    if resp.status_code >= 500:
+                        raise httpx.HTTPStatusError(
+                            f"server error {resp.status_code}",
+                            request=resp.request, response=resp)
+                    resp.raise_for_status()
+                    final_host = (_up(str(resp.url)).hostname or "").lower()
+                    if host_is_private(final_host):
+                        raise ValueError(f"redirected to private host: {final_host}")
+                    content = resp.content
+                    if len(content) > self.max_bytes:
+                        raise ValueError(f"feed too big: {len(content)} bytes")
+                    return self.parse(content, limit=limit)
+            except (httpx.TimeoutException, httpx.HTTPStatusError) as exc:
+                last_exc = exc
+                if attempt == 0:
+                    await _asyncio.sleep(2.0)
+                    continue
+                raise
+        assert last_exc is not None
+        raise last_exc
 
     def parse(self, content: bytes, *, limit: int) -> list[RawItem]:
         """پارس محتوای فید (قابل تست با XML نمونه)."""

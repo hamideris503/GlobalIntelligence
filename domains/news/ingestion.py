@@ -50,7 +50,7 @@ class IngestionResult:
 
 
 def select_fetcher() -> BaseFetcher:
-    """انتخاب fetcher بر اساس MOCK_MODE (بند 72-73)."""
+    """انتخاب fetcher بر اساس حالت Mock مؤثر (بند 72-73)."""
     from backend.core.mock_mode import effective_mock_mode
 
     settings = get_settings()

@@ -11,8 +11,6 @@
 """
 from __future__ import annotations
 
-import csv
-import io
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -306,12 +304,6 @@ def build_fetcher(name: str) -> BaseFetcher:
     if cls is None:
         raise ValueError(f"unknown fetcher: {name}")
     return cls()
-
-
-def _parse_csv_rows(text: str) -> list[dict[str, str]]:
-    """پارس CSV generیک (برای استفاده‌ی آتی/تست)."""
-    reader = csv.DictReader(io.StringIO(text))
-    return [dict(row) for row in reader]
 
 
 __all__ = [

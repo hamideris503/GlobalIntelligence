@@ -32,9 +32,6 @@ from backend.database.models.source_dependency import SourceDependency
 
 logger = get_logger(__name__)
 
-# آستانه‌ی نسبت استقلال برای اینکه یک Claim «مستقل تأییدشده» تلقی شود
-INDEPENDENCE_CORROBORATION_THRESHOLD = 0.5
-
 
 @dataclass
 class IndependenceOutcome:
