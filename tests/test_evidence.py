@@ -288,3 +288,29 @@ def test_evidence_rerun_is_idempotent(monkeypatch) -> None:
         assert session.query(_Ev).count() == 1
     finally:
         session.close()
+
+
+def test_evidence_attempts_capped(monkeypatch) -> None:
+    """Step 6: خرابی دائمی بعد از ۵ تلاش دیگر retry نمی‌شود (شمارنده)."""
+    from backend.ai.schemas.types import AIError, AIErrorKind
+    from domains.claims.evidence import MAX_EVIDENCE_ATTEMPTS, EvidenceEngine
+
+    _seed_claim()
+    session = TestingSession()
+    try:
+        async def boom(*args, **kwargs):
+            raise AIError("boom", kind=AIErrorKind.provider_error, retryable=False)
+
+        engine = EvidenceEngine(session)
+        monkeypatch.setattr(engine.gateway, "structured_generate", boom)
+        for _ in range(MAX_EVIDENCE_ATTEMPTS + 2):
+            asyncio.run(engine.run(limit=10))
+        claim = session.query(Claim).first()
+        assert claim.evidence_attempts == MAX_EVIDENCE_ATTEMPTS
+        assert claim.evidence_extracted is False
+        # اجرای بعدی دیگر آن را برنمی‌دارد
+        outcome = asyncio.run(engine.run(limit=10))
+        assert outcome.failed == 0
+        assert outcome.claims_processed == 0
+    finally:
+        session.close()

@@ -228,7 +228,10 @@ class EvidenceEngine:
     async def run(self, *, limit: int = 50) -> EvidenceOutcome:
         stmt = (
             select(Claim)
-            .where(Claim.evidence_extracted.is_(False))
+            .where(
+                Claim.evidence_extracted.is_(False),
+                Claim.evidence_attempts < MAX_EVIDENCE_ATTEMPTS,
+            )
             .order_by(Claim.created_at.desc())
             .limit(limit)
         )
