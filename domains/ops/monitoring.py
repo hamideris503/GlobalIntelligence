@@ -7,6 +7,7 @@
 - error_rate (خطا در ۵۰ job اخیر): ‎≤0.2 pass | ‎≤0.5 warn | وگرنه fail؛ بدون job → warn.
 - active_alerts: همیشه pass اطلاعاتی (هشدار سیگنال است، نه خرابی).
 - db_ok: True → pass، وگرنه fail.
+- market_staleness (قدیمی‌ترین قیمت هر نماد، ساعت): ‎≤48 pass | ‎≤120 warn | وگرنه fail؛ بدون ردیف → warn.
 - وضعیت کلی = بدترین چک. بدون AI.
 """
 from __future__ import annotations
@@ -46,17 +47,29 @@ def _band(
     return MonitorCheck(name, status, round(value, 2), detail)
 
 
+def count_check(
+    name: str, value: int | None, warn_at: float, fail_at: float, detail: str
+) -> MonitorCheck:
+    """چک شمارشی که خطای query را fail می‌کند (نه pass کاذب).
+
+    AUDIT-REPAIR: قبلاً ۱- برمی‌گشت و چون از آستانه کمتر بود pass می‌شد.
+    """
+    if value is None:
+        return MonitorCheck(name, "fail", None, detail + " (query failed)")
+    return _band(name, float(value), warn_at, fail_at, detail)
+
+
 def pipeline_lag_check(hours: float | None) -> MonitorCheck:
     detail = f"{hours:.1f}h since last article" if hours is not None else "no articles"
     return _band("pipeline_lag", hours, 24.0, 72.0, detail)
 
 
 def backlog_check(n_pending: int) -> MonitorCheck:
-    return _band("classify_backlog", float(n_pending), 50.0, 200.0, f"{n_pending} pending")
+    return count_check("classify_backlog", n_pending, 50.0, 200.0, f"{n_pending} pending")
 
 
 def unprocessed_check(name: str, count: int) -> MonitorCheck:
-    return _band(name, float(count), 20.0, 100.0, f"{count} unprocessed")
+    return count_check(name, count, 20.0, 100.0, f"{count} unprocessed")
 
 
 def error_rate_check(n_failed: int, n_total: int) -> MonitorCheck:
@@ -69,6 +82,18 @@ def error_rate_check(n_failed: int, n_total: int) -> MonitorCheck:
 
 def active_alerts_info(count: int) -> MonitorCheck:
     return MonitorCheck("active_alerts", "pass", float(count), f"{count} active")
+
+
+def market_staleness_check(
+    max_age_hours: float | None, stalest_symbol: str | None = None
+) -> MonitorCheck:
+    """قدمت قدیمی‌ترین قیمت نمادها (ساعت). None یعنی هیچ ردیفی نیست."""
+    if max_age_hours is None:
+        return MonitorCheck("market_staleness", "warn", None, "no market observations")
+    detail = f"{max_age_hours:.1f}h since stalest quote"
+    if stalest_symbol:
+        detail += f" ({stalest_symbol})"
+    return _band("market_staleness", max_age_hours, 48.0, 120.0, detail)
 
 
 def db_check(ok: bool) -> MonitorCheck:
@@ -89,8 +114,10 @@ __all__ = [
     "MonitorCheck",
     "active_alerts_info",
     "backlog_check",
+    "count_check",
     "db_check",
     "error_rate_check",
+    "market_staleness_check",
     "overall_status",
     "pipeline_lag_check",
     "unprocessed_check",

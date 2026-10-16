@@ -64,6 +64,24 @@ def test_engine_builds_four_scenarios() -> None:
         session.close()
 
 
+def test_scenario_interval_recentered_on_shifted_point() -> None:
+    """AUDIT-REPAIR: بازه باید دور expected جدید باشد، نه کپی base."""
+    _seed_macro("inflation", "USA", [("2022", 8.0), ("2023", 4.12), ("2024", 2.95)])
+    session = TestingSession()
+    try:
+        ScenarioEngine(session).run(target="macro:inflation:USA")
+        rows = {r.scenario: r for r in session.query(Forecast).all()}
+        base, bull = rows["base"], rows["bull"]
+        assert base.interval_low is not None and base.interval_high is not None
+        width = base.interval_high - base.interval_low
+        assert abs((bull.interval_high - bull.interval_low) - width) < 1e-6
+        mid = (bull.interval_low + bull.interval_high) / 2
+        assert abs(mid - bull.expected_value) < 1e-6
+        assert "recentered" in (bull.assumptions or "")
+    finally:
+        session.close()
+
+
 def test_engine_no_sigma_only_base() -> None:
     _seed_macro("gdp", "USA", [("2023", 100.0), ("2024", 103.0)])  # فقط ۲ نقطه
     session = TestingSession()

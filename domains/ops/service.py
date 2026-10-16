@@ -16,6 +16,8 @@ from backend.database.models.article import Article
 from backend.database.models.claim import Claim
 from backend.database.models.event import Event
 from backend.database.models.job import JobRun
+from backend.database.models.market import MarketObservation
+from domains.markets.fetchers import SYMBOLS
 from domains.ops import monitoring as mon
 
 logger = get_logger(__name__)
@@ -42,14 +44,15 @@ class MonitoringService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def _count(self, model: object, *filters) -> int:  # type: ignore[valid-type]
+    def _count(self, model: object, *filters) -> int | None:  # type: ignore[valid-type]
+        # AUDIT-REPAIR: خطای query تهی/منفی جعلی نیست؛ None یعنی «نامشخص» و fail می‌شود
         stmt = select(func.count()).select_from(model)
         for f in filters:
             stmt = stmt.where(f)
         try:
             return int(self.db.execute(stmt).scalars().one() or 0)
         except Exception:  # noqa: BLE001
-            return -1
+            return None
 
     def report(self) -> MonitoringOutcome:
         now = datetime.now(UTC)
@@ -73,20 +76,24 @@ class MonitoringService:
         )
         checks.append(mon.pipeline_lag_check(lag))
         checks.append(
-            mon.backlog_check(
-                self._count(Article, Article.classification_status == "pending")
+            mon.count_check(
+                "classify_backlog",
+                self._count(Article, Article.classification_status == "pending"),
+                50.0, 200.0, "pending classification",
             )
         )
         checks.append(
-            mon.unprocessed_check(
+            mon.count_check(
                 "unprocessed_events",
                 self._count(Event, Event.claims_extracted.is_(False)),
+                20.0, 100.0, "unprocessed events",
             )
         )
         checks.append(
-            mon.unprocessed_check(
+            mon.count_check(
                 "unprocessed_claims",
                 self._count(Claim, Claim.evidence_extracted.is_(False)),
+                20.0, 100.0, "unprocessed claims",
             )
         )
 
@@ -102,6 +109,32 @@ class MonitoringService:
         checks.append(
             mon.active_alerts_info(self._count(Alert, Alert.status == "active"))
         )
+
+        # قدمت قیمت هر نماد: جدیدترین مشاهده‌ی هر نماد کاتالوگ، بدترین قدمت.
+        try:
+            latest_rows = self.db.execute(
+                select(
+                    MarketObservation.symbol,
+                    func.max(MarketObservation.observed_at),
+                ).group_by(MarketObservation.symbol)
+            ).all()
+            latest_by_symbol = {symbol: _aware(ts) for symbol, ts in latest_rows}
+            ages = [
+                ((now - latest_by_symbol[s]).total_seconds() / 3600.0, s)
+                for s in SYMBOLS
+                if latest_by_symbol.get(s) is not None
+            ]
+            if ages:
+                worst_age, worst_symbol = max(ages)
+                checks.append(mon.market_staleness_check(worst_age, worst_symbol))
+            else:
+                checks.append(mon.market_staleness_check(None))
+        except Exception:  # noqa: BLE001
+            checks.append(
+                mon.MonitorCheck(
+                    "market_staleness", "fail", None, "staleness query failed"
+                )
+            )
 
         status = mon.overall_status(checks)
         logger.info("monitoring report | status=%s", status)

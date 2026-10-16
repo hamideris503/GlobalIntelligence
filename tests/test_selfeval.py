@@ -43,6 +43,21 @@ def test_grade_and_overall() -> None:
     assert ck.overall([]) == (0.0, "D")
 
 
+def test_overall_empty_system_is_d_not_c() -> None:
+    """AUDIT-REPAIR: سیستم تهی نباید نمره‌ی میانی C بگیرد."""
+    checks = [
+        ck.classification_check(0, 0),
+        ck.evidence_check(0, 0),
+        ck.forecast_check(0),
+        ck.freshness_check(None),
+        ck.memory_check(set()),
+        ck.graph_check(0),
+    ]
+    assert all(c.status == "warn" for c in checks)
+    score, grade = ck.overall(checks)
+    assert (score, grade) == (0.0, "D")
+
+
 # --- service tests ---
 def test_service_runs_and_stores() -> None:
     session = TestingSession()

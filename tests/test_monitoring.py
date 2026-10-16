@@ -26,6 +26,18 @@ def test_check_bands() -> None:
     assert mon.active_alerts_info(3).status == "pass"
     assert mon.db_check(True).status == "pass"
     assert mon.db_check(False).status == "fail"
+    assert mon.market_staleness_check(10.0, "XAUUSD").status == "pass"
+    assert mon.market_staleness_check(100.0, "XAUUSD").status == "warn"
+    assert mon.market_staleness_check(200.0, "XAUUSD").status == "fail"
+    assert mon.market_staleness_check(None).status == "warn"
+
+
+def test_count_query_failure_is_fail_not_pass() -> None:
+    """AUDIT-REPAIR: خطای شمارش نباید healthy گزارش شود (قبلاً ۱- → pass)."""
+    failed = mon.count_check("classify_backlog", None, 50.0, 200.0, "pending")
+    assert failed.status == "fail"
+    assert failed.value is None
+    assert "query failed" in failed.detail
 
 
 def test_overall_status() -> None:
@@ -51,7 +63,7 @@ def test_service_report_shape() -> None:
         assert names == {
             "database", "pipeline_lag", "classify_backlog",
             "unprocessed_events", "unprocessed_claims", "error_rate",
-            "active_alerts",
+            "active_alerts", "market_staleness",
         }
     finally:
         session.close()
@@ -70,6 +82,33 @@ def test_service_counts_failed_jobs() -> None:
         err = next(c for c in outcome.checks if c["name"] == "error_rate")
         assert err["status"] == "fail"  # 3/4
         assert err["value"] == 0.75
+    finally:
+        session.close()
+
+
+def test_service_market_staleness() -> None:
+    """چک تازگی قیمت: بدون ردیف warn؛ نقل‌قول کهنه fail با نام نماد."""
+    from datetime import UTC, datetime, timedelta
+
+    from backend.database.models.market import MarketObservation
+
+    session = TestingSession()
+    try:
+        outcome = MonitoringService(session).report()
+        stale = next(c for c in outcome.checks if c["name"] == "market_staleness")
+        assert stale["status"] == "warn"  # no data
+        assert stale["value"] is None
+
+        session.add(MarketObservation(
+            symbol="XAUUSD", asset_class="metal", value=4000.0,
+            unit="usd_per_oz", currency="USD", source_name="test",
+            observed_at=datetime.now(UTC) - timedelta(hours=200),
+        ))
+        session.commit()
+        outcome = MonitoringService(session).report()
+        stale = next(c for c in outcome.checks if c["name"] == "market_staleness")
+        assert stale["status"] == "fail"
+        assert "XAUUSD" in stale["detail"]
     finally:
         session.close()
 
@@ -93,7 +132,7 @@ def test_monitoring_api(client: TestClient) -> None:
     assert res.status_code == 200
     body = res.json()
     assert body["status"] in {"pass", "warn", "fail"}
-    assert len(body["checks"]) == 7
+    assert len(body["checks"]) == 8
 
     metrics = client.get("/api/ops/metrics")
     assert metrics.status_code == 200

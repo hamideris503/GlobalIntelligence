@@ -54,9 +54,14 @@ class AlertEngine:
         self.db = db
 
     def _in_cooldown(self, rule: AlertRule, now: datetime) -> bool:
+        # AUDIT-REPAIR: هشدار acknowledged هم cooldown دارد (قبلاً فقط active،
+        # پس تأیید دستی بلافاصله هشدار تکراری می‌ساخت)؛ resolved چرخه را باز می‌کند.
         last = self.db.execute(
             select(Alert)
-            .where(Alert.rule_id == rule.id, Alert.status == "active")
+            .where(
+                Alert.rule_id == rule.id,
+                Alert.status.in_(["active", "acknowledged"]),
+            )
             .order_by(Alert.observed_at.desc())
             .limit(1)
         ).scalars().first()

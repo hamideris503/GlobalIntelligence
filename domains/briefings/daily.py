@@ -176,11 +176,16 @@ class DailyBriefingService:
                 break
 
         risks: list[dict] = []
-        for r in self.db.execute(
-            select(RiskAssessment)
-            .order_by(RiskAssessment.score.desc().nullslast())
-            .limit(3)
-        ).scalars().all():
+        # AUDIT-REPAIR: فقط آخرین دوره (قبلاً همه‌ی دوره‌ها قاطی می‌شد و کهنه می‌ماند)
+        latest_period = self.db.execute(
+            select(RiskAssessment.period).order_by(RiskAssessment.period.desc()).limit(1)
+        ).scalars().first()
+        risk_stmt = select(RiskAssessment).order_by(
+            RiskAssessment.score.desc().nullslast()
+        )
+        if latest_period is not None:
+            risk_stmt = risk_stmt.where(RiskAssessment.period == latest_period)
+        for r in self.db.execute(risk_stmt.limit(3)).scalars().all():
             risks.append(
                 {"category": r.category, "score": r.score, "level": r.level}
             )

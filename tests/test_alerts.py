@@ -99,6 +99,24 @@ def test_engine_triggers_and_cooldown() -> None:
         session.close()
 
 
+def test_cooldown_survives_acknowledge() -> None:
+    """AUDIT-REPAIR: تأیید دستی نباید cooldown را دور بزند."""
+    from uuid import UUID
+
+    _seed_risk("energy_risk", 0.8)
+    _seed_rule()
+    session = TestingSession()
+    try:
+        AlertEngine(session).evaluate()
+        alert = session.query(Alert).one()
+        AlertEngine(session).acknowledge(UUID(str(alert.id)))
+        rerun = AlertEngine(session).evaluate()
+        assert rerun.triggered == 0
+        assert session.query(Alert).count() == 1
+    finally:
+        session.close()
+
+
 def test_engine_no_breach_no_alert() -> None:
     _seed_risk("energy_risk", 0.2)
     _seed_rule()

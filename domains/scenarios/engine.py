@@ -146,14 +146,29 @@ class ScenarioEngine:
         target_date = now + timedelta(days=HORIZON_DAYS[horizon])
         for name in ("bull", "bear", "tail"):
             try:
+                # AUDIT-REPAIR: بازه دور نقطه‌ی جدید مرکز می‌شود (قبلاً بازه‌ی base
+                # روی expected جابه‌جاشده کپی می‌شد و نامعتبر بود)
+                half_width: float | None = None
+                if (
+                    base_fc.interval_low is not None
+                    and base_fc.interval_high is not None
+                ):
+                    half_width = (base_fc.interval_high - base_fc.interval_low) / 2.0
+                expected = scenario_set.values[name]
+                interval_low = (
+                    round(expected - half_width, 6) if half_width is not None else None
+                )
+                interval_high = (
+                    round(expected + half_width, 6) if half_width is not None else None
+                )
                 fc = Forecast(
                     valid_from=now,
                     target_date=target_date,
                     horizon=horizon,
                     target=target,
-                    expected_value=scenario_set.values[name],
-                    interval_low=base_fc.interval_low,
-                    interval_high=base_fc.interval_high,
+                    expected_value=expected,
+                    interval_low=interval_low,
+                    interval_high=interval_high,
                     confidence=round(
                         (base_fc.confidence or 0.5)
                         * CONFIDENCE_DISCOUNT[name],
@@ -167,7 +182,7 @@ class ScenarioEngine:
                     evidence=base_fc.evidence,
                     assumptions=(
                         f"scenario v1: {name} = base { {'bull': '+σ', 'bear': '−σ', 'tail': '−2σ'}[name]}"
-                        f" with σ={scenario_set.sigma}; interval copied from base"
+                        f" with σ={scenario_set.sigma}; interval recentered on shifted point"
                     ),
                 )
                 self.db.add(fc)

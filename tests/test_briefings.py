@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from backend.database.models.briefing import Briefing
 from backend.database.models.event import Event
 from backend.database.models.market import MarketObservation
+from backend.database.models.risk_assessment import RiskAssessment
 from domains.briefings.daily import DailyBriefingService
 from tests.conftest import TestingSession
 
@@ -119,3 +120,29 @@ def test_briefings_api(client: TestClient) -> None:
         client.get("/api/briefings/00000000-0000-0000-0000-000000000000").status_code
         == 404
     )
+
+
+def test_briefing_risks_use_latest_period_only() -> None:
+    """AUDIT-REPAIR: ریسک‌های brief از آخرین دوره‌اند، نه همه‌ی تاریخچه."""
+    session = TestingSession()
+    try:
+        for period, score in [("2026-09", 0.9), ("2026-10", 0.2)]:
+            session.add(
+                RiskAssessment(
+                    category="energy_risk", period=period, score=score,
+                    level="high", method="risk_v1", confidence=0.6,
+                    observed_at=datetime.now(UTC),
+                )
+            )
+        session.commit()
+        outcome = DailyBriefingService(session).build(day="2026-10-03")
+        assert outcome.stored == 1
+        rec = session.query(Briefing).filter_by(period="2026-10-03").one()
+        import json as _json
+
+        content = _json.loads(rec.content or "{}")
+        assert content["risks"] == [
+            {"category": "energy_risk", "score": 0.2, "level": "high"}
+        ]
+    finally:
+        session.close()

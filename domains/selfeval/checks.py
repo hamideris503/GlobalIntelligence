@@ -101,6 +101,10 @@ def grade_for(score: float) -> str:
 def overall(checks: list[Check]) -> tuple[float, str]:
     if not checks:
         return 0.0, "D"
+    # AUDIT-REPAIR: وقتی هیچ چکی pass نشده (فقط warn؛ یعنی هیچ سیگنال مثبتی
+    # نیست)، میانگین 0.5 و grade میانی C گمراه‌کننده است → D صادقانه.
+    if all(c.status == "warn" for c in checks):
+        return 0.0, "D"
     score = round(sum(STATUS_SCORE[c.status] for c in checks) / len(checks), 4)
     return score, grade_for(score)
 
