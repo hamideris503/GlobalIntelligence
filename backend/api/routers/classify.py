@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 from domains.news.classifier import ArticleClassifier
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.database.models.article import Article
 from backend.database.session import get_db
 
 router = APIRouter(prefix="/api/classify", tags=["classification"])
@@ -41,6 +43,21 @@ class ArticleClassifiedRead(BaseModel):
     confidence: float | None
 
 
+class ArticleDetailRead(ArticleClassifiedRead):
+    summary: str | None = None
+    language: str | None = None
+    country: str | None = None
+    source_name: str | None = None
+    url: str | None = None
+    published_at: str | None = None
+    retrieved_at: str | None = None
+    event_id: str | None = None
+    classification_status: str | None = None
+    classification_error: str | None = None
+    provider: str | None = None
+    is_mock: bool | None = None
+
+
 @router.get("/articles", response_model=list[ArticleClassifiedRead])
 def list_classified(
     limit: int = Query(default=50, ge=1, le=500),
@@ -68,6 +85,42 @@ def list_classified(
         )
         for a in rows
     ]
+
+
+@router.get("/articles/{article_id}", response_model=ArticleDetailRead)
+def get_article(article_id: uuid.UUID, db: Session = Depends(get_db)) -> ArticleDetailRead:
+    """جزئیات کامل یک مقاله (برای صفحهٔ جزئیات خبر)."""
+    article = db.get(Article, article_id)
+    if article is None:
+        raise HTTPException(status_code=404, detail="article not found")
+    doc = article.document
+    meta: dict = {}
+    try:
+        meta = json.loads(article.classification_meta or "{}")
+    except Exception:  # noqa: BLE001
+        meta = {}
+    return ArticleDetailRead(
+        id=str(article.id),
+        title=article.title,
+        topics=_parse_list(article.topics),
+        entities=_parse_list(article.entities),
+        sentiment=article.sentiment,
+        stance=article.stance,
+        importance=article.importance,
+        confidence=article.confidence,
+        summary=article.summary,
+        language=article.language,
+        country=article.country,
+        source_name=article.source_name,
+        url=doc.url if doc is not None else None,
+        published_at=doc.published_at.isoformat() if doc is not None and doc.published_at else None,
+        retrieved_at=article.retrieved_at.isoformat() if article.retrieved_at else None,
+        event_id=str(article.event_id) if article.event_id else None,
+        classification_status=article.classification_status,
+        classification_error=article.classification_error,
+        provider=meta.get("provider"),
+        is_mock=meta.get("is_mock"),
+    )
 
 
 def _parse_list(value: str | None) -> list:
