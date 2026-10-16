@@ -78,14 +78,16 @@ def is_valid_synth_output(data: dict) -> bool:
 class _RecordingGateway:
     """Gateway بدون شبکه: درخواست واقعی را ضبط می‌کند و خروجی ساختگی می‌دهد."""
 
-    def __init__(self, response: dict) -> None:
+    def __init__(self, response: dict | None, text: str | None = None) -> None:
         self.response = response
+        self.text = (text if text is not None
+                     else json.dumps(response, ensure_ascii=False))
         self.requests: list[AIRequest] = []
 
     async def structured_generate(self, request: AIRequest, schema: dict) -> AIResponse:
         self.requests.append(request)
         return AIResponse(
-            text=json.dumps(self.response, ensure_ascii=False),
+            text=self.text,
             provider="synthetic",
             model="synthetic",
             usage=AIUsage(),  # هیچ usage واقعی provider ادعا نمی‌شود
@@ -103,11 +105,14 @@ def synthetic_response(n_edges: int) -> dict:
     }
 
 
-def evaluate_sample(n_edges: int, response: dict | None = None) -> dict:
+def evaluate_sample(
+    n_edges: int, response: dict | None = None, *, text: str | None = None,
+) -> dict:
     """یک نمونه‌ی آفلاین: مسیر واقعی synthesize + Gateway ضبط‌کننده."""
     ctx = synthetic_context(n_edges)
     fake = response if response is not None else synthetic_response(n_edges)
-    recorder = _RecordingGateway(fake)
+    body = text if text is not None else json.dumps(fake, ensure_ascii=False)
+    recorder = _RecordingGateway(fake if text is None else None, text=body)
     service = GraphRAGService(None)
     # مسیر LLM را بدون تغییر تنظیمات محیطی فعال می‌کنیم (کپی محلی).
     service._settings = service._settings.model_copy(update={"mock_mode": False})
@@ -118,6 +123,10 @@ def evaluate_sample(n_edges: int, response: dict | None = None) -> dict:
     user_content = request.messages[-1].content or ""
     context_chars = len(ctx.as_text())
     synthetic_chars = len(json.dumps(out, ensure_ascii=False))
+    try:
+        fixture_data = json.loads(body)
+    except Exception:  # noqa: BLE001
+        fixture_data = None
 
     return {
         "edges": n_edges,
@@ -127,7 +136,7 @@ def evaluate_sample(n_edges: int, response: dict | None = None) -> dict:
         "input_chars": len(user_content),
         "input_tokens_estimate": budget.estimate_input_tokens(request),
         "output_cap_effective": budget.resolve_output_cap(request),
-        "output_schema_valid": is_valid_synth_output(fake),
+        "output_schema_valid": is_valid_synth_output(fixture_data),
         "output_mode": out.get("mode"),
         "synthetic_output_chars": synthetic_chars,
         "synthetic_output_tokens_est": synthetic_chars // 4,

@@ -24,6 +24,7 @@ from backend.ai.schemas.types import AIRequest, Message
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.database.models.entity import Entity, EntityRelationship
+from domains.news.classifier import _safe_json, _validate  # parser/validator مشترک
 
 logger = get_logger(__name__)
 
@@ -76,6 +77,28 @@ SYNTH_SCHEMA: dict = {
     },
     "required": ["summary", "key_relations"],
 }
+
+
+def _validated_synth(data: object) -> dict | None:
+    """structured/پارس‌شده را با SYNTH_SCHEMA اعتبارسنجی می‌کند؛ نامعتبر → None."""
+    if not isinstance(data, dict):
+        return None
+    try:
+        _validate(data, SYNTH_SCHEMA)
+    except Exception:  # noqa: BLE001 - خروجی نامعتبر، خطای عملیاتی نیست
+        return None
+    return data
+
+
+def _synth_failure_reason(response) -> str:
+    """دلیل غیرحساس و قابل‌ردیابی برای مسیر failure (بدون متن پاسخ)."""
+    if response.structured:
+        return "schema_mismatch"
+    if not response.text:
+        return "empty_response"
+    if _safe_json(response.text) is None:
+        return "invalid_json"
+    return "schema_mismatch"
 
 
 class GraphRAGService:
@@ -214,7 +237,15 @@ class GraphRAGService:
         )
         try:
             response = await self.gateway.structured_generate(request, SYNTH_SCHEMA)
-            data = response.structured or {}
+            # structured معتبر اولویت دارد؛ در غیر این صورت fallback به متن.
+            data = _validated_synth(response.structured)
+            if data is None:
+                data = _validated_synth(_safe_json(response.text or ""))
+            if data is None:
+                reason = _synth_failure_reason(response)
+                logger.warning("graphrag synthesize failed: %s", reason)
+                return {"summary": "", "key_relations": [], "mode": "failed",
+                        "reason": reason}
             return {
                 "summary": data.get("summary", ""),
                 "key_relations": data.get("key_relations", [])[:10],
@@ -222,5 +253,6 @@ class GraphRAGService:
                 "provider": response.provider,
             }
         except Exception as exc:  # noqa: BLE001
-            logger.warning("graphrag synthesize failed: %s", exc)
-            return {"summary": "", "key_relations": [], "mode": "failed"}
+            logger.warning("graphrag synthesize failed: %s", type(exc).__name__)
+            return {"summary": "", "key_relations": [], "mode": "failed",
+                    "reason": "gateway_error"}

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import jsonschema
 import pytest
@@ -189,3 +190,20 @@ def test_ai_error_budget_kind_available() -> None:
     assert AIErrorKind.estimate.value == "estimate"
     assert AIErrorKind.budget.value == "budget"
     assert AIError("x", kind=AIErrorKind.budget).retryable is False
+
+
+def test_text_fixture_traverses_real_synthesize_path(monkeypatch) -> None:
+    # پاسخ معتبر از response.text (با structured=None) مسیر واقعی را طی می‌کند
+    _forbid_real_provider(monkeypatch)
+    body = json.dumps(harness.synthetic_response(10), ensure_ascii=False)
+    sample = harness.evaluate_sample(10, response=None, text=body)
+    assert sample["output_mode"] == "llm"
+    assert sample["output_schema_valid"] is True
+    assert sample["provider_usage"] is None
+    assert sample["synthetic"] is True
+    assert sample["output_cap_effective"] is None
+
+    # متن نامعتبر → failure کنترل‌شده، نه موفقیت جعلی
+    bad = harness.evaluate_sample(10, response=None, text="not json {{{")
+    assert bad["output_mode"] == "failed"
+    assert bad["output_schema_valid"] is False
