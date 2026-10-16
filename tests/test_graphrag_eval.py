@@ -112,19 +112,213 @@ def test_synthetic_usage_not_reported_as_real() -> None:
     assert "not real provider usage" in report["note"]
 
 
-# 6) آزمون زنده بدون فعال‌سازی صریح قابل اجرا نیست
-def test_live_option_refused_without_bounded_tracing(monkeypatch, capsys) -> None:
+# 6) آزمون زنده بدون فعال‌سازی صریح و کامل قابل اجرا نیست
+def test_live_option_refused_without_full_opt_in(monkeypatch, capsys) -> None:
     _forbid_real_provider(monkeypatch)
     # بدون فلگ: آفلاین و کد خروج ۰
     assert harness.main([]) == 0
     out = capsys.readouterr().out
     assert '"mode": "offline"' in out
 
-    # با فلگ: صریحاً رد می‌شود و درخواست شبکه‌ای نمی‌رود
+    # فلگ تنها: رد صریح پیش از هر ارسال
     assert harness.main(["--allow-live-provider"]) == 2
     out = capsys.readouterr().out
     assert '"mode": "live"' in out
-    assert "not implemented" in out
+    assert "--live-provider" in out and "--acknowledge-cost" in out
+
+    # بدون provider/model مشخص → توقف پیش از درخواست
+    assert harness.main(["--allow-live-provider", "--acknowledge-cost"]) == 2
+    # بدون تأیید هزینه → توقف
+    assert harness.main(["--allow-live-provider", "--live-provider", "openai",
+                         "--live-model", "m"]) == 2
+
+
+def _live_mode_off(monkeypatch) -> None:
+    import backend.core.mock_mode as mock_mode
+
+    monkeypatch.setattr(mock_mode, "effective_mock_mode", lambda: False)
+
+
+# provider mock یا ناشناخته رد می‌شود (پیش از هر ارسال)
+def test_live_plan_rejects_bad_provider(monkeypatch) -> None:
+    _live_mode_off(monkeypatch)
+    for bad in (None, "", "mock", "no-such-provider", "cloudflare"):
+        with pytest.raises(harness.LiveProbeRefused):
+            harness.build_live_plan(provider=bad, model="m")
+    with pytest.raises(harness.LiveProbeRefused):
+        harness.build_live_plan(provider="openai", model="  ")
+    plan = harness.build_live_plan(provider="openai", model="gpt-4o-mini")
+    assert plan["chain"] == ["openai"] and plan["retries"] == 0
+    assert plan["max_tokens"] == 2000 and plan["max_sends"] == 3
+    assert plan["samples"] == [10, 30, 50]
+
+
+def test_live_plan_refuses_mock_mode(monkeypatch) -> None:
+    import backend.core.mock_mode as mock_mode
+
+    monkeypatch.setattr(mock_mode, "effective_mock_mode", lambda: True)
+    with pytest.raises(harness.LiveProbeRefused):
+        harness.build_live_plan(provider="openai", model="m")
+
+
+# سقف مؤثر دقیقاً ۲۰۰۰ و در payload واقعی حفظ می‌شود
+def test_live_cap_pinned_and_preserved_in_payload(monkeypatch) -> None:
+    _forbid_real_provider(monkeypatch)
+    from backend.ai.providers.gemini import GeminiProvider
+    from backend.ai.providers.openai import OpenAIProvider
+
+    async def _run(request):
+        inner_calls = {}
+
+        class _Inner:
+            async def structured_generate(self, req, schema):
+                inner_calls["max_tokens"] = req.max_tokens
+                from backend.ai.schemas.types import AIResponse
+
+                return AIResponse(text="{}", provider="p", model="m")
+
+        plan = {"provider": "openai", "model": "m"}
+        capped = harness._CappedLiveGateway(
+            _Inner(), OpenAIProvider(), {**plan, "max_tokens": 2000})
+        req = harness._live_probe_request()
+        assert req.max_tokens is None
+        await capped.structured_generate(req, {})
+        assert req.max_tokens == 2000
+        assert inner_calls["max_tokens"] == 2000
+
+        payload = OpenAIProvider()._payload(req)
+        assert payload["max_tokens"] == 2000
+        gen_payload = GeminiProvider()._payload(req)
+        assert gen_payload["generationConfig"]["maxOutputTokens"] == 2000
+
+
+def test_live_gateway_is_single_provider_no_retry(monkeypatch) -> None:
+    _live_mode_off(monkeypatch)
+    from backend.ai.providers.openai import OpenAIProvider
+
+    plan = harness.build_live_plan(provider="openai", model="m")
+    provider = OpenAIProvider()
+    provider.api_key = "test-key"
+    gw = harness.build_live_gateway(plan, provider)
+    assert gw._max_retries == 0
+    assert gw._route(harness._live_probe_request()).providers == ["openai"]
+
+
+# محدودکننده‌ی HTTP: حداکثر ۳ ارسال؛ چهارمی پیش از شبکه رد می‌شود
+def test_http_limiter_blocks_fourth_send_before_network() -> None:
+    calls = []
+
+    async def fake_post(*a, **k):
+        calls.append((a, k))
+        return "resp"
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            self.post = fake_post
+
+    limiter = harness.HttpSendLimiter(3)
+    factory = limiter.wrap_client_factory(FakeClient)
+    import asyncio
+
+    async def go():
+        for _ in range(3):
+            client = factory()
+            assert await client.post("http://x") == "resp"
+        with pytest.raises(harness.LiveSendBudgetExceeded):
+            await factory().post("http://x")
+
+    asyncio.run(go())
+    assert limiter.sends == 3
+    assert len(calls) == 3  # ارسال چهارم هرگز به post واقعی نرسید
+
+
+def test_send_limiter_installs_on_http_layer(monkeypatch) -> None:
+    import backend.ai.providers.http_base as http_base
+
+    limiter = harness.HttpSendLimiter(3)
+    orig = harness.install_send_limiter(limiter)
+    try:
+        assert http_base.httpx.AsyncClient is not orig
+    finally:
+        harness.restore_send_limiter(orig)
+    assert http_base.httpx.AsyncClient is orig
+
+
+# خطای provider به retry خودکار منجر نمی‌شود (transport مصنوعی، بدون شبکه)
+def test_live_wiring_single_send_on_provider_error(monkeypatch) -> None:
+    _live_mode_off(monkeypatch)
+    import httpx
+
+    from backend.ai.providers.openai import OpenAIProvider
+    from backend.ai.schemas.types import AIError, AIRequest, Message
+
+    posts = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        posts.append(request)
+        return httpx.Response(500, json={"error": "boom"})
+
+    transport = httpx.MockTransport(handler)
+    provider = OpenAIProvider()
+    provider.api_key = "test-key"
+    plan = harness.build_live_plan(provider="openai", model="m")
+    gw = harness.build_live_gateway(plan, provider)
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient",
+                        lambda *a, **k: real_client(*a, transport=transport, **k))
+    with pytest.raises(AIError):
+        import asyncio
+
+        asyncio.run(gw.generate(AIRequest(messages=[Message.user("hi")],
+                                          role="deep_analysis",
+                                          task="graphrag_synthesize")))
+    assert len(posts) == 1
+
+
+# نمونه‌های ۱۰/۳۰/۵۰ قابل ثبت‌اند؛ usage/finish ناموجود و schema درست گزارش می‌شود
+def test_live_evidence_fields() -> None:
+    from backend.ai.schemas.types import AIUsage
+
+    base = dict(run_id="r1", provider="openai", model="m", resolved_model="m2",
+                edges=10, context_chars=100, cap=2000, sends_observed=1)
+    full = harness.build_sample_evidence(
+        **base, finish_reason="stop", mode="llm", stop_reason=None,
+        usage=AIUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15))
+    assert full["usage_total"] == 15 and full["finish_reported"] is True
+    assert full["truncated_output"] is False and full["schema_ok"] is True
+
+    # usage=None هرگز صفر فرض نمی‌شود؛ finish ناموجود «گزارش‌نشده» است
+    empty = harness.build_sample_evidence(
+        **base, finish_reason=None, usage=None, mode="llm", stop_reason=None)
+    assert empty["usage_total"] is None and empty["finish_reported"] is False
+    assert empty["finish_reason"] is None
+
+    # برش سقف توکن، خروجی کامل محسوب نمی‌شود
+    cut = harness.build_sample_evidence(
+        **base, finish_reason="length", usage=None, mode="failed",
+        stop_reason="output_truncated")
+    assert cut["truncated_output"] is True and cut["schema_ok"] is False
+
+
+# بدون credential معتبر، پیش از ارسال متوقف می‌شود (بدون چاپ secret)
+def test_live_no_credential_stops_before_send(monkeypatch, capsys) -> None:
+    _forbid_real_provider(monkeypatch)
+    _live_mode_off(monkeypatch)
+    plan = harness.build_live_plan(provider="openai", model="m")
+    monkeypatch.setattr(
+        "backend.ai.providers.registry.build_provider_with_store",
+        lambda name: _KeylessProvider())
+    with pytest.raises(harness.LiveProbeRefused) as exc:
+        harness.check_live_provider(plan)
+    assert "credential" in str(exc.value)
+
+
+class _KeylessProvider:
+    name = "openai"
+    default_model = "m"
+
+    def configured(self) -> bool:
+        return False
 
 
 # 7) هیچ سقف عملیاتی جدیدی برای GraphRAG ثبت نمی‌شود
