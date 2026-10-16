@@ -47,10 +47,11 @@ class AnthropicProvider(HTTPProvider):
             payload["system"] = "\n".join(system_parts)
         return payload
 
-    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:
+    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str, str | None]:
         blocks = data.get("content", [])
         text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
         usage = data.get("usage", {}) or {}
+        stop = data.get("stop_reason")
         return (
             text,
             AIUsage(
@@ -60,4 +61,5 @@ class AnthropicProvider(HTTPProvider):
                 + (usage.get("output_tokens") or 0),
             ),
             data.get("model", self.default_model),
+            stop if isinstance(stop, str) else None,
         )

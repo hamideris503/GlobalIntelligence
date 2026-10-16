@@ -59,12 +59,16 @@ class GeminiProvider(HTTPProvider):
             payload["generationConfig"]["responseMimeType"] = "application/json"
         return payload
 
-    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:
+    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str, str | None]:
         candidates = data.get("candidates", [])
         text = ""
+        finish = None
         if candidates:
-            parts = candidates[0].get("content", {}).get("parts", [])
+            first = candidates[0]
+            parts = first.get("content", {}).get("parts", [])
             text = "".join(p.get("text", "") for p in parts)
+            raw = first.get("finishReason")
+            finish = raw if isinstance(raw, str) else None
         usage = data.get("usageMetadata", {}) or {}
         return (
             text,
@@ -74,4 +78,5 @@ class GeminiProvider(HTTPProvider):
                 total_tokens=usage.get("totalTokenCount"),
             ),
             self.default_model,
+            finish,
         )

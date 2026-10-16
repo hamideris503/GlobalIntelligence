@@ -90,6 +90,9 @@ class AIResponse:
     model_version: str | None = None
     prompt_version: str | None = None
     is_mock: bool = False
+    # علت پایان گزارش‌شده توسط provider (مقدار خام؛ None = گزارش نشده).
+    # هرگز جعل نمی‌شود: نبود مقدار یعنی «نامعلوم»، نه «پایان طبیعی».
+    finish_reason: str | None = None
 
 
 @dataclass

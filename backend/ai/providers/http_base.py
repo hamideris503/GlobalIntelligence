@@ -47,8 +47,8 @@ class HTTPProvider(BaseProvider):
     def _payload(self, request: AIRequest) -> dict[str, Any]:
         raise NotImplementedError
 
-    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:
-        """(text, usage, model) را برمی‌گرداند."""
+    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str, str | None]:
+        """(text, usage, model, finish_reason) را برمی‌گرداند."""
         raise NotImplementedError
 
     async def generate(self, request: AIRequest) -> AIResponse:
@@ -98,7 +98,7 @@ class HTTPProvider(BaseProvider):
 
         try:
             data = resp.json()
-            text, usage, model = self._parse(data)
+            text, usage, model, finish_reason = self._parse(data)
         except Exception as exc:  # noqa: BLE001
             raise AIError(f"invalid provider output: {exc}",
                           kind=AIErrorKind.invalid_output, provider=self.name,
@@ -112,6 +112,7 @@ class HTTPProvider(BaseProvider):
             model=resolved_model,
             usage=usage,
             latency_ms=latency,
+            finish_reason=finish_reason,
             raw=data,
             model_version=resolved_model,
             prompt_version=request.metadata.get("prompt_version", "v0"),

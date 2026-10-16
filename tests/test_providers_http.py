@@ -106,3 +106,114 @@ def test_openrouter_sets_json_object_for_schema() -> None:
         AIRequest(messages=[Message.user("hi")], json_schema={"type": "object"})
     )
     assert with_schema["response_format"] == {"type": "json_object"}
+
+
+# --- finish_reason extraction (Step 1D.25; offline fixtures, no network) ---
+def _openai_payload(finish="length", *, n_choices=1, usage=None):
+    choices = [
+        {"message": {"role": "assistant", "content": f"r{i}"},
+         "finish_reason": finish}
+        for i in range(n_choices)
+    ]
+    return {
+        "model": "gpt-test",
+        "choices": choices,
+        "usage": usage if usage is not None else {
+            "prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5},
+    }
+
+
+def test_openai_finish_reason_flows_to_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_openai_payload("length"))
+
+    with _TransportPatch(handler):
+        resp = asyncio.run(_provider().generate(AIRequest(messages=[Message.user("hi")])))
+    assert resp.finish_reason == "length"
+    assert resp.text == "r0"
+    assert resp.usage.total_tokens == 5
+    assert resp.model == "gpt-test"
+
+
+def test_openai_missing_finish_reason_is_none() -> None:
+    payload = _openai_payload()
+    del payload["choices"][0]["finish_reason"]
+    text, usage, model, finish = OpenAIProvider()._parse(payload)
+    assert finish is None
+    assert text == "r0" and usage.total_tokens == 5
+
+
+def test_openai_finish_from_selected_choice_only() -> None:
+    payload = _openai_payload("stop", n_choices=2)
+    payload["choices"][1]["finish_reason"] = "length"
+    _, _, _, finish = OpenAIProvider()._parse(payload)
+    assert finish == "stop"
+
+
+def test_openai_invalid_finish_reason_not_fabricated() -> None:
+    for bad in (123, ["length"], {"r": 1}):
+        payload = _openai_payload(bad)
+        text, _, _, finish = OpenAIProvider()._parse(payload)
+        assert finish is None
+        assert text == "r0"  # پاسخ معتبر خراب نمی‌شود
+
+
+def test_openai_family_extracts_finish_reason() -> None:
+    from backend.ai.providers.groq import GroqProvider
+    from backend.ai.providers.openai_compatible import OpenAICompatibleProvider
+    from backend.ai.providers.openrouter import OpenRouterProvider
+
+    for cls in (GroqProvider, OpenRouterProvider):
+        _, _, _, finish = cls()._parse(_openai_payload("stop"))
+        assert finish == "stop"
+    compat = OpenAICompatibleProvider(api_key="k",
+                                      base_url="https://api.example.com/v1")
+    _, _, _, finish = compat._parse(_openai_payload("stop"))
+    assert finish == "stop"
+
+
+def test_anthropic_stop_reason_extraction() -> None:
+    from backend.ai.providers.anthropic import AnthropicProvider
+
+    data = {"content": [{"type": "text", "text": "hi"}],
+            "usage": {"input_tokens": 4, "output_tokens": 2},
+            "model": "claude-x", "stop_reason": "max_tokens"}
+    text, usage, model, finish = AnthropicProvider()._parse(data)
+    assert (text, model, finish) == ("hi", "claude-x", "max_tokens")
+    assert usage.completion_tokens == 2
+
+    del data["stop_reason"]
+    assert AnthropicProvider()._parse(data)[3] is None
+    data["stop_reason"] = 7
+    assert AnthropicProvider()._parse(data)[3] is None
+
+
+def test_gemini_finish_reason_extraction() -> None:
+    from backend.ai.providers.gemini import GeminiProvider
+
+    def payload(reason="MAX_TOKENS"):
+        return {"candidates": [{"content": {"parts": [{"text": "hi"}]},
+                                "finishReason": reason}],
+                "usageMetadata": {"promptTokenCount": 4, "candidatesTokenCount": 2,
+                                  "totalTokenCount": 6}}
+
+    text, usage, _, finish = GeminiProvider()._parse(payload())
+    assert (text, finish) == ("hi", "MAX_TOKENS")
+    assert usage.total_tokens == 6
+
+    no_reason = payload()
+    del no_reason["candidates"][0]["finishReason"]
+    text, _, _, finish = GeminiProvider()._parse(no_reason)
+    assert (text, finish) == ("hi", None)
+
+    empty = GeminiProvider()._parse({"candidates": []})
+    assert empty[0] == "" and empty[3] is None
+
+
+def test_cloudflare_reports_no_finish_reason() -> None:
+    from backend.ai.providers.cloudflare import CloudflareProvider
+
+    text, usage, model, finish = CloudflareProvider()._parse(
+        {"success": True, "result": {"response": "hi"}})
+    assert (text, finish) == ("hi", None)
+    assert usage.total_tokens is None  # برآورد usage در generate() پر می‌شود

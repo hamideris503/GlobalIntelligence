@@ -156,15 +156,17 @@ VALID_TEXT = json.dumps(
 class _StubGateway:
     """Gateway stub آفلاین: پاسخ واقعی‌نما (text/structured) برمی‌گرداند."""
 
-    def __init__(self, *, text="", structured=None):
+    def __init__(self, *, text="", structured=None, finish=None):
         self.text = text
         self.structured = structured
+        self.finish = finish
         self.requests = []
 
     async def structured_generate(self, request, schema):
         self.requests.append(request)
         return AIResponse(text=self.text, provider="stub-live-like",
-                           model="stub-1", structured=self.structured)
+                           model="stub-1", structured=self.structured,
+                           finish_reason=self.finish)
 
 
 def _ctx(n=2) -> GraphContext:
@@ -175,10 +177,10 @@ def _ctx(n=2) -> GraphContext:
     return GraphContext(nodes=nodes, edges=edges)
 
 
-def _stub_service(*, text="", structured=None) -> GraphRAGService:
+def _stub_service(*, text="", structured=None, finish=None) -> GraphRAGService:
     service = GraphRAGService(None)
     service._settings = service._settings.model_copy(update={"mock_mode": False})
-    service.gateway = _StubGateway(text=text, structured=structured)
+    service.gateway = _StubGateway(text=text, structured=structured, finish=finish)
     return service
 
 
@@ -283,3 +285,40 @@ def test_synth_gateway_error_fails_without_leak(caplog) -> None:
     assert out["mode"] == "failed"
     assert out["reason"] == "gateway_error"
     assert "CANARY-9917" not in caplog.text
+
+
+# --- finish_reason handling (Step 1D.25; offline stubs, no network) ---
+def test_synth_natural_finish_keeps_llm() -> None:
+    out = asyncio.run(_stub_service(text=VALID_TEXT, finish="stop").synthesize(_ctx()))
+    assert out["mode"] == "llm"
+    assert out["summary"] == "s"
+
+
+def test_synth_truncated_finish_fails_despite_parseable_text() -> None:
+    for reason in ("length", "max_tokens", "MAX_TOKENS"):
+        out = asyncio.run(
+            _stub_service(text=VALID_TEXT, finish=reason).synthesize(_ctx()))
+        assert out["mode"] == "failed", reason
+        assert out["summary"] == "" and out["key_relations"] == []
+        assert out["reason"] == "output_truncated", reason
+
+
+def test_synth_truncated_structured_also_fails() -> None:
+    data = {"summary": "s", "key_relations": ["A rel B"]}
+    out = asyncio.run(
+        _stub_service(text="", structured=data, finish="length").synthesize(_ctx()))
+    assert out["mode"] == "failed"
+    assert out["reason"] == "output_truncated"
+
+
+def test_synth_unknown_finish_preserves_previous_behavior() -> None:
+    out = asyncio.run(
+        _stub_service(text=VALID_TEXT, finish="weird_future").synthesize(_ctx()))
+    assert out["mode"] == "llm"
+    assert out["summary"] == "s"
+
+
+def test_synth_none_finish_preserves_previous_behavior() -> None:
+    out = asyncio.run(
+        _stub_service(text=VALID_TEXT, finish=None).synthesize(_ctx()))
+    assert out["mode"] == "llm"

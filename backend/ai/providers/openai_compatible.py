@@ -51,10 +51,12 @@ class OpenAICompatibleProvider(HTTPProvider):
             payload["response_format"] = {"type": "json_object"}
         return payload
 
-    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:
-        choice = data["choices"][0]["message"]
+    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str, str | None]:
+        first = data["choices"][0]
+        choice = first["message"]
         text = choice.get("content") or ""
         usage = data.get("usage", {}) or {}
+        finish = first.get("finish_reason")
         return (
             text,
             AIUsage(
@@ -63,4 +65,5 @@ class OpenAICompatibleProvider(HTTPProvider):
                 total_tokens=usage.get("total_tokens"),
             ),
             data.get("model", self.default_model),
+            finish if isinstance(finish, str) else None,
         )

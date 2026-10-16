@@ -52,14 +52,15 @@ class CloudflareProvider(HTTPProvider):
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
         return {"messages": messages}
 
-    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str]:
+    def _parse(self, data: dict[str, Any]) -> tuple[str, AIUsage, str, str | None]:
         if not data.get("success", False):
             errors = data.get("errors") or []
             raise ValueError(f"cloudflare errors: {str(errors)[:200]}")
         result = data.get("result") or {}
         text = result.get("response") or ""
         # usage واقعی از API برنمی‌گردد؛ در generate() با برآورد پر می‌شود.
-        return text, AIUsage(), self.default_model
+        # finish reason هم گزارش نمی‌شود → None (جعل نمی‌شود).
+        return text, AIUsage(), self.default_model, None
 
     async def generate(self, request: AIRequest):  # type: ignore[override]
         from backend.ai.schemas.types import AIResponse

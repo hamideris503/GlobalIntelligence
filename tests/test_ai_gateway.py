@@ -149,3 +149,59 @@ def test_no_real_provider_fails_loudly(monkeypatch) -> None:
         assert "no real provider" in str(exc_info.value)
     finally:
         get_settings.cache_clear()
+
+
+# --- finish_reason propagation (Step 1D.25; offline stubs, no network) ---
+def test_response_without_finish_reason_defaults_to_none() -> None:
+    resp = AIResponse(text="t", provider="p", model="m")
+    assert resp.finish_reason is None
+
+
+def test_response_preserves_finish_reason() -> None:
+    resp = AIResponse(text="t", provider="p", model="m", finish_reason="length")
+    assert resp.finish_reason == "length"
+
+
+def test_structured_generate_keeps_finish_reason() -> None:
+    gateway = AIGateway()
+    gateway._settings.mock_mode = False
+    gateway._settings.ai_default_provider = "finstub"
+
+    class _FinStub(BaseProvider):
+        name = "finstub"
+
+        async def generate(self, request: AIRequest) -> AIResponse:
+            from backend.ai.schemas.types import AIUsage
+
+            return AIResponse(
+                text='{"summary": "s", "key_relations": ["A rel B"]}',
+                provider=self.name, model="m",
+                usage=AIUsage(prompt_tokens=10, completion_tokens=5,
+                              total_tokens=15),
+                structured={"summary": "s", "key_relations": ["A rel B"]},
+                finish_reason="stop")
+
+    gateway._providers["finstub"] = _FinStub()
+    resp = asyncio.run(gateway.structured_generate(
+        _req("hi", task="probe"), {"type": "object"}))
+    assert resp.finish_reason == "stop"
+    assert resp.text.startswith('{"summary"')
+    assert resp.usage.total_tokens == 15
+    assert resp.model == "m"
+    assert resp.structured == {"summary": "s", "key_relations": ["A rel B"]}
+
+
+def test_provider_without_finish_reason_reports_none() -> None:
+    gateway = AIGateway()
+    gateway._settings.mock_mode = False
+    gateway._settings.ai_default_provider = "nofin"
+
+    class _NoFin(BaseProvider):
+        name = "nofin"
+
+        async def generate(self, request: AIRequest) -> AIResponse:
+            return AIResponse(text="t", provider=self.name, model="m")
+
+    gateway._providers["nofin"] = _NoFin()
+    resp = asyncio.run(gateway.generate(_req("hi")))
+    assert resp.finish_reason is None

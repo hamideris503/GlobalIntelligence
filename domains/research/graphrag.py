@@ -101,6 +101,12 @@ def _synth_failure_reason(response) -> str:
     return "schema_mismatch"
 
 
+# finish reasonهای سقف توکن در adapterهای واقعی (مقادیر خام provider):
+# OpenAI-family → "length"، Anthropic → "max_tokens"، Gemini → "MAX_TOKENS".
+# مقدار نامعلوم/None هرگز به «پایان طبیعی» یا «برش» ترجمه نمی‌شود.
+TRUNCATION_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
+
+
 class GraphRAGService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -246,6 +252,11 @@ class GraphRAGService:
                 logger.warning("graphrag synthesize failed: %s", reason)
                 return {"summary": "", "key_relations": [], "mode": "failed",
                         "reason": reason}
+            # برش سقف توکن حتی با JSON قابل‌parse، پاسخ کامل نیست.
+            if response.finish_reason in TRUNCATION_FINISH_REASONS:
+                logger.warning("graphrag synthesize failed: %s", "output_truncated")
+                return {"summary": "", "key_relations": [], "mode": "failed",
+                        "reason": "output_truncated"}
             return {
                 "summary": data.get("summary", ""),
                 "key_relations": data.get("key_relations", [])[:10],
