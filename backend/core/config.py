@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # Provider credentials (همه Optional — بدون آن Provider غیرفعال می‌شود)
     gemini_api_key: str | None = None
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
 
     openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
@@ -88,8 +88,11 @@ class Settings(BaseSettings):
     # اجازه‌ی base_url خصوصی برای Provider سفارشی (پیش‌فرض بسته؛ ضد SSRF)
     allow_private_base_url: bool = False
 
+    # --- Dashboard login (Step 8; UX: نام کاربری/رمز به‌جای تایپ کلید) ---
+    # پیش‌فرض admin/admin برای لوکال؛ در production باید عوض شود (fail-fast).
     admin_username: str = "admin"
     admin_password: str = "admin"
+
     # --- Debate Engine (Step 3) ---
     debate_max_tokens_per_run: int = 60000
     debate_daily_budget_usd: float = 5.0

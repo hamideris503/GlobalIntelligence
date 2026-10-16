@@ -73,6 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.app_env,
         settings.mock_mode,
     )
+    # Step 8: Gateway اعتبارنامه‌ها را از DB می‌خواند (fallback به .env)
     try:
         from backend.ai import credentials_store as _store
         from backend.database.session import get_session_factory as _gsf
@@ -115,7 +116,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # /health بدون احراز هویت (برای probe)، بقیه محافظت‌شده
+    # /health بدون احراز هویت (برای probe)، لاگین هم عمومی است (خودش ورود است)
     app.include_router(health.router)
     app.include_router(auth_router.router)
     protected = [Depends(require_api_key)]
