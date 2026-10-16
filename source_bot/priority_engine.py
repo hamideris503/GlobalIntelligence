@@ -34,6 +34,15 @@ def normalize_fa(text: str) -> str:
     return t.strip().lower()
 
 
+def _any_kw(tokens: set[str], text: str, keywords: list[str]) -> bool:
+    """تک‌واژه فقط به‌عنوان واژه‌ی مستقل؛ چندواژه‌ای رفتار قبلی (زیررشته).
+
+    نرمال‌سازی فقط روی نسخه‌ی تطبیق است؛ متن خام دست نمی‌خورد.
+    """
+    return any((w in tokens) if " " not in w else (w in text)
+               for w in keywords)
+
+
 @dataclass
 class PriorityResult:
     level: str
@@ -68,6 +77,7 @@ def score_item(
     s = settings or BotSettings()
     text = f"{title or ''} {body or ''}"
     norm = normalize_fa(text)
+    words = set(re.findall(r"\w+", norm)) | set(re.findall(r"\w+", text.lower()))
     score = 20.0
     codes: list[str] = []
 
@@ -78,10 +88,10 @@ def score_item(
     if category in ("economy", "markets", "geopolitics", "alert"):
         score += 8.0
         codes.append("HIGH_CATEGORY")
-    if any(w in norm for w in URGENT_FA) or any(w in text.lower() for w in URGENT_EN):
+    if _any_kw(words, norm, URGENT_FA) or _any_kw(words, text.lower(), URGENT_EN):
         score += 45.0
         codes.append("URGENT_KEYWORD")
-    elif any(w in norm for w in HIGH_FA) or any(w in text.lower() for w in HIGH_EN):
+    elif _any_kw(words, norm, HIGH_FA) or _any_kw(words, text.lower(), HIGH_EN):
         score += 22.0
         codes.append("HIGH_IMPACT")
     if published_at is not None:
@@ -107,7 +117,7 @@ def score_item(
         codes.append("INCOMPLETE")
     if has_author:
         score += 2.0
-    if any(w in norm for w in _CONFLICT) or any(w in text.lower() for w in _CONFLICT):
+    if _any_kw(words, norm, _CONFLICT) or _any_kw(words, text.lower(), _CONFLICT):
         codes.append("CONFLICT_SIGNAL")
 
     score = max(0.0, min(100.0, score))

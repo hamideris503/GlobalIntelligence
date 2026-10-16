@@ -65,6 +65,35 @@ def test_fa_normalization():
     assert normalize_fa("كی ي") == normalize_fa("کی ی")
 
 
+def test_keyword_substring_is_not_a_hit():
+    """زیررشته به‌تنهایی امتیاز نمی‌دهد (reward/software/coupon/ارزش/ارزیابی/جنگل)."""
+    s = BotSettings()
+    filler = "plain filler text " * 10
+    for title in ("reward", "software", "coupon", "team award news",
+                  "ارزش سهام", "ارزیابی عملکرد", "جنگل شمال"):
+        r = score_item(title=title, body=filler, settings=s)
+        assert "URGENT_KEYWORD" not in r.reason_codes, title
+        assert "HIGH_IMPACT" not in r.reason_codes, title
+        assert r.score == 20.0, title
+
+
+def test_keyword_standalone_match_kept():
+    """واژه مستقل (با حروف مختلف و نشانه‌گذاری) همچنان تشخیص داده می‌شود."""
+    s = BotSettings()
+    filler = "plain filler text " * 10
+    for title, code in (("war", "URGENT_KEYWORD"), ("coup", "URGENT_KEYWORD"),
+                        ("WAR", "URGENT_KEYWORD"), ("War", "URGENT_KEYWORD"),
+                        ("(war)", "URGENT_KEYWORD"), ("war,", "URGENT_KEYWORD"),
+                        ("coup.", "URGENT_KEYWORD"), ("market war report", "URGENT_KEYWORD"),
+                        ("جنگ", "URGENT_KEYWORD"), ("ارز دلار", "HIGH_IMPACT"),
+                        ("نرخ ارز و طلا", "HIGH_IMPACT")):
+        r = score_item(title=title, body=filler, settings=s)
+        assert code in r.reason_codes, title
+    # چندواژه‌ای‌ها رفتار زیررشته‌ای قبلی را حفظ می‌کنند
+    r = score_item(title="central bank meeting", body=filler, settings=s)
+    assert "HIGH_IMPACT" in r.reason_codes
+
+
 def test_ai_schema_rejects_bad():
     assert validate_ai_priority({}) is None
     assert validate_ai_priority({"priority": "P9", "confidence": 0.9, "reason": "r", "reason_codes": []}) is None
