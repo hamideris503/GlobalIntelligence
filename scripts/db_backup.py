@@ -22,7 +22,16 @@ KEY_TABLES = [
     "sources", "documents", "articles", "events", "claims", "evidence",
     "entities", "entity_relationships", "macro_observations",
     "market_observations", "world_states", "forecasts", "forecast_outcomes",
+    "alert_rules", "alerts", "briefings", "job_runs", "audit_records",
+    "self_evaluations", "learning_insights",
 ]
+
+# نام مجاز دیتابیس هدف (جلوگیری از SQL injection از آرگومان CLI)
+def valid_target_db(name: str) -> bool:
+    """شناسه‌ی معتبر Postgres (حروف/عدد/آندرلاین، شروع با حرف/آندرلاین)."""
+    import re
+
+    return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name or "") is not None
 
 
 def backup_filename(prefix: str = "gi_backup", now: datetime | None = None) -> str:
@@ -76,6 +85,13 @@ def verify_manifest(backup_path: Path) -> bool:
     return sha256_file(backup_path) == manifest.get("sha256")
 
 
+def _container() -> str:
+    """نام کانتینر postgres (پیش‌فرض gi_postgres؛ staging: gi_staging_postgres)."""
+    import os
+
+    return os.environ.get("PG_CONTAINER", "gi_postgres")
+
+
 def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
@@ -101,17 +117,17 @@ def cmd_backup(backup_dir: Path, keep: int) -> int:
     dbname = env.get("POSTGRES_DB", "globalintelligence")
     print(f"backup -> {target}")
     proc = _run(
-        ["docker", "exec", "gi_postgres", "pg_dump", "-U", user, "-Fc", "-f",
+        ["docker", "exec", _container(), "pg_dump", "-U", user, "-Fc", "-f",
          f"/tmp/{filename}", dbname]
     )
     if proc.returncode != 0:
         print(f"pg_dump failed: {proc.stderr[-500:]}")
         return 1
-    proc = _run(["docker", "cp", f"gi_postgres:/tmp/{filename}", str(target)])
+    proc = _run(["docker", "cp", f"{_container()}:/tmp/{filename}", str(target)])
     if proc.returncode != 0:
         print(f"docker cp failed: {proc.stderr[-500:]}")
         return 1
-    _run(["docker", "exec", "gi_postgres", "rm", f"/tmp/{filename}"])
+    _run(["docker", "exec", _container(), "rm", f"/tmp/{filename}"])
     if target.stat().st_size == 0:
         print("backup file is empty")
         return 1
@@ -136,26 +152,30 @@ def cmd_restore(backup_file: Path, target_db: str, yes: bool = False) -> int:
     if not yes:
         print("refusing without --yes (destructive guard)")
         return 1
+    if not valid_target_db(target_db):
+        print(f"REFUSED: unsafe target_db name: {target_db!r}")
+        return 1
     env = _db_env()
     user = env.get("POSTGRES_USER", "gi_user")
     print(f"restore {backup_file.name} -> {target_db}")
+    container = _container()
     _run([
-        "docker", "exec", "gi_postgres", "psql", "-U", user, "-d", "postgres",
+        "docker", "exec", container, "psql", "-U", user, "-d", "postgres",
         "-c", f"DROP DATABASE IF EXISTS {target_db};",
     ])
     proc = _run([
-        "docker", "exec", "gi_postgres", "psql", "-U", user, "-d", "postgres",
+        "docker", "exec", container, "psql", "-U", user, "-d", "postgres",
         "-c", f"CREATE DATABASE {target_db};",
     ])
     if proc.returncode != 0:
         print(f"create failed: {proc.stderr[-300:]}")
         return 1
-    _run(["docker", "cp", str(backup_file), "gi_postgres:/tmp/restore.dump"])
+    _run(["docker", "cp", str(backup_file), f"{_container()}:/tmp/restore.dump"])
     proc = _run([
-        "docker", "exec", "gi_postgres", "pg_restore", "-U", user,
+        "docker", "exec", _container(), "pg_restore", "-U", user,
         "-d", target_db, "--no-owner", "/tmp/restore.dump",
     ])
-    _run(["docker", "exec", "gi_postgres", "rm", "/tmp/restore.dump"])
+    _run(["docker", "exec", _container(), "rm", "/tmp/restore.dump"])
     if proc.returncode != 0:
         print(f"pg_restore warnings/errors: {proc.stderr[-500:]}")
         return 1
@@ -164,12 +184,15 @@ def cmd_restore(backup_file: Path, target_db: str, yes: bool = False) -> int:
 
 
 def table_counts(target_db: str) -> dict[str, int]:
+    if not valid_target_db(target_db):
+        raise ValueError(f"unsafe target_db name: {target_db!r}")
     env = _db_env()
     user = env.get("POSTGRES_USER", "gi_user")
+    container = _container()
     out: dict[str, int] = {}
     for table in KEY_TABLES:
         proc = _run([
-            "docker", "exec", "gi_postgres", "psql", "-U", user, "-d", target_db,
+            "docker", "exec", container, "psql", "-U", user, "-d", target_db,
             "-t", "-A", "-c", f"SELECT count(*) FROM {table};",
         ])
         try:

@@ -13,6 +13,7 @@ import pytest
 from scripts.db_backup import (
     backup_filename,
     select_for_rotation,
+    valid_target_db,
     verify_manifest,
     write_manifest,
 )
@@ -46,3 +47,24 @@ def test_verify_missing_manifest(tmp_path: Path) -> None:
     target = tmp_path / "x.dump"
     target.write_bytes(b"data")
     assert verify_manifest(target) is False
+
+
+def test_valid_target_db() -> None:
+    """AUDIT-REPAIR: نام دیتابیس هدف باید شناسه‌ی امن باشد (anti-injection)."""
+    assert valid_target_db("gi_restore_test") is True
+    assert valid_target_db("x") is True
+    assert valid_target_db("a; DROP TABLE x;") is False
+    assert valid_target_db("") is False
+    assert valid_target_db("9abc") is False
+    assert valid_target_db("a-b") is False
+
+
+def test_container_override(monkeypatch) -> None:
+    """AUDIT-REPAIR: کانتینر postgres پارامتری است (staging سازگار)."""
+
+    from scripts import db_backup
+
+    monkeypatch.delenv("PG_CONTAINER", raising=False)
+    assert db_backup._container() == "gi_postgres"
+    monkeypatch.setenv("PG_CONTAINER", "gi_staging_postgres")
+    assert db_backup._container() == "gi_staging_postgres"
