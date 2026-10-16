@@ -139,3 +139,29 @@ def test_source_error_isolated_and_lock_free(client: TestClient, monkeypatch):
     assert "v-src5" in res.json()["sources_failed"]
     assert runner_module._acquire_lock() is True
     runner_module._release_lock()
+
+
+def test_keyless_item_never_stored_and_rerun_safe(client: TestClient, monkeypatch):
+    """آیتم بدون کلید (نه URL نه متن) هرگز ذخیره نمی‌شود؛ rerun تکراری نمی‌سازد."""
+    import source_bot.runner as runner_module
+    from backend.database.models.document import Document
+
+    _mk_source("v-keyless")
+
+    async def fake_fetch(plan, settings):
+        return ([RawItem(title=None, url=None, raw_text=None)], "", {})
+
+    monkeypatch.setattr(runner_module, "_fetch_plan", fake_fetch)
+    total_duplicates = 0
+    for _ in range(2):
+        res = client.post("/api/ingest/bot", json={"source_name": "v-keyless"})
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["stored"] == 0
+        total_duplicates += body["duplicates"]
+    assert total_duplicates == 2
+    db = TestingSession()
+    try:
+        assert db.query(Document).count() == 0
+    finally:
+        db.close()

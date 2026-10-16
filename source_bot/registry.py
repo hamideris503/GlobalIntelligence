@@ -1,6 +1,8 @@
 """Registry — خواندن منابع از جدول Source موجود؛ بدون جدول موازی."""
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -9,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from backend.database.models.source import Source
 
+_API_KEY_ENV_RE = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
+
 
 @dataclass
 class SourcePlan:
@@ -16,6 +20,8 @@ class SourcePlan:
     adapter: str  # rss | rest_json | csv | xml | html | market | macro | skip
     url: str | None
     reason: str = ""
+    api_key_env: str | None = None  # فقط نام متغیر محیطی؛ مقدار هرگز ذخیره نمی‌شود
+    crawl: bool = False  # html چندصفحه‌ای (opt-in صریح هر منبع)
 
 
 def _opt(source: Source, name: str) -> str | None:
@@ -27,19 +33,59 @@ def _opt(source: Source, name: str) -> str | None:
     return getattr(source, name, None)
 
 
+def _api_key_env(source: Source) -> str | None:
+    """نام متغیر محیطی کلید از endpoint_config همان منبع (JSON).
+
+    فقط نام خوانده می‌شود؛ مقدار secret فقط در runtime از environment.
+    قالب نامعتبر/غیرمنتظره نادیده گرفته می‌شود (رفتار بدون کلید).
+    """
+    try:
+        cfg = json.loads(_opt(source, "endpoint_config") or "")
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(cfg, dict):
+        return None
+    name = cfg.get("api_key_env")
+    if isinstance(name, str) and _API_KEY_ENV_RE.fullmatch(name.strip()):
+        return name.strip()
+    return None
+
+
+def _wants_crawl(source: Source) -> bool:
+    """crawl چندصفحه‌ای فقط با opt-in صریح همان منبع."""
+    try:
+        cfg = json.loads(_opt(source, "endpoint_config") or "")
+    except Exception:  # noqa: BLE001
+        return False
+    return isinstance(cfg, dict) and cfg.get("crawl") is True
+
+
+def _api_endpoint(source: Source) -> str:
+    """URL مستقیم api یا api_url داخل endpoint_config همان منبع."""
+    direct = _opt(source, "api_url") or ""
+    if direct.strip():
+        return direct.strip()
+    try:
+        cfg = json.loads(_opt(source, "endpoint_config") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+    url = cfg.get("api_url") if isinstance(cfg, dict) else None
+    return url.strip() if isinstance(url, str) and url.strip() else ""
+
+
 def pick_adapter(source: Source) -> SourcePlan:
     method = (source.collection_method or "").lower()
     stype = (source.type or "").lower()
     feed = source.feed_url or _opt(source, "rss_url")
-    api = _opt(source, "api_url") or (_opt(source, "endpoint_config") or "")
+    api = _api_endpoint(source)
     if method == "rss" or (feed and stype in ("rss", "", "other")):
         if not feed:
             return SourcePlan(source, "skip", None, "rss method but no feed url")
         return SourcePlan(source, "rss", feed, "rss feed")
     if method == "api" or api:
-        api_url = _opt(source, "api_url")
-        if api_url:
-            return SourcePlan(source, "rest_json", api_url, "api endpoint")
+        if api:
+            return SourcePlan(source, "rest_json", api, "api endpoint",
+                              api_key_env=_api_key_env(source))
         # BLS case: متد api ولی بدون api_url؛ feed ثبت‌شده → RSS.
         # مالکیت تخصصی محفوظ است: منابع macro/market بدون feed همچنان specialized.
         if feed:
@@ -59,7 +105,8 @@ def pick_adapter(source: Source) -> SourcePlan:
     if method == "scrape" or homepage:
         if not homepage:
             return SourcePlan(source, "skip", None, "scrape needs homepage_url before crawl")
-        return SourcePlan(source, "html", homepage, "scrape homepage")
+        return SourcePlan(source, "html", homepage, "scrape homepage",
+                           crawl=_wants_crawl(source))
     if feed:
         return SourcePlan(source, "rss", feed, "fallback rss")
     return SourcePlan(source, "skip", None, "no usable endpoint")

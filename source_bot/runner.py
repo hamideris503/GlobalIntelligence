@@ -37,14 +37,62 @@ class BotStop(Exception):
     pass
 
 
-def _acquire_lock() -> bool:
+def _lock_owner_pid() -> int | None:
     try:
-        fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.write(fd, str(os.getpid()).encode())
-        os.close(fd)
-        return True
-    except FileExistsError:
+        with open(LOCK_PATH, encoding="utf-8") as fh:
+            return int(fh.read().strip().split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _pid_alive(pid: int) -> bool | None:
+    """True: مالک زنده؛ False: قطعاً مرده؛ None: نامشخص (حذف نکن)."""
+    if pid <= 0:
         return False
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(0x1000, False, pid)
+            if handle:
+                kernel32.CloseHandle(handle)
+                return True
+            err = kernel32.GetLastError()
+            if err == 5:  # ERROR_ACCESS_DENIED: هست ولی دسترسی نداریم
+                return True
+            if err == 87:  # ERROR_INVALID_PARAMETER: چنین پردازشی نیست
+                return False
+            return None
+        except Exception:  # noqa: BLE001
+            return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except Exception:  # noqa: BLE001
+        return None
+    return True
+
+
+def _acquire_lock() -> bool:
+    for _ in range(2):
+        try:
+            fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            pid = _lock_owner_pid()
+            if pid is None or _pid_alive(pid) is not False:
+                return False  # مالک زنده یا نامشخص: هرگز تصاحب نکن
+            try:
+                os.remove(LOCK_PATH)  # فقط stale قطعی؛ بازنده‌ی مسابقه False می‌گیرد
+            except OSError:
+                return False
+    return False
 
 
 def _release_lock() -> None:
@@ -66,7 +114,8 @@ async def _fetch_plan(plan, settings) -> tuple[list[RawItem], str, dict]:
         items = await BotRSSAdapter(timeout=settings.timeout_seconds).fetch(url=url, limit=20)
         return items, url or "", {}
     if adapter == "rest_json":
-        res = await RestJsonAdapter(timeout=settings.timeout_seconds).fetch(url=url, limit=20)
+        res = await RestJsonAdapter(timeout=settings.timeout_seconds).fetch(
+            url=url, limit=20, api_key_env=plan.api_key_env)
         if res.status == "auth_required":
             return [], url or "", {"source_status": "AUTH_REQUIRED", "detail": res.detail}
         if res.status != "ok":
@@ -88,7 +137,21 @@ async def _fetch_plan(plan, settings) -> tuple[list[RawItem], str, dict]:
             raise RuntimeError(res.detail or res.status)
         return res.items, url or "", {}
     if adapter == "html":
-        res = await HtmlAdapter(timeout=settings.timeout_seconds).fetch_url(url or "")
+        from urllib.parse import urlparse as _up2
+
+        html_adapter = HtmlAdapter(timeout=settings.timeout_seconds)
+        if plan.crawl and url:
+            try:
+                host = (_up2(url).hostname or "").lower()
+                items = await asyncio.to_thread(
+                    html_adapter.crawl, start_urls=[url],
+                    allowed_domains=[host] if host else [],
+                    max_pages=settings.max_pages_per_source)
+                return items, url or "", {"crawled": len(items)}
+            except Exception as exc:  # noqa: BLE001 — fallback تک‌صفحه
+                logger.warning("bot crawl failed, single-page fallback | %s %s",
+                               plan.url, type(exc).__name__)
+        res = await html_adapter.fetch_url(url or "")
         if res.status == "auth_required":
             return [], url or "", {"source_status": "AUTH_REQUIRED", "detail": res.detail}
         if res.status not in ("ok", "empty"):
@@ -154,6 +217,10 @@ async def run_source(db: Session, source: Source, metrics: BotMetrics, settings=
         ch = _ch(item.title, item.raw_text)
         uh = _uh(item.url)
         key = exact_key(ext, canon, ch)
+        if key is None:
+            metrics.duplicates += 1
+            logger.info("keyless item skipped | source=%s", source.name)
+            continue
         # تکراری در همین batch (قابل ردیابی در لاگ)
         if key and key in seen_keys:
             metrics.duplicates += 1

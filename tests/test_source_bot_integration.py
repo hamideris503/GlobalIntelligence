@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from backend.database.base import Base
 from backend.database.models.document import Document
@@ -9,6 +10,7 @@ from backend.database.models.source import Source
 from domains.news.fetchers import RawItem
 from source_bot.output import deliver, merge_priority_metadata
 from source_bot.registry import pick_adapter
+from source_bot.runner import LOCK_PATH as _LOCK_PATH
 from source_bot.runner import _acquire_lock, _release_lock
 
 
@@ -105,6 +107,59 @@ def test_lock_prevents_concurrent_run():
     _release_lock()
     assert _acquire_lock() is True
     _release_lock()
+
+
+def _write_lock(content: str) -> None:
+    with open(_LOCK_PATH, "w", encoding="utf-8") as fh:
+        fh.write(content)
+
+
+def test_lock_live_owner_is_never_stolen():
+    try:
+        assert _acquire_lock() is True
+        assert _acquire_lock() is False
+        with open(_LOCK_PATH, encoding="utf-8") as fh:
+            assert fh.read().strip().split()[0] == str(os.getpid())
+    finally:
+        _release_lock()
+
+
+def test_lock_stale_dead_pid_is_reclaimed():
+    try:
+        _write_lock(str(2 ** 30))  # چنین PID‌ی قطعاً وجود ندارد
+        assert _acquire_lock() is True
+    finally:
+        _release_lock()
+
+
+def test_lock_garbage_content_is_never_stolen():
+
+    try:
+        _write_lock("not-a-pid")
+        assert _acquire_lock() is False
+        with open(_LOCK_PATH, encoding="utf-8") as fh:
+            assert fh.read() == "not-a-pid"
+    finally:
+        try:
+            os.remove(_LOCK_PATH)
+        except OSError:
+            pass
+
+
+def test_lock_concurrent_acquire_single_winner():
+    import threading
+
+    results = []
+    try:
+        threads = [threading.Thread(target=lambda: results.append(_acquire_lock()))
+                   for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert results.count(True) == 1
+    finally:
+        _release_lock()
 
 
 def test_ai_gateway_not_called_for_clear_rules():
