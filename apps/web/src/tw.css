@@ -1,0 +1,82 @@
+/* Tailwind utilities ONLY (no preflight) + shadcn token bridge.
+ * preflight عمداً وارد نشده تا استایل فعلی صفحات نشکند؛ utilities فقط
+ * جاهایی اثر می‌کند که کلاس استفاده شده باشد (کامپوننت‌های گفت‌وگو).
+ * چون utilities در layer است، استایل‌های بدون-layer ما در تعارض می‌برند. */
+@import "tailwindcss/utilities" layer(utilities);
+
+/* ثبت کلیدهای تم برای تولید یوتیلیتی‌ها (مقادیر از توکن‌های خودمان) */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--fg);
+  --color-card: var(--card);
+  --spacing: 0.25rem;
+  --container-sm: 24rem;
+  --container-3xl: 48rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+  --shadow-md: var(--shadow);
+  --leading-relaxed: 1.7;
+}
+
+/* shadcn tokens -> our design tokens (هر دو تم).
+ * توجه Tailwind v4: یوتیلیتی‌ها var(--color-*) را می‌خوانند. */
+:root,
+:root[data-theme="dark"] {
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--fg);
+  --color-card: var(--card);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--muted);
+  --border: var(--border);
+  --primary: var(--brand);
+  --primary-foreground: var(--on-brand);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--fg);
+  --card: var(--card);
+}
+:root[data-theme="light"] {
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--fg);
+  --color-card: var(--card);
+}
+
+/* keyframes لازم کامپوننت‌ها (بدون theme کامل) */
+@keyframes tw-spin { to { transform: rotate(360deg); } }
+@keyframes tw-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.animate-spin { animation: tw-spin 1s linear infinite; }
+.animate-pulse { animation: tw-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }

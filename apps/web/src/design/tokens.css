@@ -1,0 +1,68 @@
+/* ============================================================
+   GlobalIntelligence — Design Tokens (تنها محل تغییر ظاهر)
+   رنگ اصلی، فونت، فاصله، گوشه‌ها، سایه‌ها و ابعاد منو اینجا هستند.
+   ============================================================ */
+:root {
+  /* برند: فقط این سه مقدار را عوض کنید تا رنگ اصلی کل برنامه تغییر کند */
+  --brand-h: 188;           /* Hue */
+  --brand-s: 78%;           /* Saturation */
+  --brand: hsl(var(--brand-h) var(--brand-s) 52%);
+  --brand-strong: hsl(var(--brand-h) var(--brand-s) 42%);
+  --brand-soft: hsl(var(--brand-h) var(--brand-s) 52% / 0.14);
+  --on-brand: #04161a;
+
+  /* فونت */
+  --font-sans: "Vazirmatn", "IRANSansX", system-ui, "Segoe UI", Tahoma, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 0.75rem; --fs-sm: 0.84rem; --fs-md: 0.92rem; --fs-lg: 1.05rem;
+  --fs-xl: 1.35rem; --fs-2xl: 1.7rem;
+
+  /* فاصله و شکل */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+
+  /* ابعاد پوسته */
+  --sidebar-w: 284px; --sidebar-w-collapsed: 68px; --topbar-h: 60px; --content-max: 1280px;
+
+  /* وضعیت‌ها */
+  --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --info: #60a5fa; --demo: #c084fc;
+
+  --ease: cubic-bezier(.2, .7, .2, 1); --dur: 160ms;
+}
+
+/* تم تیره (پیش‌فرض) */
+:root, :root[data-theme="dark"] {
+  --bg: #0a0e14;
+  --bg-elev: #0f141c;
+  --surface: #131923;
+  --surface-2: #19212d;
+  --border: #232d3b;
+  --border-strong: #31404f;
+  --fg: #e8eef5;
+  --fg-2: #b6c2d1;
+  --muted: #7e8ca0;
+  --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .25);
+  --chart-grid: #1f2937;
+  color-scheme: dark;
+}
+
+/* تم روشن */
+:root[data-theme="light"] {
+  --bg: #f3f5f9;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f0f3f8;
+  --border: #dde4ee;
+  --border-strong: #c3cddb;
+  --fg: #121b28;
+  --fg-2: #3b4a5f;
+  --muted: #667690;
+  --brand: hsl(var(--brand-h) 85% 36%);
+  --brand-strong: hsl(var(--brand-h) 85% 28%);
+  --brand-soft: hsl(var(--brand-h) 85% 36% / 0.10);
+  --on-brand: #ffffff;
+  --ok: #059669; --warn: #b45309; --bad: #dc2626; --info: #2563eb; --demo: #7e22ce;
+  --shadow: 0 1px 2px rgb(16 24 40 / .06), 0 8px 24px rgb(16 24 40 / .06);
+  --chart-grid: #e5eaf2;
+  color-scheme: light;
+}
