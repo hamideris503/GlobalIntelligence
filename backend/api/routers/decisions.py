@@ -75,6 +75,24 @@ def run_decisions(
     return DecideOutcomeRead(**outcome.as_dict())
 
 
+class DebateProposalRead(BaseModel):
+    decision_id: str | None = None
+    decision: str
+    experimental: bool = False
+    errors: list[str] = []
+
+
+@router.post("/from-debate", response_model=DebateProposalRead)
+def proposal_from_debate(
+    run_id: uuid.UUID, db: Session = Depends(get_db)
+) -> DebateProposalRead:
+    """پیشنهاد تصمیم‌یار از یک debate run با گیت‌های سخت (Step 5)."""
+    from domains.decision.debate_bridge import build_proposal
+
+    outcome = build_proposal(db, run_id)
+    return DebateProposalRead(**outcome.as_dict())
+
+
 @router.get("", response_model=list[DecisionRead])
 def list_decisions(
     asset: str | None = None,

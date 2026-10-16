@@ -20,6 +20,7 @@ from backend.api.routers import (
     briefings,
     claims,
     classify,
+    debate,
     decisions,
     dedup,
     economic,
@@ -128,6 +129,7 @@ def create_app() -> FastAPI:
     app.include_router(ingestion.router, dependencies=protected)
     app.include_router(dedup.router, dependencies=protected)
     app.include_router(classify.router, dependencies=protected)
+    app.include_router(debate.router, dependencies=protected)
     app.include_router(events.router, dependencies=protected)
     app.include_router(claims.router, dependencies=protected)
     app.include_router(independence.router, dependencies=protected)

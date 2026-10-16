@@ -90,6 +90,18 @@ class Settings(BaseSettings):
 
     admin_username: str = "admin"
     admin_password: str = "admin"
+    # --- Debate Engine (Step 3) ---
+    debate_max_tokens_per_run: int = 60000
+    debate_daily_budget_usd: float = 5.0
+    debate_max_rounds: int = 2
+    debate_call_gap_seconds: float = 0.0
+    debate_model_bull: str | None = None
+    debate_model_bear: str | None = None
+    debate_model_macro: str | None = None
+    debate_model_geo: str | None = None
+    debate_model_critic: str | None = None
+    debate_model_report: str | None = None
+
     # --- Data collection ---
     source_min_interval_seconds: int = 60
     user_agent: str = "GlobalIntelligenceBot/0.1 (+https://example.local; contact@example.local)"

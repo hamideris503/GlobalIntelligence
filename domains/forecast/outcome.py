@@ -5,12 +5,15 @@
 - macro:{ind}:{cty}: اولین مشاهده با شروع دوره ≥ target_date.
   دوره‌ها: سال (2024)، فصل (2026-Q1)، ماه (2026-07)؛ غیرقابل‌پارس → skip.
 - market:{sym}: اولین مشاهده با observed_at ≥ target_date.
-- actual_bool در Phase 27 پر نمی‌شود (مخصوص پیش‌بینی‌های احتمالاتی، فاز بعد).
+- actual_bool: فقط برای پیش‌بینی‌های احتمالاتی بازار که reference_price در
+  evidence دارند (Step 3/debate): "true" اگر actual > reference وگرنه "false".
+  بدون reference → actual_bool تهی می‌ماند (Brier نمره نمی‌گیرد).
 - امتیازها (brier/log_loss/...) در Phase 28 محاسبه می‌شود، نه اینجا.
 - وضعیت پیش‌بینیِ حل‌شده → resolved. بدون AI.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -154,10 +157,20 @@ class OutcomeEngine:
                 if actual is None:
                     outcome.skipped += 1
                     continue
+                # Step 3: پرچم جهت برای پیش‌بینی‌های احتمالاتی بازار (قطعی).
+                actual_bool = None
+                if kind == "market" and fc.probability is not None:
+                    try:
+                        ref = (json.loads(fc.evidence or "{}") or {}).get("reference_price")
+                    except Exception:  # noqa: BLE001
+                        ref = None
+                    if isinstance(ref, (int, float)):
+                        actual_bool = "true" if float(actual) > float(ref) else "false"
                 self.db.add(
                     ForecastOutcome(
                         forecast_id=fc.id,
                         actual_value=actual,
+                        actual_bool=actual_bool,
                         resolved_at=datetime.now(UTC),
                         notes="outcome_v1: first observation at/after target_date",
                     )

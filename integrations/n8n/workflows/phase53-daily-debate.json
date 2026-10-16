@@ -1,0 +1,149 @@
+{
+  "name": "GI — Daily Debate",
+  "id": "gi-daily-debate",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-debate",
+      "name": "Schedule Trigger (24h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/debate/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"target\": \"market:WTI\",\n  \"horizon_days\": 30,\n  \"live\": true\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "step-debate-wti",
+      "name": "1. Debate WTI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/debate/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"target\": \"market:XAUUSD\",\n  \"horizon_days\": 30,\n  \"live\": true\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "step-debate-xau",
+      "name": "2. Debate XAUUSD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/debate/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"target\": \"market:SPX\",\n  \"horizon_days\": 30,\n  \"live\": true\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.BACKEND_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "step-debate-spx",
+      "name": "3. Debate SPX",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 30000
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (24h)": {
+      "main": [
+        [
+          {
+            "node": "1. Debate WTI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Debate WTI": {
+      "main": [
+        [
+          {
+            "node": "2. Debate XAUUSD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Debate XAUUSD": {
+      "main": [
+        [
+          {
+            "node": "3. Debate SPX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

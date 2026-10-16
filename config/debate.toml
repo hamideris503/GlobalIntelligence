@@ -1,0 +1,28 @@
+# Debate Engine config (Phase 53 / Step 3).
+# نام مدل‌ها فقط اینجا و .env هستند؛ هرگز در کد hardcode نمی‌شوند.
+# هزینه: مدل ارزان برای استخراج، مدل قوی فقط برای debate.
+
+[targets]
+# target -> horizon_days (سؤال استاندارد: آیا قیمت در target_date بالاتر از قیمت فعلی است؟)
+list = [
+  { target = "market:WTI", horizon_days = 30 },
+  { target = "market:XAUUSD", horizon_days = 30 },
+  { target = "market:SPX", horizon_days = 30 },
+]
+
+[rounds]
+max_rounds = 2  # دور ۱ مستقل موازی + دور ۲ نقد؛ سقف سخت
+
+[agents]
+# agent -> {provider, model_env} — نام مدل از متغیر محیطی خوانده می‌شود.
+bull         = { provider = "gemini", model_env = "DEBATE_MODEL_BULL" }
+bear         = { provider = "gemini", model_env = "DEBATE_MODEL_BEAR" }
+macro        = { provider = "gemini", model_env = "DEBATE_MODEL_MACRO" }
+geopolitical = { provider = "gemini", model_env = "DEBATE_MODEL_GEO" }
+risk_critic  = { provider = "gemini", model_env = "DEBATE_MODEL_CRITIC" }
+report       = { provider = "gemini", model_env = "DEBATE_MODEL_REPORT" }
+# quant_anchor بدون LLM است (baselineهای آماری) و اینجا مدلی ندارد.
+
+[context]
+max_events = 15
+price_lookback_days = 90
