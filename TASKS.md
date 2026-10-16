@@ -9,6 +9,23 @@
 ## TODO
 - [ ] BLOCKED — Phase 48 live: اجرای `--live` روی VPS (نیازمند host/user/key)
 - [ ] کاربر: بررسی/ابطال کلیدهای احتمالی واقعی داخل `.env` محلی (در RAR قدیمی بوده است)
+- [x] Step 0: Security Hygiene (gitignore/.env history/secret scan/check_env warnings/archive check)
+- [x] Step 1: Real AI on (check_ai + structured fallback + Phase 10 redo 30 real, report for review)
+- [x] Step 2: Real market+macro (fetch real + sanity + flag_mock_rows + staleness check)
+- [ ] User decision: delete 135 mock-classified articles? (flagged, NOT deleted)
+- [x] Step 3: Debate Engine (code+dry-run done; real debate AWAITS user approval)
+- [x] User approval: ONE real debate done (market:WTI, lite, transcript in reports/)
+- [x] Step 4: Scorecard + کارنامه + daily debate workflow (active:false)
+- [x] Step 5: Debate proposals (gates+experimental) + Debate page
+- [x] Step 6: CI real + evidence counter + N+1 report/fix + backup docs (no live deploy)
+- [x] Step 8-A: Settings backend (encryption, providers, gateway DB, prices, void)
+- [ ] Step 8-B: Settings UI (5 tabs) — needs user go-ahead
+- [ ] User: set APP_ENCRYPTION_KEY in .env (else key storage refuses)
+- [x] Step 9 (1-2 done; 3-4 waiting: user registers mappings+prices, then approves)
+- [x] Reliability: scheduled success proven (12:30) + mock override + pool
+- [x] Cleanup executed (249 rows, backup verified, audit logged)
+- [ ] Watch: hourly tick recovery (13:00)
+- [ ] User approval: delete 7 dup evidence rows (IDs listed, backup first)
 - [ ] Phase 10 (redo): اجرای واقعی با یک Provider واقعی + ۲۰ مقاله‌ی واقعی
 - [ ] بعد: تست‌ها روی PostgreSQL واقعی در CI + workflow CI (ruff/mypy/pytest/docker build)
 - [ ] بعد: انتقال endpointهای سنگین به workers/ پس‌زمینه

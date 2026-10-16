@@ -39,6 +39,10 @@ Status: Proposed | Approved | In-Use | Rejected
 | Alembic | MIT | Migrations | Proposed |
 | React | MIT | Frontend | Proposed |
 | Vite | MIT | Build tool | Proposed |
+| Tailwind CSS | MIT | Frontend utilities (chat components only, no preflight) | In-Use |
+| lucide-react | ISC | Icons (chat components) | In-Use |
+| clsx / tailwind-merge / class-variance-authority / @radix-ui/react-slot | MIT | shadcn glue (Button) | In-Use |
+| @localmode/ui conversation/response/loader (vendored copy) | MIT | Chat UI primitives (copy-owned, adapted imports + RTL) | In-Use |
 | PostgreSQL | PostgreSQL License | Database | Proposed |
 | n8n | Sustainable Use License (fair-code) | Orchestration | **Needs review** |
 

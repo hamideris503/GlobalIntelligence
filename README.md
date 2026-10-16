@@ -76,7 +76,7 @@ WORLD
 |---|---|---|
 | Frontend | React + Vite (RTL، Persian، Dark Mode) | پایه ساخته‌شده |
 | Backend | Python + FastAPI | پیاده‌سازی‌شده |
-| Orchestration | n8n (pinned 2.42.4) | پیاده‌سازی‌شده |
+| Orchestration | n8n (pinned 2.42.6) | پیاده‌سازی‌شده |
 | Database | PostgreSQL 16 (بعداً TimescaleDB در صورت نیاز) | پیاده‌سازی‌شده |
 | Cache/Queue | Redis (فقط در صورت نیاز واقعی) | به تعویق افتاده |
 | AI | AI Gateway چند-Provider (Mock-first، Provider-Agnostic) | پیاده‌سازی‌شده |

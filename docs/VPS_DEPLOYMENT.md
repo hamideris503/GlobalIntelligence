@@ -20,6 +20,7 @@
 mkdir -p /opt/globalintelligence && cd /opt/globalintelligence
 cp .env.example .env   # بعد از انتقال فایل‌ها (مرحله ۳)
 nano .env              # API_KEY, SECRET_KEY, POSTGRES_PASSWORD قوی + MOCK_MODE=false
+# متغیرهای DEBATE_* اختیاری‌اند (پیش‌فرض دارند)؛ GEMINI_API_KEY برای AI واقعی لازم است
 ```
 
 تولید مقدار قوی:
@@ -53,7 +54,7 @@ python -m scripts.smoke_check --base http://localhost:8000 --api-key <KEY>
 ## 5. کارهای مانده برای production واقعی
 
 - [ ] Reverse proxy (Caddy/Nginx) + TLS (Let's Encrypt) — Phase 50
-- [ ] زمان‌بندی بکاپ (`scripts/db_backup.py` در cron) — Phase 49/50
+- [ ] زمان‌بندی بکاپ: `docs/BACKUP.md` (cron + تست بازیابی ماهانه) — Step 6
 - [ ] Monitoring/alerting خارجی — Phase 50
 - [ ] استقرار زنده (BLOCKED: دسترسی به VPS لازم است)
 

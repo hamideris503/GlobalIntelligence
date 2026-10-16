@@ -64,3 +64,6 @@ docker/volumes/
 # --- Logs ---
 logs/
 *.log
+
+# --- Tool output (regenerable) ---
+graphify-out/

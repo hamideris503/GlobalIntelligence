@@ -744,3 +744,135 @@
 **Alternatives:** Apache-2.0، AGPL-3.0، Proprietary
 **Why selected:** سادگی، رایج‌بودن، سازگاری با کتابخانه‌های MIT/BSD/Apache، کمترین محدودیت برای استفاده.
 **Consequences:** فایل `LICENSE` مرجع است؛ `LICENSES.md` و README باید MIT را نشان دهند.
+
+---
+
+## ADR-STEP0 — هشدارهای check_env.py (غیرحیاتی، بدون تغییر کد خروجی)
+**Date:** 2026-10-11
+**Context:** گام ۰ پرامپت محصول: هشدار mock و placeholder در `scripts/check_env.py`.
+**Decision:** دو چک `required=False` اضافه شد (`AI Mode` و `Secrets`)؛ منطق `checks[-1]` داکر به ایندکس صریح
+تغییر کرد؛ مقادیر `.env` هرگز چاپ/لاگ نمی‌شوند (فقط نام متغیر در هشدار placeholder).
+**Alternatives:** خطای fatal برای mock (رد شد: حالت mock پیش‌فرض توسعه است)، چاپ مقدار برای دیباگ (رد شد: قانون Secret).
+**Why selected:** حداقل تغییر، stdlib-only، بدون اثر بر exit code و تست‌های موجود.
+**Consequences:** خروجی check_env دو سطر اطلاع‌رسانی اضافه دارد؛ رفتار CI/تست بدون تغییر.
+
+---
+
+## ADR-STEP1 — مدل Gemini و fallback ساختاریافته
+**Date:** 2026-10-11
+**Context:** گام ۱: مدل پیکربندی‌شده (1.5-flash) بازنشسته بود؛ responseMimeType به‌تنهایی JSON تضمین نکرد.
+**Decision:** پیش‌فرض به gemini-3.5-flash (موجود و فعال برای این کلید)؛ fallback مستند
+parse+validate+یک repair-retry در classifier با پرچم repair_retry در meta؛ استخراج انبوه با
+gemini-3.5-flash-lite (نقش fast_extraction = مدل سریع/ارزان طبق AI_MODELS.md).
+**Alternatives:** responseSchema کامل Gemini (بزرگ‌تر؛ بعداً اگر retry ناکافی بود)، تغییر .env کاربر بیش از
+یک خط مدل (نکردیم؛ MOCK_MODE و کلیدها دست نخوردند).
+**Why selected:** حداقل تغییر، اثبات زنده، بدون hardcode (نام مدل از .env/config).
+**Consequences:** سهمیه روزانه رایگان 3.5-flash زود تمام می‌شود؛ debate گام ۳ به مدل قوی جدا نیاز دارد.
+
+---
+
+## ADR-STEP2 — چک market_staleness و سیاست ردیف‌های mock
+**Date:** 2026-10-11
+**Context:** گام ۲: قدمت قیمت باید پایش شود؛ ردیف‌های mock قدیمی شمارش شدند.
+**Decision:** چک market_staleness (باند ۴۸/۱۲۰ ساعت، بدون ردیف → warn، خطای query → fail) در
+monitoring.py + service؛ اسکریپت flag_mock_rows.py فقط-خواندنی؛ حذف mockها منوط به تأیید کاربر.
+استخراج طلا با gold_api اول، yahoo fallback (مقایسه مقطعی diff زیر ۰.۵٪ ثبت شد).
+**Alternatives:** حذف خودکار mockها (رد شد: تصمیم کاربر طبق پرامپت)، باند سخت‌گیرانه‌تر (رد شد: داده روزانه/هفتگی است).
+**Why selected:** حداقل تغییر، بدون migration، آستانه‌های مستند v1.
+**Consequences:** وضعیت زنده monitoring = warn (قدمت ۵۵ ساعته)؛ near-dupهای XAUUSD بدهی P1 شد.
+
+---
+
+## ADR-STEP3 — طراحی Debate Engine
+**Date:** 2026-10-11
+**Context:** گام ۳ پرامپت: هسته‌ی گمشده (بحث چندمدله) با بودجه، Point-in-Time و Ledger افزودنی.
+**Decision:** ماژول domains/debate جدا؛ context pack با hash؛ ۵ agent LLM + لنگر کمی بدون LLM؛
+دور۱ موازی + دور۲ نقد (سقف سخت ۵)؛ override مدل از metadata (سازگار با عقب)؛ نگاشت agent→مدل در
+toml+.env؛ تجمیع قطعی log-odds با وزن Brier و shrinkage؛ actual_bool فقط با reference_price؛
+CLI/API با گیت --live؛ بودجه از SUM(cost_estimate) پیام‌های امروز (بدون قیمت hardcode).
+**Alternatives:** جدول جدا برای بودجه (رد شد: از داده‌ی موجود استفاده شد)، responseSchema کامل
+Gemini (رد شد: repair-retry کافی بود)، گره‌خوردن debate به Decision Engine در همین گام (رد شد: گام ۵).
+**Why selected:** حداقل تغییر، بدون migration مخرب، همه‌ی اعداد قطعی، LLM فقط متن.
+**Consequences:** سهمیه‌ی free-tier برای debate واقعی تنگ است (lite یا انتظار)؛ وزن‌ها تا n>=30
+نزدیک-مساوی‌اند (shrinkage) — صادقانه در scorecard گام ۴ لحاظ می‌شود.
+
+---
+
+## ADR-STEP5 — پل debate به تصمیم با گیت‌های سخت
+**Date:** 2026-10-11
+**Context:** گام ۵: پیشنهاد تصمیم‌یار از debate بدون معامله‌ی خودکار و بدون ادعای کاذب.
+**Decision:** ماژول debate_bridge جدا (بدون دست‌زدن به engine قانون‌مند)؛ گیت‌های
+insufficient_evidence/no_action/experimental؛ برچسب experimental در پسوند model
+(بدون migration)؛ جهت/امتیاز/اطمینان با فرمول v1 مستند؛ هشدار مالی در main_risks؛
+context pack در debate_runs برای لینک رویدادها (+confidence، migration افزایشی).
+**Alternatives:** ستون جدا برای برچسب (رد شد: پسوند model کافی و کوئری‌پذیر است)،
+نگاشت consensus به accumulate/reduce (رد شد: آن تصمیم‌ها مال engine سناریویی است).
+**Why selected:** حداقل تغییر، همه‌چیز قطعی و ردیابی‌پذیر، بدون AI.
+**Consequences:** پیشنهاد واقعی اول hold/experimental است (کارنامه ناکافی) — صادقانه.
+
+---
+
+## ADR-STEP6 — سقف retry شواهد و سیاست N+1
+**Date:** 2026-10-11
+**Context:** گام ۶: بدهی‌های PRODUCTION_READINESS (شمارنده‌ی Evidence، loadهای سنگین).
+**Decision:** ستون evidence_attempts با سقف ۵ (migration افزایشی)؛ کش per-symbol در
+scorecard؛ بقیه‌ی N+1ها فقط گزارش (ریسک رگرسیون بیشتر از فایده در این گام)؛ CI با
+job داکر؛ مستند بکاپ جدا.
+**Alternatives:** حذف خودکار ردیف‌های پرتلاش (رد شد: داده دور ریخته می‌شود؛ فقط نادیده
+گرفته می‌شوند و قابل بازیابی‌اند)، بازنویسی replay/graph (رد شد: خارج از scope گام).
+**Why selected:** حداقل تغییر، بدون رفتار مخرب، بدهی‌ها شفاف ثبت شدند.
+**Consequences:** CI واقعی شد؛ production همچنان BLOCKED (VPS + TLS + کلیدها).
+
+---
+
+## ADR-STEP8 — پنل تنظیمات: رمزنگاری، اولویت DB، قیمت‌گذاری
+**Date:** 2026-10-11
+**Context:** گام ۸: مدیریت کلید/مدل/agent از رابط بدون ویرایش .env و بدون ری‌استارت.
+**Decision:** Fernet با APP_ENCRYPTION_KEY (بوت‌استرپ در .env)؛ کلید write-only + hint؛
+اولویت DB > .env؛ reload با version-bump؛ قیمت‌ها دستی از صفحه‌ی مدل (نه hardcode)؛
+توکن Cloudflare تخمینی (chars/4، برچسب‌دار) چون API usage نمی‌دهد؛ SSRF: https-only +
+مسدودسازی خصوصی؛ حذف Provider در حال استفاده 409؛ void به‌جای DELETE؛ mock همیشه رایگان.
+**Alternatives:** کلید در config/فایل جدا (رد شد: DB + رمزنگاری یکپارچه‌تر است)، قیمت
+خودکار از API (رد شد: endpoint قیمت استاندارد نیست؛ کاربر وارد می‌کند).
+**Why selected:** حداقل تغییر، بدون secret در کد/لاگ/API،fallback سازگار با عقب.
+**Consequences:** تا APP_ENCRYPTION_KEY نباشد ذخیره‌ی کلید 422 می‌دهد (بامعنی)؛ debate
+بدون قیمت ثبت‌شده price_missing می‌شود (شامل اجراهای قدیمی بدون قیمت).
+
+---
+
+## ADR-STEP8B — لاگین admin و ادغام .env
+**Date:** 2026-10-11
+**Context:** درخواست صریح کاربر: ورود کاربری به‌جای کلید + استفاده از کلیدهای موجود .env.
+**Decision:** لاگین محدودشده برمی‌گرداند همان API_KEY به حافظه (نه بیشتر)؛ ردیف‌های
+env فقط‌خواندنی با key_source؛ مدل روی env ردیف پوسته می‌سازد؛ پیش‌فرض admin/admin
+فقط لوکال (production fail-fast + تست).
+**Why selected:** حداقل تغییر معماری (مکانیزم X-API-Key سر جایش)، UX درخواستی، امنیت
+مستند (سقف لاگین، بدون نشت، production سخت‌گیر).
+**Consequences:** هرکس admin/admin لوکال را بداند وارد می‌شود — روی سرور عمومی حتماً
+ADMIN_PASSWORD عوض شود (در docs هم هست).
+
+---
+
+## ADR-STEP10 — بازگشایی $env در n8n
+**Date:** 2026-10-12
+**Context:** همه‌ی اجراهای زمان‌بندی‌شده با access-denied خطا می‌خوردند.
+**Decision:** N8N_BLOCK_ENV_ACCESS_IN_NODE=false در compose (n8n تک‌منظوره،
+$env فقط کلید بک‌اند). جایگزین امن‌تر (Credentials) مهاجرت بزرگ است؛ ثبت شد.
+**Consequences:** workflowها می‌توانند env کانتینر را بخوانند — محدود به همین کانتینر.
+
+---
+
+## ADR-STEP11 — پارامتر mock صریح در ingest_all
+**Date:** 2026-10-12
+**Context:** زمان‌بند با MOCK_MODE=true سند نمونه زیر نام واقعی ذخیره کرد.
+**Decision:** `mock` صریح در ingest_all (None=پیش‌فرض env) + workflow زمان‌بند
+با mock=false. رفتار dev بدون تغییر.
+**Consequences:** تکرار آلودگی با mock ممکن نیست مگر عمدی (mock=true صریح).
+
+---
+
+## ADR-STEP12 — رفع override سرگردان و audit تنظیمات
+**Date:** 2026-10-12
+**Context:** app_settings.mock_mode=false سرگردان، classify زمان‌بند را می‌شکست.
+**Decision:** بازگردانی به true + ثبت audit برای PUT /app + تست رفتار نبود provider.
+**Consequences:** هر تغییر تنظیمات از این پس ردیابی می‌شود.

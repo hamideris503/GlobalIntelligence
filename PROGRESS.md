@@ -4,6 +4,26 @@
 
 ---
 
+## FULL AUDIT — ممیزی مستقل کل پروژه (بدون شروع فاز جدید)
+**تاریخ:** 2026-10-09
+**وضعیت:** DONE (تعمیرات امن اعمال؛ بدون commit طبق دستور)
+
+### Completed
+- ماتریس انطباق ۵۳ فاز + ۱۳ الزام فرافازی (`MASTER_PROMPT_COMPLIANCE.md`)
+- ۴ High + ۱۱ Medium + dead-codeها تعمیر شد با ۱۸ تست جدید (`REPAIR_REPORT.md`)
+- شواهد اجرا (`VERIFICATION_REPORT.md`) + حکم آمادگی (`PRODUCTION_READINESS.md`)
+- محدودیت‌ها: فایل MASTER PROMPT در repo نیست (مبنا: ARCHITECTURE/ROADMAP/بندها)؛ Provider واقعی و VPS همچنان BLOCKED
+
+### Tests
+- `python -m pytest tests -q` → **400 passed** (قبل: 384) ✅
+- `ruff check backend domains tests scripts` → All checks passed ✅
+- `npm run build` → موفق ✅
+
+### Next step
+- دریافت API key معتبر / دسترسی VPS برای رفع ۲ BLOCKED؛ سپس Phase 10 redo
+
+---
+
 ## Phase 52 — Advanced Research
 **تاریخ:** 2026-10-09
 **وضعیت:** DONE (آخرین فاز نقشه‌ی راه 🎉)
@@ -1676,3 +1696,319 @@
 
 ### Next step
 - Phase 1 — آماده‌سازی محیط و اسکلت اجرایی Repository (package files، Docker skeleton)
+
+## UI REDESIGN (2026-10-10, uncommitted)
+- Shell: RTL sidebar 18 sections + topbar + hash router + dark/light theme, responsive.
+- Pages: dashboard, news+detail, sources CRUD, ai+connection test, world, macro, geo, iran, markets, forecasts, scenarios+risk, decisions, portfolio, evaluation, history, ops, settings, help, search.
+- Backend added: GET /api/ai/status, GET /api/classify/articles/{id} (+tests).
+- Security: internal key memory-only; provider keys server .env only; no fake data; unimplemented labeled.
+- Verify: pytest 401 passed; tsc clean; vite build ok; live /api/ai/status + article detail ok; frontend :5173 200.
+
+## STEP 0 — Security Hygiene (2026-10-11, DONE)
+- .env in .gitignore + .dockerignore; `git log --all -- .env` empty (never committed).
+- Secret scan: no provider-key patterns in tracked files; no hardcoded secrets in code;
+  .env.example all placeholders (8 vars checked, names only).
+- check_env.py: new non-fatal warnings `AI Mode` (mock notice) + `Secrets` (placeholder names only).
+- build_clean_archive.ps1 verified: .env excluded, secret scan + post-zip .env check. No change needed.
+- Verify: check_env exit=0, ruff clean, pytest 401 passed.
+
+## STEP 1 — Real AI via Gemini (2026-10-11, DONE pending user quality approval)
+- check_ai.py: real connectivity proof (gemini-3.5-flash PASS, 33 tokens, 1.6s, is_mock=False).
+- Model fix: gemini-1.5-flash retired (404) -> gemini-3.5-flash (.env + config default + .env.example).
+  Note: 2.5-flash/2.5-flash-lite also retired for new keys; 3.5-flash-lite has own quota.
+- Structured output: responseMimeType alone NOT honored (returned 'Values') ->
+  documented fallback in classifier (parse+validate+1 repair retry, repair_retry in meta + schema field).
+- Phase 10 redo (real DB): ingest 31 new (5 RSS sources) -> dedup (166 docs, 109 clusters)
+  -> classify 30 real (9x 3.5-flash + 21x 3.5-flash-lite), 1 failed (provider_error, kept failed).
+- Quota: 3.5-flash free daily quota exhausted after 9 (429s); 9 attempts reset (disclosed, rate_limit victims).
+- Report: reports/phase10_real_check.md (30 rows table for manual review).
+- MOCK_MODE untouched (still true); redo used in-process overrides only. Docker backend untouched.
+- Verify: ruff clean, pytest 403 passed (2 new repair-retry tests).
+
+## STEP 2 — Real market+macro data (2026-10-11, DONE)
+- Markets real: run_fetch --all -> fetched=13 stored=13 failed=0 (yahoo/er-api/gold-api, no mock flag).
+- Macro real: run_fetch --all --limit 5 -> fetched=111 stored=103 dup=8 failed=0 (world_bank, 0 mock).
+- Sanity: XAUUSD gold_api vs yahoo diff 0.49%; XAGUSD 0.16%. IRN inflation 2025=42.17, USA 2024=2.95 (plausible).
+- flag_mock_rows.py (new, read-only): market 27/0 mock, macro 111/0 mock, articles 166 total / 135 mock-classified.
+  NOTHING deleted (needs user approval).
+- Monitoring: new market_staleness check (<=48h pass, <=120h warn) wired in service + live verified (warn 55.18h).
+  Note: XAUUSD has 2 near-dup rows (observed 30s apart, upsert key granularity) — P1 debt, not fixed.
+- No integrated source needs a key; FRED exists only as seed name (no fetcher). If wanted later: free FRED key.
+- Verify: ruff clean, pytest 404 passed. Backend image rebuilt; /api/ops/monitoring live = warn (staleness).
+
+## STEP 3 — Debate Engine (2026-10-11, DONE code; NO real debate yet — needs approval)
+- New: domains/debate/{context,agents,prompts,engine,aggregate,run_debate} + config/debate.toml
+  + models debate_runs/debate_messages + migration a1b2c3d4e5f6 (single head, live current=head)
+  + API POST/GET /api/debate (live: runs=[]) + CLI with --live gate + --dry-run.
+- Model override backward-compatible: metadata['model'] honored by gemini too (http_base + 4 providers).
+- Aggregation deterministic (log-odds, Brier weights + shrinkage n<30, disagreement penalty); report LLM text-only.
+- Minimal resolver change: actual_bool from reference_price in evidence (market prob forecasts only).
+- Budgets: DEBATE_MAX_TOKENS_PER_RUN/DAILY_BUDGET_USD/MAX_ROUNDS in Settings + .env.example (placeholders).
+- Dry-run real: market:WTI -> ~26580 tokens estimate, under 60k cap. NO real LLM calls made.
+- Verify: ruff clean, pytest 421 passed (17 new debate tests, all fake-provider).
+
+### STEP 3 addendum — first REAL debate (2026-10-11)
+- Attempt 1 (mock): CLI ran without MOCK_MODE=false -> all agents mock. DELETED
+  (1 run + 12 msgs + 7 forecasts, disclosed). Lesson: env overrides are mandatory.
+- Attempt 2 (flash): daily quota exhausted mid-run -> quant-only degenerate (0.55).
+  Guard added: no LLM agent ok -> status failed (not misleading done). Row DELETED.
+- Attempt 3 (flash-lite, gap 25s): DONE. run 48635825, consensus P(up)=0.4827,
+  disagreement=0.0544, confidence=0.505, 7 ledger rows, 55,703 tokens (dry estimate
+  ~26.5k was ~2x low — repair retries + round-2 context; budget planning note).
+- Transcript: reports/debate_first_run.md (all providers verified gemini in DB).
+- Honest weaknesses: R1 role inversion (bear argued UP p=0.54, bull DOWN p=0.42;
+  converged in R2, bear changed_mind=True); all evidence unlinked strings ->
+  quality 0.4-0.6 (penalized by design, not hidden); lite ignores responseMimeType
+  (normalize_output fallback used).
+- Fixes from live fire: func.current_date() budget query (PG Sainte), sequential
+  calls + DEBATE_CALL_GAP_SECONDS, schema-repair retry, normalize_output.
+- Tests now 424 passed (20 debate tests). ruff clean.
+
+## STEP 4 — Debate scorecard (2026-10-11, DONE)
+- domains/debate/scorecard.py (new): Brier/log-loss/calibration for prob models,
+  directional hit-rate for all (baselines via last price before valid_from);
+  n<30 -> insufficient_sample, no winner. + run_scorecard.py CLI.
+- API GET /api/debate/scorecard (live: insufficient_sample, 0 resolved — honest).
+- Frontend: 'کارنامه debate' section in EvaluationPage (verdict banner + table).
+- n8n: integrations/n8n/workflows/phase53-daily-debate.json (24h, 3 targets, active:false).
+- Fixes: cp1256 console crash in run_scorecard (utf-8 reconfigure); pre-existing
+  unused RouteName import in ui.tsx (tsc).
+- Verify: ruff clean, tsc clean, vite build ok, pytest 428 passed (4 new scorecard tests).
+
+## STEP 5 — Debate proposals + Debate page (2026-10-11, DONE)
+- domains/decision/debate_bridge.py (new): hard gates (failed run->insufficient_evidence;
+  disagreement>0.25->no_action; scorecard not won->experimental label via model suffix);
+  direction/score/confidence mapping v1 documented; evidence (agent+event links/unlinked),
+  invalidation, horizon, NOT_FINANCIAL_ADVICE in main_risks.
+- API POST /api/decisions/from-debate + CLI --from-debate. Live: real run ->
+  hold/experimental (scorecard insufficient — correct).
+- Migration b2c3d4e5f6a7 (debate_runs.confidence + context_pack, live applied).
+- Frontend pages/debate.tsx + route + menu icon (runs list, round transcripts, propose button).
+- Fixes from live fire: string-shaped evidence accepted as unlinked (was dropped);
+  uncertainty wired into main_drivers (was unused var).
+- Verify: ruff clean, tsc clean, vite build ok, pytest 433 passed (5 bridge tests).
+
+## STEP 6 — Production prep, no VPS (2026-10-11, DONE)
+- CI (.github/workflows/ci.yml): ruff now covers scripts/; new docker job builds
+  backend + frontend-prod images (both verified locally). YAML validated (3 jobs).
+- Evidence retry counter: claims.evidence_attempts + MAX 5 (migration phase55, live applied).
+- N+1: scorecard ref-price cached per symbol (fixed); graph-adjacency/replay-full/macro-full
+  reported as P1 debt in PRODUCTION_READINESS (not fixed — refactor risk).
+- Migration chain single-head c3d4e5f6a7b8; `alembic check`: no diff from my tables
+  (pre-existing index-name drift in 6 old tables reported, untouched).
+- Docs: docs/BACKUP.md (cron + monthly restore test + emergency); VPS_DEPLOYMENT updated
+  (DEBATE vars optional, backup doc linked). NO --live deploy executed.
+- Verify: ruff clean, pytest 434 passed (evidence attempts test).
+
+## STEP 8-A — Settings backend (2026-10-11, DONE; UI 8-B pending)
+- Tables (migration phase56, single head d4e5f6a7b8c9, live applied):
+  ai_providers (Fernet key + hint + extra JSON), ai_models (prices/MTok),
+  agent_assignments, app_settings (secret-like refused); void_reason on forecasts/debate_runs.
+- Crypto: backend/ai/credentials.py (Fernet via APP_ENCRYPTION_KEY; refuse without it;
+  mask ••••xxxx; SSRF validate_base_url: https-only, private blocked unless flag).
+- Providers: groq + cloudflare (Account ID separate, per official docs) + openai_compatible;
+  all ctors accept kwargs; registry DB-first with .env fallback; gateway force_provider
+  + version-based reload (no restart); lifespan wires session factory.
+- Debate engine: DB agent mapping priority; upfront price_missing gate; per-call cost
+  from registered prices (incl. repair retries); budget now enforced on real numbers.
+- API /api/settings (protected): providers CRUD/key-rotate/test(10-min IP limit,
+  simplified errors)/models-discover/models CRUD/assignments/diversity/app/import-from-env
+  /debate-run void/forecast void/spend-today.
+- Official docs read: Groq API ref (OpenAI-compatible, Bearer, /models) + Cloudflare
+  Workers AI REST (Account ID + token, /ai/run, no token usage -> chars/4 estimate).
+- Secret scan: zero provider-key patterns in tracked files; no-leak test (responses+logs).
+- NOTE: APP_ENCRYPTION_KEY still MISSING in .env -> key storage refuses until user sets it.
+  (Found: GROQ_API_KEY already set in .env — untouched, value never read.)
+- Verify: ruff clean, pytest 454 passed (20 settings tests), migration live=head.
+
+## STEP 8-B — Settings UI (2026-10-11, DONE)
+- apps/web/src/pages/settings.tsx (new, 5 tabs + internal): providers table
+  (key_set/key_hint, test, enable, delete-confirm), add form (kind-specific:
+  cloudflare Account ID, custom base_url; password write-only, cleared after save),
+  import-.env button, encryption-key guide; models tab (discover/manual + MTok prices);
+  agents tab (per-agent provider/model + diversity + red warning when 1);
+  budget tab (caps, spend today + remaining, MOCK banner); runs tab (target,
+  dry-run estimate, run with confirm, void with reason).
+- App routes settings -> SettingsPanel; old misc SettingsPage removed; api.put added.
+- Verify: tsc clean, vite build ok, pytest 454 passed, ruff clean.
+- Live: backend+frontend rebuilt; /api/settings/* live (providers [], spend 55703 tok).
+- Infra note: .env PyPI mirror (runflare) broke docker build (SSL); built with
+  official PyPI override. Mirror issue is environmental, reported.
+
+### STEP 8-B addendum — رفع سردرگمی کلید داخلی + مدل در فرم افزودن (2026-10-11)
+- مشکل کاربر: افزودن Provider با 401 ناموفق بود چون کلید API داخلی در تب دیگری
+  وارد نشده بود و پیام راهنمایی نمی‌کرد (باگ واقعی UX، نه رفتار بک‌اند).
+- رفع: بنر «اتصال لازم است» با دکمه‌ی رفتن به تب اتصال داخلی + toast راهنما هنگام 401.
+- مدل پیش‌فرض اختیاری به فرم افزودن اضافه شد (ProviderCreate.default_model ->
+  ردیف ai_models بدون قیمت؛ قیمت بعداً در تب مدل‌ها).
+- توضیح: کلید API داخلی = رمز بک‌اند (همان API_KEY در .env سرور) که مرورگر در
+  هدر X-API-Key می‌فرستد و فقط در حافظهٔ زبانه می‌ماند؛ بدون آن همه‌ی endpointهای
+  محافظت‌شده 401 می‌دهند.
+- Verify: tsc clean, vite build ok, pytest 455 passed, ruff clean, both live 200.
+
+### STEP 8-B addendum 2 — لاگین کاربری + ارائه‌دهندگان .env خودکار (2026-10-11)
+- درخواست کاربر: ورود با نام کاربری/رمز (پیش‌فرض admin/admin) به‌جای تایپ کلید.
+- پیاده‌سازی: POST /api/auth/login (بدون auth، سقف ۱۰/دقیقه)؛ پس از تأیید همان
+  API_KEY به حافظه‌ی مرورگر برمی‌گردد (معادل تایپ دستی). production با رمز پیش‌فرض
+  fail-fast می‌شود (تست شد).
+- ارائه‌دهندگان .env خودکار در فهرست (فقط‌خواندنی، key_source=env؛ ویرایش/حذف 422).
+  تست و discover روی آن‌ها کار می‌کند؛ ثبت مدل روی env ردیف پوسته می‌سازد.
+- زنده تأیید شد: login admin/admin موفق؛ فهرست شامل gemini/openrouter/groq از .env
+  (بدون ورود مجدد). Cloudflare چون Account ID ندارد نیامده (درست).
+- Verify: tsc clean, vite build ok, pytest 459 passed, ruff clean, both live 200.
+
+### Cloudflare rotation (2026-10-11)
+- Old Cloudflare_API_KEY/BASE_URL/MODEL lines removed from .env (unused in code).
+- CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID set from user (values never logged).
+- APP_ENCRYPTION_KEY generated locally (value never shown) — key storage now unblocked.
+- Live: provider listed (env), but Cloudflare API returns 401 Authentication error.
+  Credential plumbing verified; token/account rejected by Cloudflare side.
+
+### Cloudflare fixed (2026-10-11)
+- Correct Account ID set (old value was wrong); backend restarted.
+- Live check: provider=cloudflare, model=@cf/meta/llama-3.1-8b-instruct,
+  is_mock=False, text=OK. Token counts are chars/4 estimates (documented).
+
+### Chat feature (2026-10-11)
+- POST /api/ai/chat (protected): انتخاب صریح provider/model با اعتبارسنجی سرور
+  (DB فعال یا kind در .env؛ وگرنه 422)؛ سقف ۵۰ پیام و ۴۰۰۰ توکن؛ پرچم is_mock صادقانه.
+- صفحه‌ی «گفت‌وگو» (RTL): انتخاب ارائه‌دهنده (فقط کلیددارها) + مدل، حباب‌های
+  پیام، Enter برای ارسال، توکن/تأخیر هر پاسخ، پاک‌کردن گفت‌وگو (تاریخچه فقط حافظه).
+- آیکون chat + route + منو. تست‌ها: mock/اعتبارسنجی/provider ناشناس/env پذیرفته.
+- Verify: tsc clean, vite build ok, pytest 461 passed, ruff clean, both live 200.
+
+### Mock toggle from UI (2026-10-11)
+- سوییچ حالت آزمایشی/واقعی از تب «بودجه و سقف‌ها» (بدون ری‌استارت).
+- پیاده‌سازی: app_settings (mock_mode, ai_default_provider) + effective_* در store؛
+  gateway و /api/ai/status از مقادیر مؤثر استفاده می‌کنند. گاردهای پایپ‌لاین (.env)
+  عمداً دست نخوردند.
+- باگ واقعی گرفته شد: lifespan تابع factory را (نه sessionmaker را) پاس می‌داد و همه‌ی
+  خوانش‌های store در production می‌شکست (500) — رفع شد و زنده تأیید شد.
+- زنده: true -> false -> true بدون ری‌استارت. Verify: pytest 463, ruff/tsc clean.
+
+### Groq model fix + LocalMode chat components (2026-10-11/12)
+- مشکل Groq در گفت‌وگو: مدل پیش‌فرض (llama-3.3-70b-versatile) روی این کلید 404
+  می‌داد (Enterprise-only). لیست واقعی مدل‌های کلید گرفته شد؛ پیش‌فرض شد
+  openai/gpt-oss-20b در .env (کاربر)، config و .env.example. زنده تأیید شد.
+- کامپوننت‌های LocalMode (Conversation/Response/Loader، MIT) واقعاً vendor شد:
+  Tailwind v4 (فقط utilities، بدون preflight) + پل توکن‌ها + @theme inline +
+  Button سازگار + alias @. فقط صفحه‌ی گفت‌وگو از آن‌ها استفاده می‌کند؛ بقیه‌ی
+  صفحات دست‌نخورده. انحراف مستند از upstream: logical properties برای RTL.
+- ثبت در LICENSES.md. Verify: tsc clean, vite build ok, pytest 463, ruff clean.
+
+### n8n update 2.42.4 -> 2.42.6 (2026-10-12)
+- Latest stable checked via Hub API (2.43.3 exists but GitHub-flagged pre-release;
+  2.42.6 patch on same minor chosen for lowest risk). Pin updated in compose + README.
+- Pulled, recreated, healthz ok, :5678 200, workflow JSON tests 5 passed.
+  Workflows persist in n8n_data volume (untouched by image update).
+
+### Step 9 (partial: items 1-2 done, 3-4 waiting on user)
+1. Dry-run calibrated: raw x2.1 (measured 26580 -> 55703, n=1 provisional) +
+   per-section shares (R1 41.5 / R2 56.7 / report 1.8) + USD CEILING from
+   registered prices (max rate x share; labeled ceiling, not prediction).
+   Live dry-run now: raw 33048 -> ~69400 tokens + explicit no-price list.
+2. import-from-env now moves Cloudflare Account ID into extra_encrypted +
+   registers live-tested default model (no prices); test added.
+3. BLOCKED on user: DB has 0 providers / 0 models / 0 assignments; diversity 0.
+   After user registers mappings+prices (diversity>=3), show dry-run, wait approval.
+4. Real debate only after approval. Nothing deleted in this step.
+- Verify: pytest 465 passed, ruff clean.
+
+### Forecast active-section fix (2026-10-12)
+- باگ واقعی: صفحه‌ی پیش‌بینی‌ها ledger/active را بدون پارامتر اجباری as_of صدا
+  می‌زد و بخش «فعال» همیشه خطا می‌داد. اصلاح: ارسال as_of (URL-encoded) در فرانت.
+
+### Frontend image cache note (2026-10-12)
+- بیلد docker فرانت‌اند لایه‌ی COPY را CACHED زد با وجود تغییر سورس (context مشکوک
+  2.73kB)؛ ایمیج stale ماند. موقتاً فایل‌های جدید با docker cp به کانتینر زنده
+  منتقل و ری‌استارت شد (سرو ماژول as_of تأیید شد). بیلد تمیز بعدی با --no-cache.
+
+### Sources census final (2026-10-12)
+- Registered 217 (198 new + 19 existing); verified live in 4 polite batches.
+- Statuses: 137 VERIFIED, 68 NEEDS_REVIEW (bot-protection or unreachable),
+  12 PENDING (old rows without homepage). INVALID: 0.
+- RSS autodiscovery (link rel=alternate + check_rss): 13 valid stored.
+- API live: WB countries/sources + Comtrade portal/docs (200, real JSON).
+- New: phase57 migration, verifier module, seed+import CLI, recheck/export
+  endpoints, sources UI (status filter, recheck, CSV/JSON), 16 new tests.
+- Nothing deleted. Unverified never shown as active (all new rows active=False).
+
+### E2E sources test (2026-10-12, partial — scheduler watch pending)
+- Ingest real: Al Jazeera 10/10 stored; BBC 10 fetched/7 stored/3 dup; reruns 20/20 dup-blocked.
+- Storage: docs+articles linked, real titles/URLs/timestamps, last_success recorded.
+- FIND 1 (fixed+tested): evidence top-level array crashed collection (lite quirk).
+- FIND 2 (fixed+tested): _ingest_items called TWICE — every evidence duplicated.
+  Pre-fix rows in live DB remain doubled (reported, not deleted).
+- Chain verified on real BBC article (topics/entities/event/claims/evidence + source/time).
+- Scheduler: 6 workflows live-active incl. 30-min ingestion; 79 stale heartbeats
+  (Oct 8, unknown workflow); 35-min live watch running to observe a scheduled run.
+- Tests: 476 passed.
+
+### E2E final (2026-10-12): scheduler watch = 0 new docs in 35 min
+- last_success of RSS sources frozen at manual runs (Oct 10-11); no scheduled
+  ingestion observed. Workflows active:true in live n8n, but no execution proof.
+  NOT claimed as working. Possible causes: overnight host reboot, backend
+  downtime window, or trigger backlog. Needs a longer watch or n8n API key.
+- E2E suite for touched areas: 27 passed.
+
+### Reliability mission (2026-10-12, in progress)
+- Step 1: scheduler runs but ALL error with 'access to env vars denied' (n8n
+  blocks $env); fixed via N8N_BLOCK_ENV_ACCESS_IN_NODE=false + ADR-STEP10;
+  n8n restarted. Post-fix success ticks pending observation.
+- Step 2: silent skip fixed (CLI lists skipped with reason); RSSFetcher SSRF
+  guard + 5MB cap + 1 retry (tests green). Markets/macro use hardcoded catalogs,
+  never the Source registry (documented limitation).
+- Step 3: 7 dup evidence rows identified (all from double-ingest bug, same second);
+  reversible plan: backup first, delete 7 exact IDs after approval; idempotency
+  guard added+tested. 79 heartbeats: owner unknown (no workflow mentions
+  heartbeat) -> declared anonymous, NOT deleted.
+- Step 4 pending: full suite 479 passed, ruff clean; awaiting success ticks.
+
+### Reliability step 1b — pool exhaustion (2026-10-12)
+- After env fix, schedules fired but backend 500'd: QueuePool 5+10 exhausted by
+  hourly burst (ingest/classify/events/macro at :00). Fix: db_pool_size=10,
+  db_max_overflow=20 (settings + test). Backend rebuilt; RSS ingest post-fix OK.
+- Post-fix scheduled SUCCESS ticks still pending observation.
+
+### Reliability final (2026-10-12)
+- PROVEN: gi-scheduled-ingestion 12:30:18 success (5.5s, real fetch);
+  20 docs last-20min, 0 mockish, real AlJazeera URLs. phase4 ticks success.
+- FIXED: ingest_all mock override + workflow mock=false (test green).
+- FOUND: 12:00 scheduled run stored 12 MOCK docs (MOCK_MODE=true in env +
+  audit-repair bypass). Fix prevents recurrence; 120 example.local rows total
+  (12 new + ~108 historical seed) await user approval + backup before delete.
+- Hourly 12:00 error cause: backend down mid-rebuild (socket hang up). Next
+  hourly tick will confirm. Pool fix deployed (10+20).
+- Full suite 480-481 passed, ruff clean. No silent skips remain.
+
+### Stability mission final (2026-10-12)
+- Step 1: hourly 13:00... actually 12:00 run error cause = backend down mid-rebuild
+  (socket hang up) + embedded classify errors from stray mock_mode=false override.
+  Stray override restored to true; PUT /app now audit-logged.
+- Step 2 resolved: gateway no-provider error is CORRECT loud failure (tested);
+  provider matrix documented (env/docker/local differences found).
+- Step 3: backup + verified restore (counts match). 120 example.local docs:
+  by day listed with IDs; 120 articles; 3 mock-only events; 3 claims; 3 evidence.
+  NO deletion performed. Hourly workflow ingest also fixed to mock=false.
+- Step 4: 483 passed, ruff clean. n8n restarted with fixed workflows.
+
+### Pre-delete verification (2026-10-12, NO deletion performed)
+- Exact scope confirmed: 120 docs + 120 articles + 3 events + 3 claims + 3 evidence
+  = 249. Containment re-verified (0 real rows in scope; 0 inbound from
+  relationships/forecasts; audit preserved by design).
+- Related (NOT in scope): 63 memory rows + 1 mixed narrative (75 real + 3 mock).
+  Options: leave stale, or extend scope later. Narrative must NOT be deleted.
+- Backup gi_backup-20261012-124805 (318KB, sha manifest) restore-VERIFIED, but
+  predates later writes -> fresh backup required immediately before deletion.
+- scripts/preview_cleanup.py: dry-run green (guards + plan, zero writes).
+- FK map: articles->docs CASCADE, evidence->claims CASCADE, articles/claims->events
+  SET NULL; deletion order evidence->claims->articles->documents->events.
+
+### Cleanup executed (2026-10-12, approved)
+- Fresh backup gi_backup-20261012-133155 + restore-verified BEFORE delete.
+- Guards re-checked (249 exact, 0 real in scope) -> DELETED exactly 249
+  (evidence 3, claims 3, articles 120, documents 120, events 3), single transaction.
+- Post: example.local=0, orphans=0, real data intact (190 docs/articles, 167 events,
+  182 claims, 89 evidence); memory/narratives/heartbeats/audit untouched;
+  audit record #9 = test_rows_cleanup.
+- Tests 483 passed, ruff clean.
