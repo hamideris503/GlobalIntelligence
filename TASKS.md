@@ -122,6 +122,19 @@
 ## BLOCKED
 - (هیچ)
 
+## Stage 0 verified (2026-10-16, evidence in PROGRESS.md)
+- [x] Debate engine + bridge + scorecard (30 tests green)
+- [x] Settings tables + Auth endpoints
+- [x] Source census registry + models (phase57 applied)
+- [x] Phase58 index convergence (migration applied, alembic check green)
+- [x] Source Bot + 4 fixes: keyless skip, stale lock, crawl, api_key (73 tests green)
+- [x] Phase A unified mock-mode (36 tests green)
+- [x] Evidence repair + attempts cap + MIME + routing + prompts v3
+- [ ] Feed validation (`validate_feed` + `check=feed`): implemented + 11 tests green, UNCOMMITTED
+- [ ] 198 census sources activation (user decision)
+- [ ] Real API keys (FRED/AlphaVantage/ACLED absent)
+- [ ] VPS deploy (LAST stage, after local validation)
+
 ---
 
 ## Definition of Done (برای همه تسک‌ها)

@@ -2012,3 +2012,11 @@
   182 claims, 89 evidence); memory/narratives/heartbeats/audit untouched;
   audit record #9 = test_rows_cleanup.
 - Tests 483 passed, ruff clean.
+
+### Stage 0 baseline audit (2026-10-16, read-only verified)
+- HEAD 95f4632 on full linear history (fa453e3..9dfee42 all ancestors, verified via reflog + file-based reads; an earlier PowerShell-pipe artifact falsely suggested divergence — no reset occurred, nothing lost).
+- Worktree: 4 entries (feed-validation: sources.py/fetchers.py hunks + test_feed_validation.py + .dockerignore line).
+- Verified complete (code+tests green): debate engine+bridge+scorecard (30 tests), settings tables/Auth, census registry+models (migration phase57 applied), phase58 index convergence (migration applied, alembic check green), Source Bot + 4 fixes (73 bot tests), Phase A unified mock, evidence repair+cap, gateway Step-8, MIME, routing, prompts v3.
+- Full suite: 591 collected = 591 passed. Ruff (project scope): clean. Pre-existing I001 in 4 old migration files (out of project lint scope, untouched).
+- Live-verified: ECB + BBC feeds via check=feed (ECB/BBC VERIFIED); Fed feed 404 → NEEDS_REVIEW (correct handling).
+- Pending by decision: feed-validation commit, 198 census sources, API keys, VPS deploy (last).

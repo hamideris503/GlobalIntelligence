@@ -383,3 +383,8 @@
 
 ## در Phase 0 عمداً ساخته نمی‌شود
 Forecast Engine، Knowledge Graph، Trading، Complex AI agents، Microservices، VPS.
+
+---
+
+## Post-52 session scope (verified 2026-10-16, see PROGRESS.md Stage 0)
+Debate engine, settings/Auth, census, phase58 migration, Source Bot (+4 fixes), Phase A mock, evidence pipeline, gateway Step-8, MIME/routing/prompts, feed validation (uncommitted). VPS deploy stays LAST, only after local validation + user approval.
