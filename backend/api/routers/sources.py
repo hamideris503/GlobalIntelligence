@@ -137,8 +137,13 @@ def record_health(
 
 
 @router.post("/{source_id}/recheck", response_model=SourceRead)
-def recheck_source(source_id: uuid.UUID, db: Session = Depends(get_db)) -> SourceRead:
-    """بررسی مجدد زنده‌ی homepage منبع و به‌روزرسانی وضعیت (census)."""
+def recheck_source(source_id: uuid.UUID, check: str | None = Query(default=None),
+                   db: Session = Depends(get_db)) -> SourceRead:
+    """بررسی مجدد زنده‌ی homepage منبع و به‌روزرسانی وضعیت (census).
+
+    check=feed: به‌جای homepage، فید RSS همان منبع اعتبارسنجی می‌شود
+    (بدون ساخت Document/Article)؛ فقط برای منابع rss با feed_url.
+    """
     from datetime import UTC, datetime
 
     from domains.news.source_verify import fetch_url
@@ -146,6 +151,10 @@ def recheck_source(source_id: uuid.UUID, db: Session = Depends(get_db)) -> Sourc
     source = SourceRegistry(db).get(source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    if check is not None and check != "feed":
+        raise HTTPException(status_code=422, detail="unknown check type")
+    if check == "feed":
+        return _recheck_feed(db, source)
     if not source.homepage_url:
         raise HTTPException(status_code=422, detail="source has no homepage_url")
     res = fetch_url(source.homepage_url, timeout=25.0)
@@ -169,6 +178,45 @@ def recheck_source(source_id: uuid.UUID, db: Session = Depends(get_db)) -> Sourc
     log_action(db, action="source_recheck", actor="api", target_type="source",
                target_id=str(source_id),
                result={"validation_status": source.validation_status})
+    return _to_read(source)
+
+
+def _recheck_feed(db: Session, source: Source) -> SourceRead:
+    """اعتبارسنجی فید RSS بدون ingest: فقط وضعیت/زمان بررسی + audit log.
+
+    last_success (مربوط به دریافت/ذخیره‌سازی) دست نمی‌خورد؛ هیچ Document
+    یا Article ساخته نمی‌شود. فقط موفقیت کامل معیارها VERIFIED می‌دهد.
+    """
+    from datetime import UTC, datetime
+
+    from domains.news.fetchers import validate_feed
+
+    if (source.collection_method or "") != "rss" or not source.feed_url:
+        raise HTTPException(
+            status_code=422, detail="feed check requires an rss source with feed_url")
+    res = validate_feed(source.feed_url)
+    source.last_checked_at = datetime.now(UTC)
+    if res.ok:
+        source.validation_status = "VERIFIED"
+        source.last_error = None
+    else:
+        mapping = {"blocked": "NEEDS_REVIEW", "http_404": "NEEDS_REVIEW",
+                   "http_4xx": "NEEDS_REVIEW", "http_5xx": "TEMPORARILY_UNAVAILABLE",
+                   "timeout": "TEMPORARILY_UNAVAILABLE", "dns_or_connect": "NEEDS_REVIEW",
+                   "ssrf_blocked": "INVALID_URL", "invalid_url": "INVALID_URL",
+                   "too_big": "NEEDS_REVIEW", "not_feed": "NEEDS_REVIEW",
+                   "empty_feed": "NEEDS_REVIEW", "unreadable_items": "NEEDS_REVIEW",
+                   "fetch_failed": "NEEDS_REVIEW"}
+        source.validation_status = mapping.get(res.reason or "", "NEEDS_REVIEW")
+        source.last_error = f"{res.reason} @ {source.feed_url}"[:500]
+    db.commit()
+    db.refresh(source)
+    from domains.audit.service import log_action
+
+    log_action(db, action="source_recheck", actor="api", target_type="source",
+               target_id=str(source.id),
+               result={"check": "feed", "items": res.items,
+                       "validation_status": source.validation_status})
     return _to_read(source)
 
 

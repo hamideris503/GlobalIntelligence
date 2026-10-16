@@ -155,6 +155,44 @@ class RSSFetcher(BaseFetcher):
         return items
 
 
+@dataclass
+class FeedCheck:
+    ok: bool
+    items: int = 0
+    final_url: str | None = None
+    content_type: str | None = None
+    reason: str = ""  # ok | not_feed | empty_feed | unreadable_items | <fetch error_kind>
+
+
+def validate_feed(url: str | None, *, timeout: float = 20.0) -> FeedCheck:
+    """اعتبارسنجی فید RSS بدون ذخیره‌سازی (single GET، بدون retry اضافه).
+
+    از همان گارد SSRF/redirect/size مسیر fetch استفاده می‌کند؛ هیچ رکوردی
+    نمی‌سازد و هیچ تابع storage را صدا نمی‌زند. فید معتبر = دست‌کم یک آیتم
+    با title و link خوانا.
+    """
+    from domains.news.source_verify import fetch_url
+
+    res = fetch_url(url or "", timeout=timeout)
+    if not res.ok or not res.body:
+        return FeedCheck(False, 0, res.final_url, res.content_type,
+                         res.error_kind or "fetch_failed")
+    try:
+        items = RSSFetcher(timeout=timeout).parse(res.body, limit=50)
+    except Exception:  # noqa: BLE001
+        return FeedCheck(False, 0, res.final_url, res.content_type, "not_feed")
+    if not items:
+        head = res.body.lstrip()[:300].lower()
+        if head.startswith(b"<?xml") or b"<rss" in head or b"<feed" in head:
+            return FeedCheck(False, 0, res.final_url, res.content_type, "empty_feed")
+        return FeedCheck(False, 0, res.final_url, res.content_type, "not_feed")
+    good = sum(1 for it in items
+               if (it.title or "").strip() and (it.url or "").strip())
+    if not good:
+        return FeedCheck(False, 0, res.final_url, res.content_type, "unreadable_items")
+    return FeedCheck(True, good, res.final_url, res.content_type, "ok")
+
+
 class MockFetcher(BaseFetcher):
     """داده‌ی نمونه‌ی deterministic برای حالت آفلاین (بند 73)."""
 
