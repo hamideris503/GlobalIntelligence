@@ -40,6 +40,7 @@ class ArticleClassifiedRead(BaseModel):
     sentiment: float | None
     stance: str | None
     importance: int | None
+    decided_by: str | None = None
     confidence: float | None
 
 
@@ -81,6 +82,7 @@ def list_classified(
             sentiment=a.sentiment,
             stance=a.stance,
             importance=a.importance,
+            decided_by=a.decided_by,
             confidence=a.confidence,
         )
         for a in rows
@@ -107,6 +109,7 @@ def get_article(article_id: uuid.UUID, db: Session = Depends(get_db)) -> Article
         sentiment=article.sentiment,
         stance=article.stance,
         importance=article.importance,
+        decided_by=article.decided_by,
         confidence=article.confidence,
         summary=article.summary,
         language=article.language,

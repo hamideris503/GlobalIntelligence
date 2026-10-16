@@ -83,6 +83,49 @@ def compute_importance(inputs: ImportanceInputs) -> int:
     return int(max(1, min(10, importance)))
 
 
+# نگاشت مرکزی سطح اولویت بات (P0..P4) به باند Article.importance.
+# عدد کمتر = مهم‌تر؛ تنها نقطه‌ی تبدیل در کل پروژه (تبدیل پراکنده ممنوع).
+PRIORITY_BANDS: dict[str, tuple[int, int]] = {
+    "P0": (1, 2),
+    "P1": (3, 4),
+    "P2": (5, 6),
+    "P3": (7, 8),
+    "P4": (9, 10),
+}
+# منشأهای معتبر تصمیم؛ بقیه (از جمله ناشناخته) -> None، هرگز جعل نمی‌شود.
+DECIDED_SOURCES: dict[str, str] = {"rules": "rules", "ai": "ai"}
+
+
+def align_importance_to_level(level: str | None, analytic: int, *,
+                              priority_source: str | None = None,
+                              ) -> tuple[int, str | None]:
+    """هم‌راستاسازی قطعی مقدار تحلیلی با باند سطح اولویت.
+
+    - مقدار درون باند حفظ می‌شود و decided آن NULL می‌ماند (منشأ عدد،
+      فرمول تحلیلی است نه تصمیم جدید)؛ بیرون باند به نزدیک‌ترین لبه clamp
+      می‌شود و فقط در این صورت decided از منشأ priority ثبت می‌شود.
+    - سطح نامعتبر یا منشأ ناشناخته -> decided=None؛ هرگز جعل نمی‌شود.
+    - امتیاز خام و confidence لمس نمی‌شوند؛ اجرای مجدد idempotent است.
+    """
+    band = PRIORITY_BANDS.get(str(level or "").strip().upper())
+    if band is None:
+        return analytic, None
+    lo, hi = band
+    if lo <= analytic <= hi:
+        return analytic, None
+    decided = DECIDED_SOURCES.get(str(priority_source or "").strip().lower())
+    return (lo if analytic < lo else hi), decided
+
+
+def _doc_priority(article) -> tuple[str | None, str | None]:
+    """سطح و منشأ اولویت بات از Document همان مقاله (یا None برای قدیمی/API)."""
+    doc = getattr(article, "document", None)
+    if doc is None:
+        return None, None
+    return (getattr(doc, "ingestion_priority", None),
+            getattr(doc, "priority_source", None))
+
+
 @dataclass
 class ClassifyOutcome:
     classified: int = 0
@@ -260,7 +303,10 @@ class ArticleClassifier:
         article.country = result.country
         if result.summary:
             article.summary = result.summary[:2000]
-        article.importance = compute_importance(result.importance_inputs)
+        analytic = compute_importance(result.importance_inputs)
+        level, psrc = _doc_priority(article)
+        article.importance, article.decided_by = align_importance_to_level(
+            level, analytic, priority_source=psrc)
         article.confidence = result.confidence
 
         # متادیتای اجرا برای Reproducibility

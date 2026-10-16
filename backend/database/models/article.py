@@ -36,6 +36,7 @@ class Article(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     stance: Mapped[str | None] = mapped_column(String(64))
 
     importance: Mapped[int | None] = mapped_column(Integer)  # 1 (مهم) .. 10 (عادی)
+    decided_by: Mapped[str | None] = mapped_column(String(16))  # rules | ai | small_model | NULL=نامعلوم
     confidence: Mapped[float | None] = mapped_column(Float)
     uncertainty: Mapped[float | None] = mapped_column(Float)
 

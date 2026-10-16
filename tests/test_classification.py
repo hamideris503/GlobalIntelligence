@@ -241,3 +241,235 @@ def test_classify_uses_document_body_when_summary_missing() -> None:
         assert meta.get("prompt_version") == "v3"
     finally:
         session.close()
+def _apply_with_doc(analytic_json_dict, *, priority=None, priority_source=None):
+    """_apply واقعی روی مقاله+داکیومنت sqlite؛ برمی‌گرداند (article, session)."""
+    from domains.news.classifier_schema import ClassificationResult
+
+    session = TestingSession()
+    doc = Document(source_id=None, title="T", raw_text="Text " * 40)
+    if priority is not None:
+        doc.ingestion_priority = priority
+    if priority_source is not None:
+        doc.priority_source = priority_source
+    session.add(doc)
+    session.flush()
+    art = Article(document_id=doc.id, title="T")
+    session.add(art)
+    session.commit()
+    result = ClassificationResult.from_dict(analytic_json_dict)
+    ArticleClassifier(session)._apply(art, result)
+    session.commit()
+    return art, session
+
+
+def _high_inputs_dict():
+    return {
+        "topics": ["energy"], "country": "US",
+        "entities": [{"name": "OPEC", "type": "organization"}],
+        "sentiment": 0.2, "stance": "neutral", "summary": "Oil rose.",
+        "importance": {
+            "impact": 0.9, "scope": 0.9, "probability": 0.9, "novelty": 0.9,
+            "market_relevance": 0.9, "geopolitical_relevance": 0.9,
+            "economic_relevance": 0.9, "time_sensitivity": 0.9,
+            "strategic_relevance": 0.9, "historical_significance": 0.9,
+        },
+        "confidence": 0.8,
+    }
+
+
+def _mid_inputs_dict():
+    d = _high_inputs_dict()
+    d["importance"] = {k: 0.55 for k in d["importance"]}
+    return d
+
+
+def _low_inputs_dict():
+    d = _high_inputs_dict()
+    d["importance"] = {k: 0.1 for k in d["importance"]}
+    return d
+
+
+def test_level_bands_cover_all_five():
+    from domains.news.classifier import align_importance_to_level
+
+    for level, (lo, hi) in (("P0", (1, 2)), ("P1", (3, 4)), ("P2", (5, 6)),
+                            ("P3", (7, 8)), ("P4", (9, 10))):
+        for analytic in (1, 5, 10):
+            v, _ = align_importance_to_level(level, analytic, priority_source="rules")
+            assert lo <= v <= hi, (level, analytic)
+
+
+def test_band_boundaries_and_invalid():
+    from domains.news.classifier import align_importance_to_level
+
+    assert align_importance_to_level("P0", 1) == (1, None)
+    assert align_importance_to_level("P0", 10) == (2, None)
+    assert align_importance_to_level("P4", 1) == (9, None)
+    assert align_importance_to_level("PX", 5) == (5, None)
+    assert align_importance_to_level("", 5) == (5, None)
+    assert align_importance_to_level("p2", 5) == (5, None)
+    assert align_importance_to_level(None, 7) == (7, None)
+
+
+def test_lower_number_sorts_first_in_queries():
+    from sqlalchemy import select
+
+    from domains.news.classifier import align_importance_to_level
+
+    session = TestingSession()
+    try:
+        for level in ("P4", "P0"):
+            doc = Document(source_id=None, title=level)
+            session.add(doc)
+            session.flush()
+            v, _ = align_importance_to_level(level, 5, priority_source="rules")
+            session.add(Article(document_id=doc.id, title=level, importance=v))
+        session.commit()
+        rows = session.execute(
+            select(Article).order_by(Article.importance.asc())).scalars().all()
+        assert [r.title for r in rows] == ["P0", "P4"]
+    finally:
+        session.close()
+
+
+def test_rules_decided_by_through_apply():
+    art, session = _apply_with_doc(
+        _high_inputs_dict(), priority="P1", priority_source="rules")
+    try:
+        assert art.importance in (3, 4)
+        assert art.decided_by == "rules"
+    finally:
+        session.close()
+
+
+def test_ai_decided_by_through_apply():
+    art, session = _apply_with_doc(
+        _high_inputs_dict(), priority="P2", priority_source="ai")
+    try:
+        assert art.importance in (5, 6)
+        assert art.decided_by == "ai"
+    finally:
+        session.close()
+
+
+def test_unknown_provenance_stays_null():
+    art, session = _apply_with_doc(_high_inputs_dict())
+    try:
+        assert art.decided_by is None
+        assert art.importance is not None and 1 <= art.importance <= 10
+    finally:
+        session.close()
+
+
+def test_keep_in_band_records_null_not_rules():
+    art, session = _apply_with_doc(
+        _mid_inputs_dict(), priority="P2", priority_source="rules")
+    try:
+        assert art.importance == 5
+        assert art.decided_by is None
+    finally:
+        session.close()
+
+
+def test_clamp_to_p0_records_rules():
+    art, session = _apply_with_doc(
+        _low_inputs_dict(), priority="P0", priority_source="rules")
+    try:
+        assert art.importance == 2
+        assert art.decided_by == "rules"
+    finally:
+        session.close()
+
+
+def test_clamp_to_p4_records_ai():
+    art, session = _apply_with_doc(
+        _high_inputs_dict(), priority="P4", priority_source="ai")
+    try:
+        assert art.importance == 9
+        assert art.decided_by == "ai"
+    finally:
+        session.close()
+
+
+def test_keep_in_band_with_ai_records_null():
+    art, session = _apply_with_doc(
+        _mid_inputs_dict(), priority="P2", priority_source="ai")
+    try:
+        assert art.importance == 5
+        assert art.decided_by is None
+    finally:
+        session.close()
+
+
+def test_clamp_unknown_source_corrects_without_provenance():
+    art, session = _apply_with_doc(
+        _low_inputs_dict(), priority="P0")
+    try:
+        assert art.importance == 2
+        assert art.decided_by is None
+    finally:
+        session.close()
+
+
+def test_reapply_is_idempotent():
+    import json as _json
+
+    from domains.news.classifier import ArticleClassifier
+    from domains.news.classifier_schema import ClassificationResult
+
+    art, session = _apply_with_doc(
+        _low_inputs_dict(), priority="P0", priority_source="rules")
+    try:
+        first = (art.importance, art.decided_by, art.confidence)
+        meta_before = art.classification_meta
+        result = ClassificationResult.from_dict(_low_inputs_dict())
+        ArticleClassifier(session)._apply(art, result)
+        session.commit()
+        assert (art.importance, art.decided_by, art.confidence) == first
+        assert _json.loads(art.classification_meta or "{}").get(
+            "importance_inputs") == _json.loads(meta_before or "{}").get(
+            "importance_inputs")
+    finally:
+        session.close()
+
+
+def test_apply_preserves_doc_priority_and_raw():
+    from backend.database.models.document import Document
+
+    art, session = _apply_with_doc(
+        _mid_inputs_dict(), priority="P3", priority_source="rules")
+    try:
+        doc = session.get(Document, art.document_id)
+        assert (doc.ingestion_priority, doc.priority_source) == ("P3", "rules")
+        assert art.importance == 7
+        assert art.decided_by == "rules"
+        assert art.confidence == 0.8
+        assert art.title == "T"
+    finally:
+        session.close()
+
+
+def test_raw_and_confidence_untouched_by_align():
+    from domains.news.classifier import align_importance_to_level, compute_importance
+    from domains.news.classifier_schema import ImportanceInputs
+
+    assert compute_importance(ImportanceInputs(impact=0.5)) == compute_importance(
+        ImportanceInputs(impact=0.5))
+    v, d = align_importance_to_level("P3", 4, priority_source="rules")
+    assert (v, d) == (7, "rules")
+
+
+def test_decided_by_migration_chain():
+    import importlib.util
+    from pathlib import Path
+
+    mig = (Path(__file__).resolve().parent.parent / "db" / "migrations"
+           / "versions" / "b67a512b5ad2_article_decided_by.py")
+    assert mig.is_file()
+    spec = importlib.util.spec_from_file_location("mig_decided", str(mig))
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.revision == "b67a512b5ad2"
+    assert mod.down_revision == "f594a47ca800"
+    assert callable(mod.upgrade) and callable(mod.downgrade)
