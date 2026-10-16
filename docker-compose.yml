@@ -68,13 +68,19 @@ services:
       - gi_net
 
   n8n:
-    image: n8nio/n8n:2.42.4
+    image: n8nio/n8n:2.42.6
     container_name: gi_n8n
     restart: unless-stopped
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
       # کلید بک‌اند برای HTTP nodeها (مقدار از .env؛ در repo فقط ارجاع است)
       BACKEND_API_KEY: ${API_KEY:-}
+      # E2E FIND: همه‌ی اجراهای زمان‌بندی‌شده با "access to env vars denied" خطا
+      # می‌خوردند چون workflowها کلید را از $env می‌خوانند و n8n جدید به‌صورت
+      # پیش‌فرض آن را می‌بندد. این n8n تک‌منظوره و self-hosted است و $env فقط
+      # همان کلید بک‌اند را دارد (ADR-STEP10). جایگزین امن‌تر (Credentials)
+      # مهاجرت بزرگ‌تری است و به بعد موکول شد.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http

@@ -11,6 +11,11 @@ WORKDIR /app
 ARG NPM_REGISTRY=https://registry.npmjs.org
 RUN npm config set registry "${NPM_REGISTRY}"
 
+# AUDIT-REPAIR: آدرس بک‌اند در زمان build تزریق می‌شود (قبلاً پیش‌فرض
+# localhost در ایمیج production قفل می‌شد و با env زمان اجرا درست نمی‌شد)
+ARG VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci
 

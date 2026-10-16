@@ -36,7 +36,7 @@ jobs:
           pip install -r backend/requirements.txt
           pip install -r backend/requirements-dev.txt
       - name: Lint (ruff)
-        run: ruff check backend domains tests
+        run: ruff check backend domains tests scripts
       - name: Run migrations (up/down)
         run: |
           alembic upgrade head
@@ -44,6 +44,15 @@ jobs:
           alembic upgrade head
       - name: Tests
         run: pytest tests -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -f docker/backend.Dockerfile -t gi-backend:ci .
+      - name: Build frontend prod image
+        run: docker build -f docker/frontend.prod.Dockerfile -t gi-frontend:ci .
 
   frontend:
     runs-on: ubuntu-latest
