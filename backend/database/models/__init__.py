@@ -8,6 +8,7 @@ from backend.database.models.ai_settings import (
     AIProviderRow,
     AppSetting,
 )
+from backend.database.models.ai_token_ledger import AITokenLedger
 from backend.database.models.alert import Alert, AlertRule
 from backend.database.models.article import Article
 from backend.database.models.audit_record import AuditRecord
@@ -44,6 +45,7 @@ __all__ = [
     "AgentAssignment",
     "AIModelRow",
     "AIProviderRow",
+    "AITokenLedger",
     "Alert",
     "AlertRule",
     "AppSetting",

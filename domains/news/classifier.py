@@ -14,16 +14,17 @@ import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from backend.ai.gateway import get_gateway
 from backend.ai.prompts.classification import CLASSIFY_ARTICLE
-from backend.ai.schemas.types import AIRequest, Message
+from backend.ai.schemas.types import AIError, AIErrorKind, AIRequest, Message
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.article import Article
+from backend.database.models.document import Document
 from domains.news.classifier_schema import (
     ALLOWED_ENTITY_TYPES,
     ALLOWED_TOPICS,
@@ -35,6 +36,66 @@ from domains.news.classifier_schema import (
 logger = get_logger(__name__)
 
 MAX_ATTEMPTS = 3
+
+# رتبه‌ی قطعی سطح برای ORDER BY صف (نامشخص/نامعتبر آخر، ولی حذف نمی‌شود)
+PRIORITY_RANK: dict[str, int] = {"P0": 0, "P1": 1, "P2": 2, "P3": 3, "P4": 4}
+UNKNOWN_RANK = len(PRIORITY_RANK)
+
+# سطوحی که غربال اولیه را بدون AI می‌گذرانند (فقط سطح قطعی از فیلد معتبر)
+LOW_PRIORITY_SKIP = ("P3", "P4")
+
+
+def _pending_stmt(limit: int):
+    """صف طبقه‌بندی: P0..P4، سپس نامشخص؛ در هر سطح retrieved تازه‌تر اول."""
+    rank = case(
+        *[(func.upper(Document.ingestion_priority) == lvl, i)
+          for lvl, i in PRIORITY_RANK.items()],
+        else_=UNKNOWN_RANK,
+    )
+    return (
+        select(Article)
+        .outerjoin(Document, Article.document_id == Document.id)
+        .where(
+            Article.classification_status == "pending",
+            Article.classification_attempts < MAX_ATTEMPTS,
+        )
+        .order_by(rank, Article.retrieved_at.desc().nullslast(), Article.id)
+        .limit(limit)
+    )
+
+
+def low_priority_level(article) -> str | None:
+    """سطح قطعی P3/P4 از فیلد معتبر داکیومنت؛ نامشخص/نامعتبر -> None.
+
+    مقدار گمشده هرگز کم‌اهمیت فرض نمی‌شود (گیت فقط روی P3/P4 صریح).
+    """
+    level, _ = _doc_priority(article)
+    norm = str(level or "").strip().upper()
+    return norm if norm in LOW_PRIORITY_SKIP else None
+
+
+def apply_low_priority_skip(article, level: str) -> None:
+    """تکمیل قطعی بدون AI برای P3/P4: لبه‌ی کم‌خطر باند، بدون ادعای AI.
+
+    attempts مصرف نمی‌شود، شکست ثبت نمی‌شود، وضعیت done می‌شود تا چرخه
+    تکراری رخ ندهد. منشأ از همان نگاشت decided (rules/ai) وگرنه None.
+    """
+    _, psrc = _doc_priority(article)
+    decided = DECIDED_SOURCES.get(str(psrc or "").strip().lower())
+    article.topics = "[]"
+    article.entities = "[]"
+    article.sentiment = None
+    article.importance = PRIORITY_BANDS[level][0]
+    article.decided_by = decided
+    article.confidence = None
+    article.classification_status = "done"
+    article.classification_error = None
+    article.classification_meta = json.dumps({
+        "skipped_ai": "low_priority_gate",
+        "level": level,
+        "decided_by": decided,
+        "classified_at": datetime.now(UTC).isoformat(),
+    }, ensure_ascii=False)
 
 
 def compute_novelty(db: Session, article: Article) -> float:
@@ -235,16 +296,7 @@ class ArticleClassifier:
 
     async def classify_pending(self, *, limit: int = 20) -> ClassifyOutcome:
         """مقالات pending با تلاش کمتر از حد مجاز را پردازش می‌کند."""
-        stmt = (
-            select(Article)
-            .where(
-                Article.classification_status == "pending",
-                Article.classification_attempts < MAX_ATTEMPTS,
-            )
-            .order_by(Article.retrieved_at.desc().nullslast())
-            .limit(limit)
-        )
-        articles = list(self.db.execute(stmt).scalars().all())
+        articles = list(self.db.execute(_pending_stmt(limit)).scalars().all())
         outcome = ClassifyOutcome()
         # Historical mock rows must not enter new classification in production.
         # Dev/test (mock_mode) keeps existing behavior: everything is processed.
@@ -259,10 +311,32 @@ class ArticleClassifier:
             if article.document_id in mock_ids:
                 outcome.skipped += 1
                 continue
-            article.classification_attempts = (article.classification_attempts or 0) + 1
+            skipped_level = low_priority_level(article)
+            if skipped_level is not None:
+                apply_low_priority_skip(article, skipped_level)
+                outcome.skipped += 1
+                logger.info("classify skipped low priority | article=%s level=%s",
+                            article.id, skipped_level)
+                self.db.commit()
+                continue
             try:
                 result = await self.classify_article(article)
-
+            except AIError as exc:
+                if exc.kind == AIErrorKind.budget:
+                    # اتمام بودجه: نه شکست، نه مصرف attempts؛ pending می‌ماند.
+                    logger.warning("classify budget exceeded, kept pending | article=%s",
+                                   article.id)
+                    outcome.skipped += 1
+                    continue
+                self._record_failure(article, outcome, exc)
+                self.db.commit()
+                continue
+            except Exception as exc:  # noqa: BLE001
+                self._record_failure(article, outcome, exc)
+                self.db.commit()
+                continue
+            article.classification_attempts = (article.classification_attempts or 0) + 1
+            try:
                 # در production، نتیجه‌ی mock ذخیره نمی‌شود (P0-1)
                 if result.is_mock and not effective_mock_mode():
                     raise ValueError("mock result rejected in production mode")
@@ -272,13 +346,7 @@ class ArticleClassifier:
                 article.classification_error = None
                 outcome.classified += 1
             except Exception as exc:  # noqa: BLE001
-                article.classification_error = f"{type(exc).__name__}: {exc}"[:2000]
-                article.classification_status = (
-                    "failed" if article.classification_attempts >= MAX_ATTEMPTS else "pending"
-                )
-                outcome.failed += 1
-                outcome.errors.append(f"article={article.id}: {exc}")
-                logger.warning("classify failed | article=%s err=%s", article.id, exc)
+                self._record_failure(article, outcome, exc)
             self.db.commit()
 
         logger.info(
@@ -286,6 +354,18 @@ class ArticleClassifier:
             outcome.classified, outcome.failed, outcome.skipped,
         )
         return outcome
+
+    def _record_failure(self, article: Article, outcome: ClassifyOutcome,
+                          exc: Exception) -> None:
+        """ثبت یکسان شکست (attempts، وضعیت، خطا) برای همه‌ی مسیرهای خطا."""
+        article.classification_attempts = (article.classification_attempts or 0) + 1
+        article.classification_error = f"{type(exc).__name__}: {exc}"[:2000]
+        article.classification_status = (
+            "failed" if article.classification_attempts >= MAX_ATTEMPTS else "pending"
+        )
+        outcome.failed += 1
+        outcome.errors.append(f"article={article.id}: {exc}")
+        logger.warning("classify failed | article=%s err=%s", article.id, exc)
 
     def _apply(self, article: Article, result: ClassificationResult) -> None:
         # novelty و historical significance از سیستم

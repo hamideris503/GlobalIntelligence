@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     ai_request_timeout_seconds: int = 60
     ai_max_retries: int = 2
     ai_enable_cost_tracking: bool = True
+    # سقف روزانه‌ی توکن (None = غیرفعال، رفتار قبلی). فقط با تنظیم صریح
+    # محیط فعال می‌شود؛ هیچ عدد پیش‌فرضی حدس زده نشده است.
+    ai_daily_token_budget: int | None = None
+    # سقف خروجی per-task برای رزرو بودجه (نام task -> max_tokens)؛ خالی
+    # یعنی بدون سقف task. از JSON محیط خوانده می‌شود.
+    ai_task_max_tokens: dict[str, int] = {}
 
     # Provider credentials (همه Optional — بدون آن Provider غیرفعال می‌شود)
     gemini_api_key: str | None = None

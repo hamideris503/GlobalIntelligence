@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -241,6 +242,8 @@ def test_classify_uses_document_body_when_summary_missing() -> None:
         assert meta.get("prompt_version") == "v3"
     finally:
         session.close()
+
+
 def _apply_with_doc(analytic_json_dict, *, priority=None, priority_source=None):
     """_apply واقعی روی مقاله+داکیومنت sqlite؛ برمی‌گرداند (article, session)."""
     from domains.news.classifier_schema import ClassificationResult
@@ -357,6 +360,215 @@ def test_unknown_provenance_stays_null():
     try:
         assert art.decided_by is None
         assert art.importance is not None and 1 <= art.importance <= 10
+    finally:
+        session.close()
+
+
+def _seed_queue_article(session, *, title, priority=None, hours_ago=0):
+    from datetime import timedelta
+
+    from backend.database.models.document import Document
+
+    now = datetime.now(UTC)
+    doc = Document(source_id=None, title=title, raw_text="Body text " * 40,
+                   retrieved_at=now - timedelta(hours=hours_ago))
+    if priority is not None:
+        doc.ingestion_priority = priority
+        doc.priority_source = "rules"
+    session.add(doc)
+    session.flush()
+    art = Article(document_id=doc.id, title=title, retrieved_at=doc.retrieved_at)
+    session.add(art)
+    session.commit()
+    return art
+
+
+def test_queue_orders_p0_before_p2_before_unknown(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        _seed_queue_article(session, title="new-unknown", hours_ago=0)
+        _seed_queue_article(session, title="mid-p2", priority="P2", hours_ago=5)
+        _seed_queue_article(session, title="old-p0", priority="P0", hours_ago=50)
+        clf = ArticleClassifier(session)
+        calls = []
+        real = clf.classify_article
+
+        async def spy(article):
+            calls.append(article.title)
+            return await real(article)
+
+        monkeypatch.setattr(clf, "classify_article", spy)
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert outcome.classified == 3
+        assert calls == ["old-p0", "mid-p2", "new-unknown"]
+    finally:
+        session.close()
+
+
+def test_queue_unknown_not_dropped_and_limit_kept(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        for i in range(3):
+            _seed_queue_article(session, title=f"u-{i}", hours_ago=i)
+        clf = ArticleClassifier(session)
+        outcome = asyncio.run(clf.classify_pending(limit=2))
+        assert outcome.classified == 2
+        assert session.query(Article).filter(
+            Article.classification_status == "pending").count() == 1
+    finally:
+        session.close()
+
+
+def test_queue_retrieved_desc_within_level(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        _seed_queue_article(session, title="older-p1", priority="P1", hours_ago=9)
+        _seed_queue_article(session, title="newer-p1", priority="P1", hours_ago=1)
+        clf = ArticleClassifier(session)
+        calls = []
+        real = clf.classify_article
+
+        async def spy(article):
+            calls.append(article.title)
+            return await real(article)
+
+        monkeypatch.setattr(clf, "classify_article", spy)
+        asyncio.run(clf.classify_pending(limit=10))
+        assert calls == ["newer-p1", "older-p1"]
+    finally:
+        session.close()
+
+
+def test_queue_tiebreak_stable(monkeypatch):
+    from domains.news.classifier import ArticleClassifier, _pending_stmt
+
+    session = TestingSession()
+    try:
+        _seed_queue_article(session, title="t-a", priority="P2", hours_ago=0)
+        _seed_queue_article(session, title="t-b", priority="P2", hours_ago=0)
+        first = [a.title for a in session.execute(_pending_stmt(10)).scalars().all()]
+        second = [a.title for a in session.execute(_pending_stmt(10)).scalars().all()]
+        assert sorted(first) == ["t-a", "t-b"] and first == second
+        clf = ArticleClassifier(session)
+        assert asyncio.run(clf.classify_pending(limit=10)).classified == 2
+    finally:
+        session.close()
+
+
+def test_gate_skips_p3_without_ai(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        art = _seed_queue_article(session, title="low-p3", priority="P3", hours_ago=1)
+        clf = ArticleClassifier(session)
+
+        async def boom(article):
+            raise AssertionError("provider must not be called for P3")
+
+        monkeypatch.setattr(clf, "classify_article", boom)
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert outcome.classified == 0 and outcome.failed == 0
+        assert outcome.skipped == 1
+        session.refresh(art)
+        assert art.classification_status == "done"
+        assert art.classification_attempts == 0
+        assert art.importance == 7 and art.decided_by == "rules"
+        assert art.topics == "[]"
+        assert art.confidence is None
+    finally:
+        session.close()
+
+
+def test_gate_skips_p4_without_ai(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        art = _seed_queue_article(session, title="low-p4", priority="P4", hours_ago=1)
+        clf = ArticleClassifier(session)
+
+        async def boom(article):
+            raise AssertionError("provider must not be called for P4")
+
+        monkeypatch.setattr(clf, "classify_article", boom)
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert outcome.skipped == 1
+        session.refresh(art)
+        assert art.importance == 9 and art.classification_status == "done"
+    finally:
+        session.close()
+
+
+def test_gate_unknown_level_goes_to_ai(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        _seed_queue_article(session, title="mystery", hours_ago=1)
+        clf = ArticleClassifier(session)
+        calls = []
+        real = clf.classify_article
+
+        async def spy(article):
+            calls.append(article.title)
+            return await real(article)
+
+        monkeypatch.setattr(clf, "classify_article", spy)
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert calls == ["mystery"] and outcome.classified == 1
+    finally:
+        session.close()
+
+
+def test_gate_invalid_level_goes_to_ai(monkeypatch):
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        art = _seed_queue_article(session, title="weird", hours_ago=1)
+        art.document.ingestion_priority = "PX"
+        session.commit()
+        clf = ArticleClassifier(session)
+        calls = []
+        real = clf.classify_article
+
+        async def spy(article):
+            calls.append(article.title)
+            return await real(article)
+
+        monkeypatch.setattr(clf, "classify_article", spy)
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert calls == ["weird"] and outcome.classified == 1
+    finally:
+        session.close()
+
+
+def test_budget_exceeded_keeps_pending_without_attempt(monkeypatch):
+    from backend.ai.schemas.types import AIError, AIErrorKind
+    from domains.news.classifier import ArticleClassifier
+
+    session = TestingSession()
+    try:
+        art = _seed_queue_article(session, title="rich", priority="P0", hours_ago=1)
+        clf = ArticleClassifier(session)
+
+        async def broke(article):
+            raise AIError("ai budget exceeded", kind=AIErrorKind.budget,
+                          retryable=False)
+
+        monkeypatch.setattr(clf, "classify_article", broke)
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert outcome.failed == 0 and outcome.skipped == 1
+        session.refresh(art)
+        assert art.classification_status == "pending"
+        assert art.classification_attempts == 0
     finally:
         session.close()
 

@@ -26,9 +26,9 @@ def _mem_db():
     return sessionmaker(bind=eng)()
 
 
-TITLE = "Synthetic harbor festival logistics dispatch"
-BODY = ("The harbor festival committee published its logistics plan for the weekend "
-        "ferry schedule, vendor stalls and night lighting. " * 6)
+TITLE = "Breaking: major earthquake strikes region, emergency response underway"
+BODY = ("A major earthquake struck the region, triggering an emergency response "
+        "as rescue teams warn of aftershocks and urgent humanitarian needs. " * 6)
 URL = "https://example.test/e2e/harbor-festival"
 
 

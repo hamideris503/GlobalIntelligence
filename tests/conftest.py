@@ -65,10 +65,13 @@ def _clean_tables() -> Generator[None, None, None]:
 @pytest.fixture(autouse=True)
 def _reset_settings() -> Generator[None, None, None]:
     """تنظیمات singleton و gateway را پیش/پس از هر تست تازه می‌کند."""
+    import backend.ai.budget as budget_module
     import backend.ai.gateway.gateway as gw_module
 
     get_settings.cache_clear()
     gw_module._gateway = None
+    budget_module.reset_session_factory()
     yield
     get_settings.cache_clear()
     gw_module._gateway = None
+    budget_module.reset_session_factory()

@@ -22,6 +22,8 @@ class AIErrorKind(str, enum.Enum):
     provider_error = "provider_error"
     invalid_output = "invalid_output"
     unknown = "unknown"
+    budget = "budget"  # سقف روزانه‌ی توکن؛ retry/fallback ندارد
+    estimate = "estimate"  # سقف خروجی نامشخص؛ retry بی‌فایده است
 
 
 class AIError(Exception):

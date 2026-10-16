@@ -64,13 +64,39 @@ class AIGateway:
         self._routes = dict(routes)
 
     async def _call_with_retry(
-        self, provider: AIProvider, request: AIRequest
+        self, provider: AIProvider, request: AIRequest,
+        budget_key: str | None = None,
     ) -> AIResponse:
+        from backend.ai import budget as _budget
+
         last_exc: Exception | None = None
         for attempt in range(self._max_retries + 1):
+            key = f"{budget_key}:{provider.name}:{attempt}" if budget_key else None
+            if key is not None:
+                cap = _budget.resolve_output_cap(request)
+                if cap is None:
+                    raise AIError(
+                        "ai budget estimate unavailable",
+                        kind=AIErrorKind.estimate,
+                        provider=provider.name, retryable=False)
+                est_in = _budget.estimate_input_tokens(request)
+                allowed = _budget.reserve(
+                    day=_budget.utc_day(), task=request.task,
+                    provider=provider.name,
+                    model=getattr(provider, "default_model", None),
+                    request_key=key, estimate=est_in + cap,
+                    input_est=est_in, output_cap=cap,
+                    budget=_budget.budget_limit() or 0)
+                if not allowed:
+                    raise AIError(
+                        "ai budget exceeded", kind=AIErrorKind.budget,
+                        provider=provider.name, retryable=False)
             try:
-                return await provider.generate(request)
+                resp = await provider.generate(request)
             except AIError as exc:
+                if key is not None:
+                    # نامعلوم/ناموفق محافظه‌کارانه روی رزرو می‌ماند (صفر فرض نشود)
+                    _budget.settle(key, actual=None, status="failed")
                 last_exc = exc
                 if not exc.retryable:
                     raise
@@ -81,6 +107,13 @@ class AIGateway:
                         provider.name, exc.kind, backoff,
                     )
                     await asyncio.sleep(backoff)
+                continue
+            if key is not None:
+                total = resp.usage.total_tokens if resp.usage else None
+                _budget.settle(
+                    key, actual=total,
+                    status="settled" if total is not None else "unknown")
+            return resp
         assert last_exc is not None
         raise last_exc
 
@@ -121,11 +154,19 @@ class AIGateway:
                 )
 
         errors: list[str] = []
+        import uuid as _uuid
+
+        from backend.ai import budget as _budget
+
+        use_budget = _budget.is_enabled()
+        request_key = f"{request.task or 'task'}:{_uuid.uuid4().hex[:12]}"
         for name in chain:
             provider = self._provider(name)
             try:
                 started = time.perf_counter()
-                response = await self._call_with_retry(provider, request)
+                response = await self._call_with_retry(
+                    provider, request,
+                    budget_key=request_key if use_budget else None)
                 response.is_mock = name == "mock"
                 logger.info(
                     "ai.generate | role=%s task=%s provider=%s model=%s mock=%s latency_ms=%.1f",
@@ -135,6 +176,8 @@ class AIGateway:
                 )
                 return response
             except AIError as exc:
+                if exc.kind == AIErrorKind.budget:
+                    raise
                 errors.append(f"{name}:{exc.kind}")
                 logger.warning("provider %s failed (%s): %s", name, exc.kind, exc)
                 continue

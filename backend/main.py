@@ -75,10 +75,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     # Step 8: Gateway اعتبارنامه‌ها را از DB می‌خواند (fallback به .env)
     try:
+        from backend.ai import budget as _budget
         from backend.ai import credentials_store as _store
         from backend.database.session import get_session_factory as _gsf
 
         _store.set_session_factory(_gsf())
+        _budget.set_session_factory(_gsf())
     except Exception:  # noqa: BLE001
         logger.warning("credentials store factory not wired; .env only")
     yield
