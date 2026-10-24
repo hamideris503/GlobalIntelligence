@@ -47,7 +47,12 @@ jobs:
       - name: Verify migration head
         run: alembic heads
       - name: Dispatch & persistence integration tests (PostgreSQL)
-        run: pytest tests/test_dispatch.py tests/test_article_dispatch_migration.py tests/test_domain_routing.py tests/test_domain_routing_refresh.py tests/test_domain_engines.py -q
+        run: |
+          pytest tests/test_article_dispatch_migration.py -q
+          pytest tests/test_dispatch.py -q
+          pytest tests/test_domain_routing.py -q
+          pytest tests/test_domain_routing_refresh.py -q
+          pytest tests/test_domain_engines.py -q
       - name: Full test suite
         run: pytest tests -q
 
