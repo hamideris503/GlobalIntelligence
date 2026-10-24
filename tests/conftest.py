@@ -28,15 +28,19 @@ from backend.main import app
 # otherwise fall back to in-memory SQLite (local development).
 _db_url = os.environ.get("DATABASE_URL", "")
 if "postgres" in _db_url:
-    engine = create_engine(_db_url, pool_pre_ping=True)
+    from sqlalchemy.pool import NullPool
+
+    engine = create_engine(_db_url, poolclass=NullPool, connect_args={"connect_timeout": 10})
+    # Tables already exist (created by Alembic in CI); skip create_all to avoid
+    # any PG-side DDL overhead or lock contention.
 else:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    Base.metadata.create_all(bind=engine)
 TestingSession = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-Base.metadata.create_all(bind=engine)
 
 
 def _override_get_db() -> Generator[Session, None, None]:
