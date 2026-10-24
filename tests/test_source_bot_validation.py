@@ -88,10 +88,10 @@ def test_run_uses_injected_sqlite_session(client: TestClient, monkeypatch):
 
     real_run_source = runner_module.run_source
 
-    async def spy(db, source, metrics, settings=None):
+    async def spy(db, source, metrics, settings=None, **kwargs):
         seen["driver"] = db.get_bind().url.drivername
         seen["same_db"] = db.get_bind() is TestingSession.kw["bind"]
-        return await real_run_source(db, source, metrics, settings)
+        return await real_run_source(db, source, metrics, settings, **kwargs)
 
     async def fake_fetch(plan, settings):
         return ([RawItem(title="T2", url="https://example.test/10",

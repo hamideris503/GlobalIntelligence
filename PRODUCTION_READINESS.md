@@ -23,12 +23,12 @@
 - workflowها `active:false` (فعال‌سازی عمداً دستی؛ شامل daily-debate جدید).
 - تحویل alert و scrape Prometheus جدا پیاده نشده.
 - Threshold/confidenceهای ثابت (v1) کالیبره‌ی تجربی نیستند.
+- CI: فایل `.github/workflows/ci.yml` موجود و tracked است (۳ job: `backend` با pytest+ruff+زنجیره‌ی migration، `docker` با build هر دو ایمیج، `frontend` با `npm ci`+`npm run build`)؛ اجرای راه‌دور روی GitHub تأیید نشده (**NOT_VERIFIED**) — فقط معادل محلی‌اش سبز است.
 
 ## 3. غایب ❌ (پیش از production واقعی لازم است)
 
 - VPS + TLS (Caddy/Nginx + Let's Encrypt) + DNS.
 - cron بکاپ + retention + تست بازیابی دوره‌ای.
-- CI (pytest/ruff/build) — الان TODO است.
 - Provider واقعی + Phase 10 redo (کیفیت داده‌ی production به آن بستگی دارد).
 - فعال‌سازی و مشاهده‌ی چندروزه‌ی workflowهای زمان‌بندی‌شده.
 - Runbook حادثه + مالک on-call (سازمانی، نه کد).

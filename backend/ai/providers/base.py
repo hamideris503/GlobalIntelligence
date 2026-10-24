@@ -27,6 +27,8 @@ class BaseProvider(ABC):
     """پیاده‌سازی پایه با کمک‌تابع‌های مشترک."""
 
     name: str = "base"
+    # Local/zero-cost providers are exempt from the cloud token budget.
+    is_local: bool = False
 
     @abstractmethod
     async def generate(self, request: AIRequest) -> AIResponse:

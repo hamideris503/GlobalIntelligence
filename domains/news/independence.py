@@ -246,7 +246,27 @@ class SourceIndependenceEngine:
         ratio = independent / supporting
         return supporting, independent, round(ratio, 4)
 
-    # --- 3) اجرا ---
+    # --- 3) public per-claim entry point (dispatch, Stage92) ---
+    def analyze_claim(self, claim: Claim, mapping: dict[str, str]) -> dict:
+        """Compute + persist independence for ONE claim, no commit.
+
+        Uses exactly the engine's existing storage contract (Claim columns +
+        ``verification_status``); the caller owns the transaction.
+        """
+        supporting, independent, ratio = self.compute_for_claim(claim, mapping)
+        claim.supporting_source_count = supporting
+        claim.independent_source_count = independent
+        claim.source_independence = ratio
+        self._refresh_status(claim)
+        return {
+            "claim_id": str(claim.id),
+            "supporting_source_count": supporting,
+            "independent_source_count": independent,
+            "source_independence": ratio,
+            "verification_status": claim.verification_status,
+        }
+
+    # --- 4) اجرا ---
     def run(self, *, limit: int = 500) -> IndependenceOutcome:
         outcome = IndependenceOutcome()
         try:
@@ -264,15 +284,12 @@ class SourceIndependenceEngine:
         claims = list(self.db.execute(stmt).scalars().all())
         for claim in claims:
             try:
-                supporting, independent, ratio = self.compute_for_claim(claim, mapping)
-                claim.supporting_source_count = supporting
-                claim.independent_source_count = independent
-                claim.source_independence = ratio
+                info = self.analyze_claim(claim, mapping)
+                supporting = info["supporting_source_count"]
                 outcome.claims_processed += 1
                 if supporting > 0:
                     outcome.claims_with_sources += 1
 
-                self._refresh_status(claim)
                 if claim.verification_status == VerificationStatus.corroborated.value:
                     outcome.corroborated += 1
             except Exception as exc:  # noqa: BLE001

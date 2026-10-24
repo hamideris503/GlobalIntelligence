@@ -38,6 +38,7 @@ export interface ArticleItem {
   stance: string | null;
   importance: number | null;
   confidence: number | null;
+  priority: string | null;
 }
 
 export interface ArticleDetail extends ArticleItem {

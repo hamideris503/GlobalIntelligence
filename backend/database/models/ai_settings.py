@@ -5,9 +5,19 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, TimestampMixin, UUIDMixin
@@ -49,6 +59,16 @@ class AIModelRow(UUIDMixin, TimestampMixin, Base):
     price_in_per_mtok: Mapped[float | None] = mapped_column(Float)
     price_out_per_mtok: Mapped[float | None] = mapped_column(Float)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Free-Only verification (stored status; REVIEW_REQUIRED is computed).
+    free_status: Mapped[str | None] = mapped_column(String(16))  # UNVERIFIED/FREE_VERIFIED/BLOCKED
+    free_source_url: Mapped[str | None] = mapped_column(String(512))
+    free_verified_on: Mapped[date | None] = mapped_column(Date)
+    free_review_days: Mapped[int | None] = mapped_column(Integer)
+    free_limits: Mapped[str | None] = mapped_column(Text)
+    free_account_prereqs: Mapped[str | None] = mapped_column(Text)
+    free_privacy_notes: Mapped[str | None] = mapped_column(Text)
+    free_verified_by: Mapped[str | None] = mapped_column(String(64))
+    free_blocked_reason: Mapped[str | None] = mapped_column(Text)
 
     provider: Mapped[AIProviderRow] = relationship(back_populates="models")
 

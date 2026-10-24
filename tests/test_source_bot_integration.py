@@ -23,6 +23,27 @@ def _mem_db():
     return sessionmaker(bind=eng)()
 
 
+def test_due_sources_applies_limit_after_due_filter():
+    """limit بعد از فیلتر due اعمال میشود؛ منابع تازه سهم منابع due را نمیخورند."""
+    from datetime import UTC, datetime, timedelta
+
+    from source_bot.registry import due_sources
+
+    db = _mem_db()
+    now = datetime.now(UTC)
+    db.add_all([
+        Source(name="a-fresh", collection_method="rss", type="rss", active=True, last_success=now),
+        Source(name="b-fresh", collection_method="rss", type="rss", active=True, last_success=now),
+        Source(name="y-old", collection_method="rss", type="rss", active=True,
+               last_success=now - timedelta(hours=5)),
+        Source(name="z-never", collection_method="rss", type="rss", active=True),
+    ])
+    db.commit()
+
+    assert [s.name for s in due_sources(db, interval_seconds=3600, limit=1)] == ["y-old"]
+    assert {s.name for s in due_sources(db, interval_seconds=3600, limit=50)} == {"y-old", "z-never"}
+
+
 def test_pick_adapter_single_owner():
     s = Source(name="n1", feed_url="https://ex.com/rss", collection_method="rss", type="rss")
     assert pick_adapter(s).adapter == "rss"

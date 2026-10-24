@@ -1,0 +1,24 @@
+# ============================================================
+# Priority engine keyword groups (rule-based P0..P4).
+# منبع واحد واژه‌ها: هیچ نسخه‌ی هاردکدشده‌ای در priority_engine.py نیست.
+# گروه‌های _fa روی متن نرمال‌شده (ی/ک/نیم‌فاصله) و _en روی متن lower
+# تطبیق داده می‌شوند؛ تک‌واژه با مرز واژه و چندواژه‌ای به‌صورت زیررشته
+# (رفتار قبلی موتور). وزن هر گروه در کد است، نه اینجا.
+# ============================================================
+
+# واژه‌های فوری (وزن +45 → reason code: URGENT_KEYWORD)
+urgent_fa = [
+  "فوری", "اضطراری", "بحران", "هشدار", "زلزله", "جنگ", "حمله", "تحریم",
+  "ورشکستگی", "فروپاشی", "تعطیلی", "انفجار", "کودتا", "آتش",
+]
+urgent_en = [
+  "breaking", "urgent", "emergency", "crisis", "alert", "earthquake",
+  "war", "attack", "sanction", "bankrupt", "collapse", "explosion", "coup",
+]
+
+# واژه‌های اثر بالا (وزن +22 → reason code: HIGH_IMPACT)
+high_fa = ["بانک مرکزی", "نرخ بهره", "تورم", "انتخابات", "توافق", "مذاکره", "نفت", "ارز"]
+high_en = ["central bank", "interest rate", "inflation", "election", "agreement", "oil price", "exchange rate"]
+
+# سیگنال تعارض (بدون وزن → reason code: CONFLICT_SIGNAL)
+conflict = ["contradict", "disputed", "conflict", "متناقض", "اختلاف"]

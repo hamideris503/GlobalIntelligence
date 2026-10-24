@@ -79,6 +79,13 @@ class MockProvider(BaseProvider):
             value = _mock_from_schema(request.json_schema)
             structured = value if isinstance(value, dict) else {"result": value}
             text = json.dumps(structured, ensure_ascii=False)
+        elif request.task == "screening":
+            # Stage89: the screening fallback asks for exactly YES/NO. A mock
+            # provider that returns prose forces every article to
+            # pending/abstained in the default MOCK_MODE=true dev setup.
+            # A deterministic YES keeps the mock workflow complete; production
+            # still strips mock from the chain, so this cannot fake a result.
+            text = "YES"
         else:
             text = f"[mock:{request.task or 'generate'}] {last_user[:200]}"
 

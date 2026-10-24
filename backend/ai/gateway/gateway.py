@@ -25,6 +25,55 @@ from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# --- قاعده‌ی انتخاب خطای نهایی زنجیره (ثابت، مستند، مستقل از ترتیب شکست) ---
+# وقتی هیچ providerی پاسخ نداد، علت گزارش‌شده باید همان چیزی باشد که واقعاً
+# مانع شد، نه یک «provider_error» عمومی. اولویت (کم‌هزینه‌ترین راه بازگشت
+# برای فراخوان اول):
+#   1. bad_request     → درخواست از سمت provider رد شد؛ بدون اصلاح درخواست، retry بی‌فایده
+#   2. estimate        → سقف خروجی نامعلوم (پیکربندی)
+#   3. auth            → اعتبارنامه/پیکربندی provider
+#   4. rate_limit      → موقت، با Retry-After واقعی provider («بعداً دوباره تلاش کن»)
+#   5. timeout         → 504
+#   6. connection      → 502
+#   7. invalid_output  → پاسخ غیرقابل‌استفاده‌ی provider (502)
+#   8. provider_error  → شکست عمومی provider (502)
+#   9. quota_exhausted → تنها وقتی هیچ علت فنی دیگری نیست: سهمیه‌ی رایگان امروز
+#      تمام است → free_unavailable (503). فقط همین یک حالت free_unavailable می‌سازد.
+# provider/retry_after از نخستین شکست هم‌نوع در ترتیب زنجیره می‌آید؛ نوع خطا
+# وابسته به ترتیب شکست نیست. خطاهای سیاست (not_allowed) هرگز به این‌جا نمی‌رسند
+# چون پیش از HTTP و بیرون از حلقه fallback raise می‌شوند.
+_CHAIN_FAILURE_ORDER: tuple[AIErrorKind, ...] = (
+    AIErrorKind.bad_request,
+    AIErrorKind.estimate,
+    AIErrorKind.auth,
+    AIErrorKind.rate_limit,
+    AIErrorKind.timeout,
+    AIErrorKind.connection,
+    AIErrorKind.invalid_output,
+    AIErrorKind.provider_error,
+    AIErrorKind.quota_exhausted,
+)
+
+
+def _chain_failure(failures: list[AIError]) -> AIError:
+    """خطای نهایی زنجیره بر اساس `_CHAIN_FAILURE_ORDER`."""
+    summary = "; ".join(f"{f.provider or 'unknown'}:{f.kind.value}" for f in failures)
+    for kind in _CHAIN_FAILURE_ORDER:
+        chosen = next((f for f in failures if f.kind == kind), None)
+        if chosen is None:
+            continue
+        if kind == AIErrorKind.quota_exhausted:
+            return AIError(
+                f"no usable free provider quota: {summary}",
+                kind=AIErrorKind.free_unavailable,
+                provider=chosen.provider, retryable=False)
+        return AIError(
+            f"all providers failed [{kind.value}]: {summary}",
+            kind=kind, provider=chosen.provider,
+            retryable=chosen.retryable, retry_after=chosen.retry_after)
+    return AIError(f"all providers failed: {summary}",
+                   kind=AIErrorKind.provider_error, retryable=False)
+
 
 class AIGateway:
     """Gateway یکپارچه برای فراخوانی مدل‌ها با fallback/retry."""
@@ -102,6 +151,8 @@ class AIGateway:
                     raise
                 if attempt < self._max_retries:
                     backoff = 0.5 * (2 ** attempt)
+                    if exc.retry_after and exc.retry_after > 0:
+                        backoff = min(exc.retry_after, 60.0)
                     logger.warning(
                         "provider %s retryable error (%s); retrying in %.1fs",
                         provider.name, exc.kind, backoff,
@@ -146,6 +197,11 @@ class AIGateway:
             forced = request.metadata.get("force_provider")
             if isinstance(forced, str) and forced and forced != "mock":
                 chain = [forced] + [p for p in chain if p != forced]
+            # The screening fallback must not reach a Kev/Laya endpoint
+            # directly: those runtimes are owned by LocalRuntimeSupervisor
+            # and are only invoked by the local-screening orchestrator.
+            if request.metadata.get("exclude_local_providers"):
+                chain = [p for p in chain if p not in ("kev", "laya")]
             if not chain:
                 raise AIError(
                     "no real provider configured (MOCK_MODE=false and no provider)",
@@ -153,20 +209,37 @@ class AIGateway:
                     retryable=False,
                 )
 
-        errors: list[str] = []
+        failures: list[AIError] = []
         import uuid as _uuid
 
         from backend.ai import budget as _budget
+        from backend.ai import free_policy as _policy
 
         use_budget = _budget.is_enabled()
         request_key = f"{request.task or 'task'}:{_uuid.uuid4().hex[:12]}"
         for name in chain:
-            provider = self._provider(name)
+            # Free-Only: هر نامزد پیش از build و هر مدل پیش از HTTP بررسی
+            # می‌شود؛ نامجاز → توقف فوری، بدون fallback به بعدی.
+            # نام نمایشی DB ابتدا به kind واقعی adapter resolve می‌شود.
+            try:
+                provider = self._provider(name)
+            except ValueError as exc:
+                raise AIError(
+                    f"provider not allowed: {name}",
+                    kind=AIErrorKind.provider_not_allowed,
+                    provider=name, retryable=False) from exc
+            kind = getattr(provider, "name", None) or name
+            _policy.check_provider(kind, mock_mode=effective_mock)
+            _policy.check_model(
+                kind,
+                request.metadata.get("model") or getattr(provider, "default_model", None),
+                mock_mode=effective_mock)
             try:
                 started = time.perf_counter()
                 response = await self._call_with_retry(
                     provider, request,
-                    budget_key=request_key if use_budget else None)
+                    budget_key=(request_key if use_budget
+                                and not getattr(provider, "is_local", False) else None))
                 response.is_mock = name == "mock"
                 logger.info(
                     "ai.generate | role=%s task=%s provider=%s model=%s mock=%s latency_ms=%.1f",
@@ -178,15 +251,13 @@ class AIGateway:
             except AIError as exc:
                 if exc.kind == AIErrorKind.budget:
                     raise
-                errors.append(f"{name}:{exc.kind}")
+                # خودِ خطا نگه داشته می‌شود تا kind/retryable/retry_after/provider
+                # تا لایه‌ی API حفظ شوند (انتخاب نهایی در _chain_failure).
+                failures.append(exc)
                 logger.warning("provider %s failed (%s): %s", name, exc.kind, exc)
                 continue
 
-        raise AIError(
-            f"all providers failed: {'; '.join(errors)}",
-            kind=AIErrorKind.provider_error,
-            retryable=False,
-        )
+        raise _chain_failure(failures)
 
     async def structured_generate(
         self, request: AIRequest, schema: dict[str, Any]

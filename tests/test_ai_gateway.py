@@ -69,7 +69,9 @@ def test_gateway_uses_mock_by_default() -> None:
 
 
 class _FailingProvider(BaseProvider):
-    name = "failing"
+    # شناسه‌ی allowlist‌شده (Free-Only): رفتار failing حفظ شده است.
+    name = "groq"
+    default_model = "openai/gpt-oss-20b"
 
     async def generate(self, request: AIRequest) -> AIResponse:
         raise AIError("boom", kind=AIErrorKind.provider_error, provider=self.name)
@@ -92,8 +94,8 @@ def test_gateway_no_mock_fallback_in_production() -> None:
     gateway = AIGateway()
     # شبیه‌سازی production
     gateway._settings.mock_mode = False
-    gateway._settings.ai_default_provider = "failing"
-    gateway._providers["failing"] = _FailingProvider()
+    gateway._settings.ai_default_provider = "groq"
+    gateway._providers["groq"] = _FailingProvider()
 
     with pytest.raises(AIError):
         asyncio.run(gateway.generate(_req("ping", role="fast_extraction")))
@@ -106,16 +108,32 @@ def test_gateway_real_provider_preferred_over_mock() -> None:
     gateway._settings.ai_default_provider = "mock"
 
     class _Realish(BaseProvider):
-        name = "realish"
+        name = "groq"
+        default_model = "openai/gpt-oss-20b"
 
         async def generate(self, request: AIRequest) -> AIResponse:
             return AIResponse(text="real", provider=self.name, model="m")
 
-    gateway._providers["realish"] = _Realish()
-    gateway._settings.ai_default_provider = "realish"
+    gateway._providers["groq"] = _Realish()
+    gateway._settings.ai_default_provider = "groq"
     resp = asyncio.run(gateway.generate(_req("ping")))
-    assert resp.provider == "realish"
+    assert resp.provider == "groq"
     assert resp.is_mock is False
+
+
+def test_gateway_can_exclude_local_providers(monkeypatch) -> None:
+    """Local runtimes are supervisor-owned; screening fallback must not call them."""
+    gateway = AIGateway()
+    gateway.set_routes({"fast_extraction": Route("fast_extraction", ["kev"])})
+    monkeypatch.setattr(gateway._settings, "mock_mode", False)
+    monkeypatch.setattr(gateway._settings, "ai_default_provider", "kev")
+
+    with pytest.raises(AIError) as exc_info:
+        asyncio.run(gateway.generate(_req(
+            "ping", role="fast_extraction",
+            metadata={"exclude_local_providers": True},
+        )))
+    assert "no real provider" in str(exc_info.value)
 
 
 def test_ai_status_endpoint(client) -> None:
@@ -165,10 +183,11 @@ def test_response_preserves_finish_reason() -> None:
 def test_structured_generate_keeps_finish_reason() -> None:
     gateway = AIGateway()
     gateway._settings.mock_mode = False
-    gateway._settings.ai_default_provider = "finstub"
+    gateway._settings.ai_default_provider = "groq"
 
     class _FinStub(BaseProvider):
-        name = "finstub"
+        name = "groq"
+        default_model = "openai/gpt-oss-20b"
 
         async def generate(self, request: AIRequest) -> AIResponse:
             from backend.ai.schemas.types import AIUsage
@@ -181,7 +200,7 @@ def test_structured_generate_keeps_finish_reason() -> None:
                 structured={"summary": "s", "key_relations": ["A rel B"]},
                 finish_reason="stop")
 
-    gateway._providers["finstub"] = _FinStub()
+    gateway._providers["groq"] = _FinStub()
     resp = asyncio.run(gateway.structured_generate(
         _req("hi", task="probe"), {"type": "object"}))
     assert resp.finish_reason == "stop"
@@ -194,14 +213,93 @@ def test_structured_generate_keeps_finish_reason() -> None:
 def test_provider_without_finish_reason_reports_none() -> None:
     gateway = AIGateway()
     gateway._settings.mock_mode = False
-    gateway._settings.ai_default_provider = "nofin"
+    gateway._settings.ai_default_provider = "groq"
 
     class _NoFin(BaseProvider):
-        name = "nofin"
+        name = "groq"
+        default_model = "openai/gpt-oss-20b"
 
         async def generate(self, request: AIRequest) -> AIResponse:
             return AIResponse(text="t", provider=self.name, model="m")
 
-    gateway._providers["nofin"] = _NoFin()
+    gateway._providers["groq"] = _NoFin()
     resp = asyncio.run(gateway.generate(_req("hi")))
     assert resp.finish_reason is None
+
+
+# --- خطای نهایی زنجیره: قاعده‌ی ثابت `_CHAIN_FAILURE_ORDER` (بدون HTTP) ---
+class _KindFailing(BaseProvider):
+    """Provider ساختگی که همیشه یک kind مشخص برمی‌گرداند (بدون transport)."""
+
+    def __init__(self, name: str, model: str, kind: AIErrorKind,
+                 *, retryable: bool = False, retry_after: float | None = None) -> None:
+        self.name = name
+        self.default_model = model
+        self._error = AIError(kind.value, kind=kind, provider=name,
+                              retryable=retryable, retry_after=retry_after)
+
+    async def generate(self, request: AIRequest) -> AIResponse:
+        raise self._error
+
+
+_REAL_RETRYABLE = (AIErrorKind.rate_limit, AIErrorKind.timeout,
+                   AIErrorKind.connection, AIErrorKind.provider_error)
+
+
+def _failing_chain(
+    monkeypatch: pytest.MonkeyPatch, first: AIErrorKind, second: AIErrorKind,
+) -> AIGateway:
+    """زنجیره‌ی دو provider مجاز (groq پس gemini) با kindهای داده‌شده."""
+    import dataclasses
+
+    from backend.ai import free_policy
+
+    monkeypatch.setattr(
+        free_policy, "FREE_ALLOWLIST",
+        tuple(dataclasses.replace(e, status="active", disabled_reason="")
+              if e.provider == "gemini" else e
+              for e in free_policy.FREE_ALLOWLIST))
+
+    def stub(name: str, model: str, kind: AIErrorKind) -> _KindFailing:
+        return _KindFailing(
+            name, model, kind, retryable=kind in _REAL_RETRYABLE,
+            retry_after=7.0 if kind == AIErrorKind.rate_limit else None)
+
+    gateway = AIGateway()
+    gateway._settings.mock_mode = False
+    gateway._max_retries = 0
+    gateway._providers["groq"] = stub("groq", "openai/gpt-oss-20b", first)
+    gateway._providers["gemini"] = stub("gemini", "gemini-3.5-flash", second)
+    gateway.set_routes({"chat": Route("chat", ["groq", "gemini"])})
+    return gateway
+
+
+@pytest.mark.parametrize(("first", "second", "expected", "source"), [
+    # محدودیت نرخ موقت بر provider_error عمومی مقدم است (و مستقل از ترتیب شکست)
+    (AIErrorKind.rate_limit, AIErrorKind.provider_error, AIErrorKind.rate_limit, "groq"),
+    (AIErrorKind.provider_error, AIErrorKind.rate_limit, AIErrorKind.rate_limit, "gemini"),
+    # ورودی/اعتبارنامه: تا اصلاح نشود retry بی‌فایده است → مقدم بر خطای موقت
+    (AIErrorKind.bad_request, AIErrorKind.connection, AIErrorKind.bad_request, "groq"),
+    (AIErrorKind.auth, AIErrorKind.rate_limit, AIErrorKind.auth, "groq"),
+    # سهمیه‌ی رایگان فقط وقتی هیچ علت فنی دیگری نیست گزارش می‌شود
+    (AIErrorKind.quota_exhausted, AIErrorKind.rate_limit, AIErrorKind.rate_limit,
+     "gemini"),
+    (AIErrorKind.quota_exhausted, AIErrorKind.quota_exhausted,
+     AIErrorKind.free_unavailable, "groq"),
+])
+def test_chain_final_error_follows_the_documented_priority(
+    monkeypatch: pytest.MonkeyPatch, first: AIErrorKind, second: AIErrorKind,
+    expected: AIErrorKind, source: str,
+) -> None:
+    gateway = _failing_chain(monkeypatch, first, second)
+
+    with pytest.raises(AIError) as exc:
+        asyncio.run(gateway.generate(_req("ping", role="chat")))
+
+    assert exc.value.kind == expected
+    assert exc.value.provider == source  # نخستین شکست هم‌نوع در ترتیب زنجیره
+    if expected == AIErrorKind.rate_limit:
+        # مقدار واقعیِ provider حفظ می‌شود (هیچ مقدار ساختگی ساخته نمی‌شود)
+        assert exc.value.retry_after == 7 and exc.value.retryable is True
+    if expected == AIErrorKind.free_unavailable:
+        assert exc.value.retryable is False and exc.value.retry_after is None

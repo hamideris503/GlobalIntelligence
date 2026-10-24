@@ -60,7 +60,7 @@ def ops_status(db: Session = Depends(get_db)) -> OpsStatusRead:
     last_jobs = []
     try:
         for job in db.execute(
-            select(JobRun).order_by(JobRun.created_at.desc()).limit(5)
+            select(JobRun).order_by(JobRun.started_at.desc()).limit(5)
         ).scalars().all():
             last_jobs.append(
                 {

@@ -249,7 +249,7 @@ def test_live_wiring_single_send_on_provider_error(monkeypatch) -> None:
     _live_mode_off(monkeypatch)
     import httpx
 
-    from backend.ai.providers.openai import OpenAIProvider
+    from backend.ai.providers.groq import GroqProvider
     from backend.ai.schemas.types import AIError, AIRequest, Message
 
     posts = []
@@ -259,13 +259,14 @@ def test_live_wiring_single_send_on_provider_error(monkeypatch) -> None:
         return httpx.Response(500, json={"error": "boom"})
 
     transport = httpx.MockTransport(handler)
-    provider = OpenAIProvider()
+    provider = GroqProvider()
     provider.api_key = "test-key"
-    plan = harness.build_live_plan(provider="openai", model="m")
+    plan = harness.build_live_plan(provider="groq", model="openai/gpt-oss-20b")
     gw = harness.build_live_gateway(plan, provider)
     real_client = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient",
-                        lambda *a, **k: real_client(*a, transport=transport, **k))
+                        lambda *a, **k: real_client(
+                            *a, **{**k, "transport": transport}))
     with pytest.raises(AIError):
         import asyncio
 

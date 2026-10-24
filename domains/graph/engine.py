@@ -298,7 +298,7 @@ class KnowledgeGraphEngine:
         self.db.flush()
         return outcome
 
-    async def run(self, *, limit: int = 50) -> GraphOutcome:
+    async def run(self, *, limit: int = 50, event_ids: list | None = None) -> GraphOutcome:
         total = GraphOutcome()
         stmt = (
             select(Event)
@@ -306,6 +306,9 @@ class KnowledgeGraphEngine:
             .order_by(Event.created_at.desc())
             .limit(limit)
         )
+        if event_ids is not None:
+            # Per-event dispatch (Stage89) reuses this engine unchanged otherwise.
+            stmt = stmt.where(Event.id.in_(event_ids))
         events = list(self.db.execute(stmt).scalars().all())
         for event in events:
             try:

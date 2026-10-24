@@ -69,22 +69,30 @@ def validate_base_url(base_url: str) -> str:
     parsed = urlparse((base_url or "").strip())
     if parsed.scheme != "https":
         raise CredentialError("base_url must use https")
+    if parsed.username or parsed.password:
+        raise CredentialError("base_url must not contain userinfo")
     host = (parsed.hostname or "").lower()
     if not host:
         raise CredentialError("base_url has no host")
     if _host_is_private(host) and not get_settings().allow_private_base_url:
         raise CredentialError("base_url points to a private/internal host (blocked)")
-    return f"https://{host}" + (f":{parsed.port}" if parsed.port else "") + parsed.path.rstrip("/")
+    try:
+        port = f":{parsed.port}" if parsed.port else ""
+    except ValueError as exc:
+        raise CredentialError("base_url has an invalid port") from exc
+    return f"https://{host}" + port + parsed.path.rstrip("/")
 
 
 def _host_is_private(host: str) -> bool:
+    """True یعنی غیرقابل‌دسترسی عمومی (مسدود): localhost، پسوندهای داخلی،
+    هر IP غیر-global (خصوصی/حلقه‌ای/لینک‌لوکال/رزروشده/نامشخص/مستندات)."""
     if host in ("localhost",):
         return True
     if host.endswith(".localhost") or host.endswith(".local") or host.endswith(".internal"):
         return True
     try:
         ip = ipaddress.ip_address(host)
-        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
+        return not ip.is_global
     except ValueError:
         pass
     try:

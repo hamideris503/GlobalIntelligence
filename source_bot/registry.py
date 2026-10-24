@@ -51,6 +51,15 @@ def _api_key_env(source: Source) -> str | None:
     return None
 
 
+def endpoint_options(source: Source) -> dict:
+    """endpoint_config همان منبع به‌صورت dict؛ نامعتبر/غیردیکشنری → {} (بدون استثنا)."""
+    try:
+        cfg = json.loads(_opt(source, "endpoint_config") or "")
+    except Exception:  # noqa: BLE001
+        return {}
+    return cfg if isinstance(cfg, dict) else {}
+
+
 def _wants_crawl(source: Source) -> bool:
     """crawl چندصفحه‌ای فقط با opt-in صریح همان منبع."""
     try:
@@ -113,7 +122,13 @@ def pick_adapter(source: Source) -> SourcePlan:
 
 
 def due_sources(db: Session, *, interval_seconds: int = 3600, limit: int = 50) -> list[Source]:
-    stmt = select(Source).where(Source.active.is_(True)).limit(limit)
+    """منابع فعالِ واقعاً موعدرسیده، حداکثر `limit` عدد.
+
+    ترتیب مهم است: فیلتر «due» پیش از اعمال `limit` انجام می‌شود؛ وگرنه
+    منابع تازه/غیرفعال ابتدای فهرست، سهم منابع due را می‌خورند.
+    """
+    # shortcut: با تعداد کم منابع due کل لیست فعال اسکن می‌شود؛ جدول Source کوچک و دستی است.
+    stmt = select(Source).where(Source.active.is_(True)).order_by(Source.name)
     sources = list(db.execute(stmt).scalars().all())
     now = datetime.now(UTC)
     out = []
@@ -121,12 +136,14 @@ def due_sources(db: Session, *, interval_seconds: int = 3600, limit: int = 50) -
         last = s.last_success
         if last is None:
             out.append(s)
-            continue
-        try:
-            if last.tzinfo is None:
-                last = last.replace(tzinfo=UTC)
-            if (now - last).total_seconds() >= interval_seconds:
+        else:
+            try:
+                if last.tzinfo is None:
+                    last = last.replace(tzinfo=UTC)
+                if (now - last).total_seconds() >= interval_seconds:
+                    out.append(s)
+            except Exception:  # noqa: BLE001
                 out.append(s)
-        except Exception:  # noqa: BLE001
-            out.append(s)
+        if len(out) >= limit:
+            break
     return out

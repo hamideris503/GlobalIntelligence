@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 
 from domains.news.ingestion import NewsIngestionPipeline
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,11 +12,13 @@ from backend.api.schemas.ingestion import (
     BotRunRead,
     BotRunRequest,
     DocumentRead,
+    IngestJobRead,
     IngestRequest,
     IngestResultRead,
 )
 from backend.core.config import get_settings
 from backend.database.models.document import Document
+from backend.database.models.job import JobRun
 from backend.database.models.source import Source
 from backend.database.session import get_db
 
@@ -95,16 +97,53 @@ async def run_bot(payload: BotRunRequest, db: Session = Depends(get_db)) -> BotR
     احراز هویت از include_router در main می‌آید. اجرای هم‌زمان دوم 409 می‌گیرد (قفل).
     فقط استخراج/dedup/اولویت؛ ذخیره‌سازی همان NewsIngestionPipeline است.
     """
+    from source_bot.config import BotConfigError
     from source_bot.runner import run_once
 
     try:
         metrics = await run_once(source_name=payload.source_name,
-                                 limit_sources=payload.limit, db=db)
+                                 limit_sources=payload.limit,
+                                 max_items_per_source=payload.max_items_per_source, db=db)
+    except BotConfigError as exc:  # پیکربندی سرور نامعتبر است، نه درخواست کلاینت
+        raise HTTPException(status_code=500,
+                            detail=f"priority configuration invalid: {exc}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return BotRunRead(**metrics.as_dict())
+
+
+@router.post("/jobs", response_model=IngestJobRead, status_code=202)
+def start_ingest_job(payload: BotRunRequest, background: BackgroundTasks,
+                     db: Session = Depends(get_db)) -> IngestJobRead:
+    """ثبت Job دریافت چندمنبعی در پس‌زمینه و بازگشت فوری شناسه (بدون انتظار برای دریافت)."""
+    from source_bot.jobs import create_job, job_view, run_job
+
+    try:
+        spec: dict = {"source_name": payload.source_name, "limit": payload.limit}
+        if payload.max_items_per_source is not None:  # کلید فقط وقتی اپراتور سقف خواسته
+            spec["max_items_per_source"] = payload.max_items_per_source
+        run = create_job(db, spec=spec)
+    except RuntimeError as exc:  # یک Job فعال از قبل وجود دارد
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    background.add_task(run_job, run.id)
+    return IngestJobRead(**job_view(run))
+
+
+@router.get("/jobs/{job_id}", response_model=IngestJobRead)
+def get_ingest_job(job_id: str, db: Session = Depends(get_db)) -> IngestJobRead:
+    """وضعیت و نتیجه‌ی Job دریافت (نتیجه پس از پایان از payload خوانده می‌شود)."""
+    from source_bot.jobs import JOB_NAME, job_view
+
+    try:
+        jid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid job_id") from None
+    run = db.get(JobRun, jid)
+    if run is None or run.job_name != JOB_NAME:
+        raise HTTPException(status_code=404, detail="job not found")
+    return IngestJobRead(**job_view(run))
 
 
 @router.get("/documents", response_model=list[DocumentRead])
@@ -134,6 +173,11 @@ def list_documents(
             published_at=d.published_at,
             retrieved_at=d.retrieved_at,
             content_hash=d.content_hash,
+            ingestion_priority=d.ingestion_priority,
+            priority_score=d.priority_score,
+            priority_reason=d.priority_reason,
+            priority_source=d.priority_source,
+            priority_status=d.priority_status,
         )
         for d in rows
     ]

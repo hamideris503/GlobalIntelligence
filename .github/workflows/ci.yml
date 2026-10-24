@@ -25,6 +25,7 @@ jobs:
       MOCK_MODE: "true"
       APP_ENV: development
       API_KEY: ""
+      APP_ENCRYPTION_KEY: "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,13 +37,17 @@ jobs:
           pip install -r backend/requirements.txt
           pip install -r backend/requirements-dev.txt
       - name: Lint (ruff)
-        run: ruff check backend domains tests scripts
+        run: ruff check backend domains tests scripts source_bot
       - name: Run migrations (up/down)
         run: |
           alembic upgrade head
           alembic downgrade base
           alembic upgrade head
-      - name: Tests
+      - name: Verify migration head
+        run: alembic heads
+      - name: Dispatch & persistence integration tests (PostgreSQL)
+        run: pytest tests/test_dispatch.py tests/test_article_dispatch_migration.py tests/test_domain_routing.py tests/test_domain_routing_refresh.py tests/test_domain_engines.py -q
+      - name: Full test suite
         run: pytest tests -q
 
   docker:

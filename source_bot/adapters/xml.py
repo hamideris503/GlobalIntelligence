@@ -7,8 +7,9 @@ from dataclasses import dataclass
 import httpx
 from defusedxml import ElementTree as DET
 
-from domains.news.fetchers import RawItem
-from source_bot.security import assert_public_host, validate_url
+from domains.news.fetchers import SOURCE_PROVIDED_ONLY, TEXT_STATUS, RawItem
+from domains.news.source_verify import BlockedTarget, GuardedTransport, safe_get
+from source_bot.security import validate_url
 
 
 @dataclass
@@ -17,6 +18,7 @@ class XmlResult:
     status: str
     detail: str = ""
     is_feed: bool = False
+    content: bytes | None = None  # بایت‌های همان پاسخ، برای reroute بدون دانلود مجدد
 
 
 class XmlAdapter:
@@ -32,24 +34,26 @@ class XmlAdapter:
             return XmlResult([], "http_error", f"refusing url: {check.reason}")
         assert url
         try:
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "GlobalIntelligenceBot/0.1",
-                                                      "Accept": "application/xml, text/xml"})
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False,
+                                         transport=GuardedTransport()) as client:
+                resp = await safe_get(client, url, headers={"User-Agent": "GlobalIntelligenceBot/0.1",
+                                                           "Accept": "application/xml, text/xml"})
                 if resp.status_code in (401, 403):
                     return XmlResult([], "auth_required", f"http_{resp.status_code}")
                 resp.raise_for_status()
-                from urllib.parse import urlparse as _up
-
-                final_host = (_up(str(getattr(resp, "url", url))).hostname or "").lower()
-                assert_public_host(final_host)
                 if len(resp.content) > self.max_bytes:
                     return XmlResult([], "http_error", "xml too big")
                 content = resp.content
+        except BlockedTarget as exc:
+            return XmlResult([], "http_error", f"blocked: {exc}")
         except httpx.TimeoutException:
             return XmlResult([], "http_error", "timeout")
         except Exception as exc:  # noqa: BLE001
             return XmlResult([], "http_error", f"fetch_error:{type(exc).__name__}")
-        return self.parse(content, limit=limit, source_url=url)
+        res = self.parse(content, limit=limit, source_url=url)
+        if res.is_feed:
+            res.content = content  # مسیر RSS از همین بایت‌ها پارس می‌کند
+        return res
 
     def parse(self, content: bytes, *, limit: int, source_url: str = "") -> XmlResult:
         try:
@@ -75,12 +79,17 @@ class XmlAdapter:
         for rec in records:
             try:
                 title = _text(rec, ("title", "name", "headline"))
+                body = _text(rec, ("description", "summary", "content", "text"))
+                meta: dict = {"adapter": "xml", "source_url": source_url, "mock": False}
+                if body:
+                    # فیلد متنِ خود فید/فایل؛ استخراج صفحهٔ مقاله رخ نداده است.
+                    meta[TEXT_STATUS] = SOURCE_PROVIDED_ONLY
                 items.append(RawItem(
                     title=title, url=_text(rec, ("link", "url")),
-                    raw_text=_text(rec, ("description", "summary", "content", "text")),
+                    raw_text=body,
                     author=_text(rec, ("author", "creator")),
                     raw_payload=json.dumps({"tag": str(rec.tag)}, ensure_ascii=False),
-                    metadata={"adapter": "xml", "source_url": source_url},
+                    metadata=meta,
                 ))
             except Exception:  # noqa: BLE001
                 continue

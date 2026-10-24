@@ -24,17 +24,23 @@ class AIErrorKind(str, enum.Enum):
     unknown = "unknown"
     budget = "budget"  # سقف روزانه‌ی توکن؛ retry/fallback ندارد
     estimate = "estimate"  # سقف خروجی نامشخص؛ retry بی‌فایده است
+    provider_not_allowed = "provider_not_allowed"  # خارج از فهرست Free-Only
+    model_not_allowed = "model_not_allowed"  # مدل خارج از فهرست Free-Only
+    quota_exhausted = "quota_exhausted"  # سهمیه‌ی روزانه تمام شده؛ retry بی‌فایده
+    free_unavailable = "free_unavailable"  # هیچ provider رایگان قابل‌استفاده‌ای نیست
 
 
 class AIError(Exception):
     """خطای یکپارچه‌ی AI Gateway."""
 
     def __init__(self, message: str, *, kind: AIErrorKind = AIErrorKind.unknown,
-                 provider: str | None = None, retryable: bool = False) -> None:
+                 provider: str | None = None, retryable: bool = False,
+                 retry_after: float | None = None) -> None:
         super().__init__(message)
         self.kind = kind
         self.provider = provider
         self.retryable = retryable
+        self.retry_after = retry_after
 
 
 @dataclass

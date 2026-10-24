@@ -89,18 +89,22 @@ def _seed_docs() -> None:
     session = TestingSession()
     try:
         src = Source(name="DedupSrc", domain="x.local", type="rss", active=True)
-        session.add(src)
+        # زوج تکراری از دو منبع: کلید یکتای `(source_id, content_hash)` دو ردیف
+        # هم‌هویت را درون یک منبع ممنوع می‌کند و تشخیص تکرار محتوایی در این سرویس
+        # ماهیتاً بین‌منبعی است (منبع دوم فقط برای همین زوج).
+        other = Source(name="DedupSrc2", domain="y.local", type="rss", active=True)
+        session.add_all([src, other])
         session.flush()
         for i, text in enumerate(
             [
                 "oil prices rise on supply concerns today",
-                "oil prices rise on supply concerns today",  # exact dup
+                "oil prices rise on supply concerns today",  # exact dup (منبع دیگر)
                 "completely unrelated story about technology",
             ]
         ):
             session.add(
                 Document(
-                    source_id=src.id,
+                    source_id=other.id if i == 1 else src.id,
                     title=f"doc{i}",
                     raw_text=text,
                     content_hash="same" if i < 2 else f"h{i}",

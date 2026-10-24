@@ -89,6 +89,60 @@ def test_base_url_public_ok() -> None:
     assert validate_base_url("https://api.example.com/v1/") == "https://api.example.com/v1"
 
 
+def test_base_url_public_ip_literal_ok() -> None:
+    # IP عمومی حرفی: بدون DNS هم معتبر است
+    assert validate_base_url("https://8.8.8.8/v1") == "https://8.8.8.8/v1"
+
+
+def test_base_url_userinfo_rejected() -> None:
+    for bad in ("https://user:pass@example.com/v1", "https://user@example.com/"):
+        with pytest.raises(CredentialError):
+            validate_base_url(bad)
+
+
+def test_base_url_non_routable_rejected() -> None:
+    # بدون نیاز به DNS (لیترال): حلقه‌ای، خصوصی، لینک‌لوکال، metadata،
+    # نامشخص، مستندات، IPv6 داخلی — هیچ‌کدام globally routable نیستند.
+    for bad in (
+        "https://127.0.0.1/", "https://0.0.0.0/", "https://10.1.2.3/",
+        "https://192.168.0.1/", "https://172.16.0.1/",
+        "https://169.254.169.254/latest/meta-data/",
+        "https://[::1]/", "https://[::]/", "https://[fe80::1]/",
+        "https://[fc00::1]/", "https://[2001:db8::1]/",
+    ):
+        with pytest.raises(CredentialError):
+            validate_base_url(bad)
+
+
+def test_base_url_invalid_port_rejected() -> None:
+    with pytest.raises(CredentialError):
+        validate_base_url("https://example.com:abc/v1")
+
+
+def test_base_url_unresolvable_fail_open_at_validation(monkeypatch) -> None:
+    """عدم تفکیک DNS ≠ خصوصی: اعتبارسنجی رد نمی‌کند؛ اتصال بعداً خطا می‌دهد."""
+    import socket as _socket
+
+    monkeypatch.setattr(_socket, "getaddrinfo",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError("no dns")))
+    # بدون DNS واقعی: همچنان معتبر (fail-open در validation)
+    assert validate_base_url("https://unresolvable-xyz.invalid/v1").startswith(
+        "https://unresolvable-xyz.invalid")
+
+
+def test_base_url_mixed_dns_all_private_blocked(monkeypatch) -> None:
+    """اگر همه‌ی رکوردهای DNS خصوصی باشند، مسدود است (mock بدون شبکه)."""
+    import socket as _socket
+
+    def fake_getaddrinfo(*a, **k):
+        return [(2, 1, 6, "", ("10.9.9.9", 0)),
+                (2, 1, 6, "", ("192.0.2.1", 0))]
+
+    monkeypatch.setattr(_socket, "getaddrinfo", fake_getaddrinfo)
+    with pytest.raises(CredentialError):
+        validate_base_url("https://mixed.example/v1")
+
+
 # --- providers CRUD: no secret leaks ---
 def test_provider_create_never_returns_key(client: TestClient) -> None:
     res = client.post("/api/settings/providers",
@@ -480,3 +534,354 @@ def test_app_settings_update_is_audited(client: TestClient) -> None:
         assert "debate_max_rounds" in (rows[0].params or "")
     finally:
         session.close()
+
+
+# --- Free-Only model verification (UI policy; all offline, no network) ---
+def _model(client: TestClient, pid: str, name: str = "m-free",
+           **kw) -> dict:
+    payload = {"provider_id": pid, "model_name": name}
+    payload.update(kw)
+    res = client.post("/api/settings/models", json=payload)
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def _provider_id(client: TestClient) -> str:
+    res = client.post("/api/settings/providers",
+                      json={"name": "G1", "kind": "groq", "api_key": FAKE_KEY})
+    assert res.status_code == 200, res.text
+    return res.json()["id"]
+
+
+def test_model_create_forces_unverified_disabled(client: TestClient) -> None:
+    pid = _provider_id(client)
+    body = _model(client, pid, enabled=True)
+    assert body["free_status"] == "UNVERIFIED"
+    assert body["enabled"] is False
+
+
+def test_model_enable_requires_verification(client: TestClient) -> None:
+    pid = _provider_id(client)
+    mid = _model(client, pid)["id"]
+    res = client.put(f"/api/settings/models/{mid}", json={"enabled": True})
+    assert res.status_code == 422
+    assert "UNVERIFIED" in res.json()["detail"]
+
+
+def test_model_verify_requires_evidence_and_confirm(client: TestClient) -> None:
+    pid = _provider_id(client)
+    mid = _model(client, pid)["id"]
+    ev = {"source_url": "https://example.com/pricing", "limits": "10/day",
+          "account_prereqs": "no card", "privacy_notes": "none"}
+    res = client.post(f"/api/settings/models/{mid}/verify", json={**ev})
+    assert res.status_code == 422  # confirm missing
+    res = client.post(f"/api/settings/models/{mid}/verify",
+                      json={"confirm": True})
+    assert res.status_code == 422  # evidence missing
+    assert "incomplete" in res.json()["detail"]
+
+
+def test_model_verify_then_enable_flow(client: TestClient) -> None:
+    pid = _provider_id(client)
+    mid = _model(client, pid)["id"]
+    ev = {"source_url": "https://example.com/pricing", "limits": "10/day",
+          "account_prereqs": "no card", "privacy_notes": "none",
+          "confirm": True}
+    res = client.post(f"/api/settings/models/{mid}/verify", json=ev)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["free_status"] == "FREE_VERIFIED"
+    assert body["enabled"] is False  # تأیید، فعال‌سازی خودکار نیست
+    assert body["free_verified_on"] is not None
+    res = client.put(f"/api/settings/models/{mid}", json={"enabled": True})
+    assert res.status_code == 200
+    assert res.json()["enabled"] is True
+
+
+def test_model_block_disables_and_locks(client: TestClient) -> None:
+    pid = _provider_id(client)
+    mid = _model(client, pid)["id"]
+    res = client.post(f"/api/settings/models/{mid}/block", json={"reason": "x"})
+    assert res.status_code == 422  # reason too short
+    res = client.post(f"/api/settings/models/{mid}/block",
+                      json={"reason": "quota removed upstream"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["free_status"] == "BLOCKED"
+    assert body["enabled"] is False
+    res = client.put(f"/api/settings/models/{mid}", json={"enabled": True})
+    assert res.status_code == 422
+    assert "BLOCKED" in res.json()["detail"]
+
+
+def test_expired_model_needs_rereview(client: TestClient) -> None:
+    from datetime import date, timedelta
+
+    pid = _provider_id(client)
+    mid = _model(client, pid)["id"]
+    ev = {"source_url": "https://example.com/pricing", "limits": "10/day",
+          "account_prereqs": "no card", "privacy_notes": "none",
+          "confirm": True}
+    assert client.post(f"/api/settings/models/{mid}/verify", json=ev).status_code == 200
+    session = TestingSession()
+    try:
+        m = db_get_model(session, mid)
+        m.free_verified_on = date.today() - timedelta(days=400)
+        session.commit()
+    finally:
+        session.close()
+    models = client.get("/api/settings/models").json()
+    mine = [m for m in models if m["id"] == mid][0]
+    assert mine["free_status"] == "REVIEW_REQUIRED"
+    res = client.put(f"/api/settings/models/{mid}", json={"enabled": True})
+    assert res.status_code == 422
+    assert "REVIEW_REQUIRED" in res.json()["detail"]
+
+
+def db_get_model(session, mid: str):
+    import uuid as _uuid
+
+    return session.get(AIModelRow, _uuid.UUID(mid))
+
+
+def test_resolve_default_model_requires_verification(client: TestClient) -> None:
+    from backend.ai import credentials_store as _store
+
+    pid = _provider_id(client)
+    _model(client, pid, name="unverified-m")
+    cred = _store.resolve_provider_credential("groq")
+    assert cred is not None
+    assert cred["default_model"] is None  # تأییدنشده → withheld
+    # پس از تأیید و فعال‌سازی، همان مدل پیش‌فرض می‌شود
+    models = client.get("/api/settings/models").json()
+    mid = [m["id"] for m in models if m["model_name"] == "unverified-m"][0]
+    ev = {"source_url": "https://example.com/pricing", "limits": "10/day",
+          "account_prereqs": "no card", "privacy_notes": "none",
+          "confirm": True}
+    assert client.post(f"/api/settings/models/{mid}/verify", json=ev).status_code == 200
+    assert client.put(f"/api/settings/models/{mid}",
+                      json={"enabled": True}).status_code == 200
+    cred = _store.resolve_provider_credential("groq")
+    assert cred is not None
+    assert cred["default_model"] == "unverified-m"
+
+
+def test_connection_test_cannot_bypass_policy(client: TestClient, monkeypatch) -> None:
+    """تست اتصال به مدل تأییدنشده، پیش از هر HTTP با خطای ساختاریافته رد می‌شود."""
+    monkeypatch.setenv("MOCK_MODE", "false")
+    get_settings.cache_clear()
+    try:
+        pid = _provider_id(client)
+        _model(client, pid, name="nope-m")
+        res = client.post(f"/api/settings/providers/{pid}/test",
+                          json={"model": "nope-m"})
+        assert res.status_code == 200
+        payload = res.json()
+        assert payload["ok"] is False
+        assert "not verified" in (payload["error"] or "")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_connection_test_single_attempt_source() -> None:
+    """تست اتصال دقیقاً یک تلاش می‌کند (الگوی بازبینی سورس موجود در پروژه)."""
+    import inspect
+
+    from backend.api.routers import settings as settings_router
+
+    src = inspect.getsource(settings_router.test_provider)
+    assert "_max_retries = 0" in src
+
+
+def test_model_read_never_leaks_key(client: TestClient) -> None:
+    pid = _provider_id(client)
+    body = _model(client, pid)
+    raw = json.dumps(body)
+    assert FAKE_KEY not in raw
+    assert "api_key" not in body
+    assert "encrypted" not in raw
+
+
+# --- acceptance: verified-model swap without consumer changes (offline) ---
+def _verify_and_enable(client: TestClient, mid: str) -> None:
+    ev = {"source_url": "https://example.com/pricing", "limits": "10/day",
+          "account_prereqs": "no card", "privacy_notes": "none",
+          "confirm": True}
+    assert client.post(f"/api/settings/models/{mid}/verify", json=ev).status_code == 200
+    assert client.put(f"/api/settings/models/{mid}",
+                      json={"enabled": True}).status_code == 200
+
+
+def test_verified_model_swap_without_consumer_change(client: TestClient) -> None:
+    """تعویض مدل فعال با مدل تأییدشده‌ی دیگر؛ مصرف‌کننده (resolve) بدون تغییر."""
+    from backend.ai import credentials_store as _store
+
+    pid = _provider_id(client)
+    first = _model(client, pid, name="m-first")["id"]
+    second = _model(client, pid, name="m-second")["id"]
+    _verify_and_enable(client, first)
+    _verify_and_enable(client, second)
+
+    cred = _store.resolve_provider_credential("groq")
+    assert cred is not None
+    assert cred["default_model"] == "m-first"  # قدیمی‌ترین تأییدشده
+
+    # مدل اول غیرفعال می‌شود؛ همان فراخوانی مصرف‌کننده مدل دوم را می‌دهد
+    assert client.put(f"/api/settings/models/{first}",
+                      json={"enabled": False}).status_code == 200
+    cred = _store.resolve_provider_credential("groq")
+    assert cred is not None
+    assert cred["default_model"] == "m-second"
+
+    # UI و backend هماهنگ‌اند: لیست وضعیت‌ها را درست نشان می‌دهد
+    models = {m["model_name"]: m for m in client.get("/api/settings/models").json()}
+    assert models["m-first"]["enabled"] is False
+    assert models["m-second"]["enabled"] is True
+    assert models["m-second"]["free_status"] == "FREE_VERIFIED"
+
+
+def test_mock_consumer_unaffected_by_db_state(client: TestClient) -> None:
+    """در mock mode مصرف‌کننده بدون توجه به وضعیت DB پاسخ mock می‌گیرد."""
+    import asyncio as _asyncio
+
+    from backend.ai.gateway.gateway import AIGateway
+    from backend.ai.schemas.types import AIRequest, Message
+
+    pid = _provider_id(client)
+    _model(client, pid, name="unverified-m")
+    gw = AIGateway()
+    assert gw._settings.mock_mode is True
+    resp = _asyncio.run(gw.generate(
+        AIRequest(messages=[Message.user("hi")], task="probe")))
+    assert resp.is_mock is True
+
+
+# --- discover_models hardening (offline stubs, no network/DNS) ---
+def _mock_public_dns(monkeypatch) -> None:
+    """DNS مصنوعی بدون شبکه: همه‌چیز به IP عمومی حل می‌شود."""
+    import socket as _socket
+
+    monkeypatch.setattr(
+        _socket, "getaddrinfo",
+        lambda *a, **k: [(2, 1, 6, "", ("93.184.216.1", 0))])
+def _sync_client_factory(monkeypatch, *, body=b'{"data": [{"id": "m1"}]}',
+                         status=200, exc=None):
+    """httpx.Client جعلی: kwargs ساخت را ضبط می‌کند، بدون شبکه."""
+    import httpx as _httpx
+
+    created = {}
+
+    class _Resp:
+        status_code = status
+
+        def iter_bytes(self):
+            if exc is not None:
+                raise exc
+            yield body
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise _httpx.HTTPStatusError("bad", request=None, response=None)
+
+    class _Client:
+        def __init__(self, *a, **k):
+            created.update(k)
+            created["sends"] = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def build_request(self, method, url, headers=None):
+            created["request"] = (method, url, dict(headers or {}))
+            return (method, url, headers)
+
+        def send(self, req, stream=False):
+            created["sends"] = created.get("sends", 0) + 1
+            created["stream"] = stream
+            return _Resp()
+
+    monkeypatch.setattr(_httpx, "Client", _Client)
+    return created
+
+
+def _row_with_url(client_session, base_url: str):
+    from backend.ai.credentials import encrypt_secret
+
+    p = AIProviderRow(name="DX", kind="openai_compatible", enabled=True,
+                      base_url=base_url,
+                      api_key_encrypted=encrypt_secret(FAKE_KEY))
+    client_session.add(p)
+    client_session.commit()
+    return str(p.id)
+
+
+def test_discover_ignores_hostile_proxy_and_ca_env(client: TestClient,
+                                                   monkeypatch) -> None:
+    _mock_public_dns(monkeypatch)
+    monkeypatch.setenv("HTTPS_PROXY", "https://127.0.0.1:9/")
+    monkeypatch.setenv("HTTP_PROXY", "https://127.0.0.1:9/")
+    monkeypatch.setenv("ALL_PROXY", "https://127.0.0.1:9/")
+    monkeypatch.setenv("SSL_CERT_FILE", "C:\\nonexistent-rogue-ca.pem")
+    created = _sync_client_factory(monkeypatch)
+    pid = _provider_id(client)
+    res = client.get(f"/api/settings/providers/{pid}/models")
+    assert res.status_code == 200
+    assert created.get("trust_env") is False
+    assert created.get("follow_redirects") is False
+    assert created.get("sends") == 1
+
+
+def test_discover_stale_custom_url_blocked_before_send(client: TestClient,
+                                                       monkeypatch) -> None:
+    import httpx as _httpx
+
+    def boom(*a, **k):
+        raise AssertionError("no HTTP client may be built")
+
+    monkeypatch.setattr(_httpx, "Client", boom)
+    session = TestingSession()
+    try:
+        pid = _row_with_url(session, "https://10.9.9.9/v1")
+    finally:
+        session.close()
+    res = client.get(f"/api/settings/providers/{pid}/models")
+    assert res.status_code == 422
+
+
+def test_discover_redirect_not_followed(client: TestClient, monkeypatch) -> None:
+    _mock_public_dns(monkeypatch)
+    created = _sync_client_factory(
+        monkeypatch, body=b"<html>not json</html>", status=302)
+    pid = _provider_id(client)
+    res = client.get(f"/api/settings/providers/{pid}/models")
+    assert res.status_code == 502  # بدون دنبال‌کردن، بدون نشت
+    assert created.get("sends") == 1
+    assert FAKE_KEY not in res.text
+
+
+def test_discover_oversized_body_rejected(client: TestClient, monkeypatch) -> None:
+    from backend.ai.providers import http_base as _httpbase
+
+    _mock_public_dns(monkeypatch)
+    monkeypatch.setattr(_httpbase, "DISCOVER_MAX_RESPONSE_BYTES", 16)
+    created = _sync_client_factory(monkeypatch, body=b"x" * 64)
+    pid = _provider_id(client)
+    res = client.get(f"/api/settings/providers/{pid}/models")
+    assert res.status_code == 502  # بیش از سقف → قطع، بدون نشت
+    assert FAKE_KEY not in res.text
+    assert created.get("stream") is True
+
+
+def test_discover_timeout_and_key_safety(client: TestClient, monkeypatch) -> None:
+    import httpx as _httpx
+
+    _mock_public_dns(monkeypatch)
+    _sync_client_factory(
+        monkeypatch, exc=_httpx.TimeoutException("slow"))
+    pid = _provider_id(client)
+    res = client.get(f"/api/settings/providers/{pid}/models")
+    assert res.status_code == 502
+    assert FAKE_KEY not in res.text

@@ -57,6 +57,8 @@ function ArticleDetailView({ id }: { id: string }) {
               </dd>
               <dt>اهمیت</dt>
               <dd>{importanceLabel(art.data.importance)}</dd>
+              <dt>اولویت دریافت</dt>
+              <dd>{art.data.priority ?? "—"}</dd>
               <dt>موضوعات</dt>
               <dd>{art.data.topics.join("، ") || "—"}</dd>
               <dt>موجودیت‌ها</dt>
@@ -230,6 +232,7 @@ export default function News({ param }: { param?: string }) {
                   </button>
                 ) },
                 { key: "importance", label: "اهمیت", numeric: true, render: (r) => importanceLabel(r.importance as number | null) },
+                { key: "priority", label: "اولویت", render: (r) => String(r.priority ?? "—") },
                 { key: "topics", label: "موضوعات", render: (r) => (r.topics as string[]).join("، ") || "—" },
                 { key: "sentiment", label: "احساس", numeric: true, render: (r) => String(r.sentiment ?? "—") },
               ]}

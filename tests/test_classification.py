@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
@@ -167,6 +168,42 @@ def test_classify_repair_retry_recovers_non_json() -> None:
         session.close()
 
 
+def test_local_screening_is_advisory_metadata(monkeypatch) -> None:
+    """Screening is recorded as provenance, never used as the decision itself."""
+    import json as _json
+
+    from backend.ai.local_screening import orchestrator as orch
+    from backend.ai.schemas.types import AIResponse, AIUsage
+
+    _seed_article()
+    session = TestingSession()
+    try:
+        clf = ArticleClassifier(session)
+
+        async def fake_screen(db, text, priority=None, **kwargs):  # noqa: ANN001, ANN202
+            assert "Crude oil" in text
+            return orch.ScreeningDecision(
+                route="KEV", relevant=True, reason_codes=["KEV_RELEVANT"],
+                provenance={"priority": priority},
+            )
+
+        async def fake_structured(request, schema):  # noqa: ANN001, ANN202
+            return AIResponse(text=_valid_classify_json(), provider="fake",
+                              model="fake-1", usage=AIUsage(), is_mock=False)
+
+        monkeypatch.setattr(orch, "screen_with_db", fake_screen)
+        clf.gateway.structured_generate = fake_structured  # type: ignore[method-assign]
+        outcome = asyncio.run(clf.classify_pending(limit=10))
+        assert outcome.classified == 1
+        art = session.query(Article).first()
+        meta = _json.loads(art.classification_meta)
+        assert meta["local_screening"]["route"] == "KEV"
+        assert meta["local_screening"]["decision"] is True
+        assert art.classification_status == "done"
+    finally:
+        session.close()
+
+
 def test_classify_repair_retry_gives_up_after_one() -> None:
     """دو خروجی غیرJSON پشت سر هم → failed (نه retry بی‌نهایت)."""
     from backend.ai.schemas.types import AIResponse, AIUsage
@@ -207,6 +244,7 @@ def test_classify_api(client: TestClient) -> None:
     items = listing.json()
     assert len(items) == 1
     assert items[0]["importance"] is not None
+    assert "priority" in items[0]  # اولویت سند (P0..P4) در خواندن مقاله موجود است
 
     detail = client.get(f"/api/classify/articles/{items[0]['id']}")
     assert detail.status_code == 200
@@ -216,6 +254,51 @@ def test_classify_api(client: TestClient) -> None:
 
     missing = client.get("/api/classify/articles/00000000-0000-0000-0000-000000000000")
     assert missing.status_code == 404
+
+
+def test_classify_api_returns_skipped_zero_when_nothing_skipped(client: TestClient) -> None:
+    _seed_article()  # بدون اولویت کم و بدون محدودیت → هیچ موردی کنار گذاشته نمی‌شود
+    res = client.post("/api/classify/run?limit=10")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["classified"] == 1
+    assert body["skipped"] == 0 and isinstance(body["skipped"], int)
+
+
+def test_classify_api_skipped_equals_classify_outcome(client: TestClient, monkeypatch) -> None:
+    """مقدار پاسخ باید همان ClassifyOutcome.skipped باشد، نه بازمحاسبه در route."""
+    from domains.news.classifier import ArticleClassifier, ClassifyOutcome
+
+    async def fake_pending(self, *, limit: int = 20) -> ClassifyOutcome:  # noqa: ARG001
+        return ClassifyOutcome(classified=2, failed=1, skipped=3, errors=["boom"])
+
+    monkeypatch.setattr(ArticleClassifier, "classify_pending", fake_pending)
+    body = client.post("/api/classify/run?limit=10").json()
+    assert body == {"classified": 2, "failed": 1, "skipped": 3, "errors": ["boom"]}
+
+
+def test_classify_api_reports_gate_skips_from_real_run(client: TestClient) -> None:
+    """اجرای واقعی با گیت P3: skipped=1 و بقیهٔ قراردادهای قبلی پاسخ دست‌نخورده."""
+    import uuid
+
+    session = TestingSession()
+    try:
+        art = _seed_queue_article(session, title="api-low-p3", priority="P3", hours_ago=1)
+        art_id = art.id
+    finally:
+        session.close()
+
+    body = client.post("/api/classify/run?limit=10").json()
+    assert body["classified"] == 0 and body["failed"] == 0 and body["errors"] == []
+    assert body["skipped"] == 1
+
+    session = TestingSession()
+    try:  # قرارداد داخلی گیت حفظ شده است
+        row = session.get(Article, uuid.UUID(str(art_id)))
+        assert row.classification_status == "done" and row.classification_attempts == 0
+        assert row.importance == 7 and row.decided_by == "rules"
+    finally:
+        session.close()
 
 
 def test_classify_uses_document_body_when_summary_missing() -> None:
@@ -685,3 +768,135 @@ def test_decided_by_migration_chain():
     assert mod.revision == "b67a512b5ad2"
     assert mod.down_revision == "f594a47ca800"
     assert callable(mod.upgrade) and callable(mod.downgrade)
+
+
+# =====================================================================
+# شفاف‌سازی محدودسازی اهمیت تحلیلی (analytic_importance / band_clamped)
+# =====================================================================
+def _analytic_from_meta(meta: dict) -> int:
+    """مقدار تحلیلی را از همان inputs ذخیره‌شده بازسازی می‌کند (بدون حدس)."""
+    return compute_importance(ImportanceInputs(**meta["importance_inputs"]))
+
+
+def test_in_band_records_raw_analytic_and_not_clamped():
+    art, session = _apply_with_doc(
+        _mid_inputs_dict(), priority="P2", priority_source="rules")
+    try:
+        meta = _json.loads(art.classification_meta or "{}")
+        assert art.importance == 5 and art.decided_by is None
+        assert meta["band_clamped"] is False
+        assert meta["analytic_importance"] == 5 == _analytic_from_meta(meta)
+        # عمل clamp انجام نشده: مقدار تحلیلی و مقدار نهایی یکی‌اند
+        assert meta["analytic_importance"] == art.importance
+    finally:
+        session.close()
+
+
+def test_clamped_records_raw_analytic_and_flag():
+    art, session = _apply_with_doc(
+        _low_inputs_dict(), priority="P0", priority_source="rules")
+    try:
+        meta = _json.loads(art.classification_meta or "{}")
+        assert art.importance == 2 and art.decided_by == "rules"
+        assert meta["band_clamped"] is True
+        # مقدار خام پیش از clamp حفظ شده، نه مقدار clamp‌شده
+        assert meta["analytic_importance"] == _analytic_from_meta(meta)
+        assert meta["analytic_importance"] > art.importance
+    finally:
+        session.close()
+
+
+def test_clamp_unknown_provenance_is_distinguishable_from_in_band():
+    """ابهام قبلی رفع شده: clamp با منشأ نامعلوم با «داخل باند» قابل تفکیک است."""
+    art, session = _apply_with_doc(_low_inputs_dict(), priority="P0")
+    try:
+        meta = _json.loads(art.classification_meta or "{}")
+        assert art.decided_by is None          # قرارداد ستون تغییر نکرده
+        assert meta["band_clamped"] is True    # ولی واقعاً clamp شده است
+    finally:
+        session.close()
+
+
+def test_no_band_records_null_not_false():
+    """بدون سطح معتبر، نه ادعای داخل‌باند و نه عدد ساختگی."""
+    art, session = _apply_with_doc(_high_inputs_dict())
+    try:
+        meta = _json.loads(art.classification_meta or "{}")
+        assert art.decided_by is None
+        assert meta["band_clamped"] is None
+        assert meta["analytic_importance"] == art.importance == _analytic_from_meta(meta)
+    finally:
+        session.close()
+
+
+def test_band_map_and_existing_meta_keys_unchanged():
+    from domains.news.classifier import PRIORITY_BANDS
+
+    assert PRIORITY_BANDS == {"P0": (1, 2), "P1": (3, 4), "P2": (5, 6),
+                              "P3": (7, 8), "P4": (9, 10)}
+    art, session = _apply_with_doc(
+        _high_inputs_dict(), priority="P1", priority_source="rules")
+    try:
+        meta = _json.loads(art.classification_meta or "{}")
+        for key in ("provider", "model", "prompt_version", "is_mock", "repair_retry",
+                    "classified_at", "importance_inputs", "response_hash"):
+            assert key in meta
+    finally:
+        session.close()
+
+
+def test_meta_survives_reapply():
+    art, session = _apply_with_doc(
+        _low_inputs_dict(), priority="P0", priority_source="rules")
+    try:
+        meta = _json.loads(art.classification_meta or "{}")
+        first = (meta["analytic_importance"], meta["band_clamped"])
+        result = ClassificationResult.from_dict(_low_inputs_dict())
+        ArticleClassifier(session)._apply(art, result)
+        session.commit()
+        again = _json.loads(art.classification_meta or "{}")
+        assert (again["analytic_importance"], again["band_clamped"]) == first
+        assert again["band_clamped"] is True
+    finally:
+        session.close()
+
+
+def test_low_priority_gate_records_unknown_analytic(monkeypatch):
+    """گیت P3/P4 هیچ مقدار تحلیلی محاسبه نکرده → null (نه false کاذب)."""
+    session = TestingSession()
+    try:
+        art = _seed_queue_article(session, title="meta-p3", priority="P3", hours_ago=1)
+        clf = ArticleClassifier(session)
+
+        async def boom(article):
+            raise AssertionError("provider must not be called for P3")
+
+        monkeypatch.setattr(clf, "classify_article", boom)
+        assert asyncio.run(clf.classify_pending(limit=10)).skipped == 1
+        session.refresh(art)
+        meta = _json.loads(art.classification_meta or "{}")
+        assert meta["skipped_ai"] == "low_priority_gate"
+        assert meta["analytic_importance"] is None
+        assert meta["band_clamped"] is None
+        assert meta["level"] == "P3" and meta["decided_by"] == "rules"
+    finally:
+        session.close()
+
+
+def test_failed_classification_writes_no_false_band_claim(monkeypatch):
+    """طبقه‌بندی ناموفق هیچ ادعای باندی نمی‌سازد (غیبت کلید ≠ band_clamped=false)."""
+    _seed_article()
+    session = TestingSession()
+    try:
+        clf = ArticleClassifier(session)
+
+        async def broke(article):
+            raise RuntimeError("provider down")
+
+        monkeypatch.setattr(clf, "classify_article", broke)
+        assert asyncio.run(clf.classify_pending(limit=10)).failed == 1
+        art = session.query(Article).first()
+        assert art.classification_meta is None
+        assert art.importance is None and art.decided_by is None
+    finally:
+        session.close()
