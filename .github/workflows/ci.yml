@@ -50,14 +50,7 @@ jobs:
         run: |
           echo "=== test_article_dispatch_migration ==="
           pytest tests/test_article_dispatch_migration.py -v
-          echo "=== test_dispatch ==="
-          pytest tests/test_dispatch.py -v
-          echo "=== test_domain_routing ==="
-          pytest tests/test_domain_routing.py -v
-          echo "=== test_domain_routing_refresh ==="
-          pytest tests/test_domain_routing_refresh.py -v
-          echo "=== test_domain_engines ==="
-          pytest tests/test_domain_engines.py -v
+          echo "DONE_MIGRATION"
       - name: Full test suite
         run: pytest tests -q
 
