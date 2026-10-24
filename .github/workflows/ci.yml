@@ -48,10 +48,15 @@ jobs:
         run: alembic heads
       - name: Dispatch & persistence integration tests (PostgreSQL)
         run: |
+          echo "=== test_article_dispatch_migration ==="
           pytest tests/test_article_dispatch_migration.py -q
+          echo "=== test_dispatch ==="
           pytest tests/test_dispatch.py -q
+          echo "=== test_domain_routing ==="
           pytest tests/test_domain_routing.py -q
+          echo "=== test_domain_routing_refresh ==="
           pytest tests/test_domain_routing_refresh.py -q
+          echo "=== test_domain_engines ==="
           pytest tests/test_domain_engines.py -q
       - name: Full test suite
         run: pytest tests -q
