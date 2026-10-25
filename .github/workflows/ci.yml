@@ -52,7 +52,8 @@ jobs:
           pytest tests/test_article_dispatch_migration.py -v
           echo "DONE_MIGRATION"
       - name: Full test suite
-        run: pytest tests -q
+        timeout-minutes: 15
+        run: timeout 840 pytest tests -q
 
   docker:
     runs-on: ubuntu-latest
