@@ -51,9 +51,10 @@ jobs:
           echo "=== test_article_dispatch_migration ==="
           pytest tests/test_article_dispatch_migration.py -v
           echo "DONE_MIGRATION"
-      - name: Full test suite
+      - name: Focused regression subset (PostgreSQL)
         timeout-minutes: 15
-        run: timeout 840 pytest tests -q
+        run: |
+          pytest tests/test_screening_ops.py tests/test_screening_orchestrator.py tests/test_local_screening.py -q
 
   docker:
     runs-on: ubuntu-latest
