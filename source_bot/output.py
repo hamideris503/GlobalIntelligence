@@ -13,6 +13,7 @@ from backend.database.models.document import Document
 from backend.database.models.source import Source
 from domains.news.fetchers import RawItem
 from domains.news.ingestion import NewsIngestionPipeline
+from source_bot.priority_engine import LEVELS, is_valid_level
 
 
 def deliver(
@@ -21,7 +22,11 @@ def deliver(
     priority_source: str, priority_status: str,
     duplicate_status: str, canonical_url: str | None = None,
     final_url: str | None = None, external_id: str | None = None,
+    priority_meta: dict | None = None,
 ) -> bool:
+    # مرز ذخیره‌سازی: سطح نامعتبر هرگز به‌عنوان تصمیم معتبر ثبت نمی‌شود.
+    if not is_valid_level(priority):
+        raise ValueError(f"invalid priority level: {priority!r} (allowed: {LEVELS})")
     meta = dict(item.metadata or {})
     meta.update({
         "ingestion_priority": priority,
@@ -34,6 +39,9 @@ def deliver(
         "final_url": final_url,
         "external_id": external_id,
     })
+    if priority_meta:
+        # قرارداد provenance (confidence/منشأ) از `priority_engine.priority_provenance`
+        meta.update(priority_meta)
     enriched = RawItem(
         title=item.title, url=item.url, raw_text=item.raw_text,
         published_at=item.published_at, author=item.author,
@@ -53,7 +61,8 @@ def deliver(
         # ردیف ذخیره‌شده سالم می‌ماند و session برای آیتم‌های بعدی قابل‌استفاده است.
         try:
             with db.begin_nested():
-                doc, status = _find_created_row(db, source, item, before)
+                doc, status = _find_created_row(db, source, item, before,
+                                                external_id=external_id)
                 if doc is None:
                     from backend.core.logging import get_logger as _gl
 
@@ -83,7 +92,8 @@ def deliver(
     return stored
 
 
-def _find_created_row(db: Session, source: Source, item: RawItem, before) -> tuple[Document | None, str]:
+def _find_created_row(db: Session, source: Source, item: RawItem, before,
+                      external_id: str | None = None) -> tuple[Document | None, str]:
     """ردیف ساخته‌شده در همین deliver را دقیق پیدا می‌کند.
 
     برمی‌گرداند (doc_or_None, status) با status یکی از:
@@ -91,6 +101,7 @@ def _find_created_row(db: Session, source: Source, item: RawItem, before) -> tup
 
     هش‌ها از مقادیر نرمال‌شده محاسبه می‌شوند (همان‌چه store_item ذخیره کرد)،
     نه از raw — وگرنه تگ/متن دارای HTML با cleaned متفاوت می‌شود.
+    - ردیف بدون URL با هویت اعلام‌شده: همان external_id (دقیق، بدون حدس).
     - content معتبر: همان کلید یکتای pipeline (بدون تغییر رفتار dedup).
     - content تهی: فقط کاندیدهای هم‌URL که پس از `before` ساخته شده‌اند؛
       اگر دقیقاً یکی بود همان است، وگرنه ambiguous (بدون نوشتن).
@@ -99,6 +110,15 @@ def _find_created_row(db: Session, source: Source, item: RawItem, before) -> tup
 
     norm = normalize(item)
     uh, ch = norm.hash, norm.content_hash
+    ext = str(external_id or (item.metadata or {}).get("external_id") or "").strip()
+    if uh is None and ext:
+        doc = (
+            db.query(Document)
+            .filter(Document.source_id == source.id, Document.external_id == ext)
+            .order_by(Document.retrieved_at.desc())
+            .first()
+        )
+        return (doc, "found" if doc is not None else "not_found")
     if ch is not None:
         doc = (
             db.query(Document)

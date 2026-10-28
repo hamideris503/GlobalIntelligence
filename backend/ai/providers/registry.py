@@ -12,6 +12,7 @@ from backend.ai.providers.base import AIProvider
 from backend.ai.providers.cloudflare import CloudflareProvider
 from backend.ai.providers.gemini import GeminiProvider
 from backend.ai.providers.groq import GroqProvider
+from backend.ai.providers.local_decision import KevProvider, LayaProvider
 from backend.ai.providers.mock import MockProvider
 from backend.ai.providers.openai import OpenAIProvider
 from backend.ai.providers.openai_compatible import OpenAICompatibleProvider
@@ -30,6 +31,9 @@ _PROVIDER_CLASSES: dict[str, type] = {
     "groq": GroqProvider,
     "cloudflare": CloudflareProvider,
     "openai_compatible": OpenAICompatibleProvider,
+    # Local decision models (zero-cost, System One HTTP API).
+    "kev": KevProvider,
+    "laya": LayaProvider,
 }
 
 

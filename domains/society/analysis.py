@@ -59,7 +59,12 @@ class SocialEngine:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def analyze_all(self, *, period: str | None = None) -> SocialOutcome:
+    def analyze_all(
+        self,
+        *,
+        period: str | None = None,
+        scopes: list[tuple[str, str]] | None = None,
+    ) -> SocialOutcome:
         outcome = SocialOutcome()
         period = period or datetime.now(UTC).strftime("%Y-%m")
 
@@ -81,6 +86,18 @@ class SocialEngine:
         if not buckets:
             outcome.skipped += 1
             return outcome
+
+        # Stage93 bounded adapter: with `scopes`, recompute ONLY those
+        # (scope_type, scope) keys, each still computed from ALL of that
+        # scope's done articles — the per-scope mood semantics are unchanged.
+        if scopes:
+            wanted = {
+                (str(t).strip().lower(), str(s).strip().upper()) for t, s in scopes
+            }
+            buckets = {
+                k: v for k, v in buckets.items()
+                if (k[0], k[1].upper()) in wanted
+            }
 
         for (scope_type, scope), arts in sorted(buckets.items()):
             try:

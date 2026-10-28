@@ -23,6 +23,7 @@ export type RouteName =
   | "evaluation"
   | "history"
   | "ops"
+  | "screening"
   | "settings"
   | "help"
   | "search";
@@ -39,7 +40,7 @@ export function parseHash(): Route {
   const valid: RouteName[] = [
     "dashboard", "news", "sources", "ai", "chat", "connections", "keys", "world", "macro", "geo", "society",
     "iran", "markets", "forecast", "debate", "scenarios", "decisions", "portfolio",
-    "evaluation", "history", "ops", "settings", "help", "search",
+    "evaluation", "history", "ops", "screening", "settings", "help", "search",
   ];
   if ((valid as string[]).includes(name)) {
     return { name: name as RouteName, param: param || undefined };
@@ -99,6 +100,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: "سیستم", items: [
     { name: "history", label: "تاریخچه و گزارش‌ها", icon: "history" },
     { name: "ops", label: "پردازش‌ها و وظایف", icon: "ops" },
+    { name: "screening", label: "غربالگری و صف پردازش", icon: "ops" },
     { name: "settings", label: "تنظیمات", icon: "settings" },
     { name: "help", label: "راهنما", icon: "help" },
   ] },

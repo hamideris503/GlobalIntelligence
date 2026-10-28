@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 
@@ -29,6 +30,9 @@ logger = get_logger(__name__)
 
 MAX_CLAIMS = 8
 MAX_TEXT_CHARS = 6000
+
+# Serialize in-process with the n8n /api/claims/extract caller.
+_RUN_LOCK = asyncio.Lock()
 
 
 @dataclass
@@ -151,13 +155,21 @@ class ClaimExtractor:
         self.db.flush()
         return created
 
-    async def run(self, *, limit: int = 50) -> ClaimOutcome:
+    async def run(self, *, limit: int = 50,
+                  event_ids: list | None = None) -> ClaimOutcome:
+        async with _RUN_LOCK:
+            return await self._run(limit=limit, event_ids=event_ids)
+
+    async def _run(self, *, limit: int = 50,
+                   event_ids: list | None = None) -> ClaimOutcome:
         stmt = (
             select(Event)
             .where(Event.claims_extracted.is_(False))
             .order_by(Event.created_at.desc())
             .limit(limit)
         )
+        if event_ids:
+            stmt = stmt.where(Event.id.in_(list(event_ids)))
         events = list(self.db.execute(stmt).scalars().all())
         outcome = ClaimOutcome()
         # Production guard: events with any explicit-mock article are skipped

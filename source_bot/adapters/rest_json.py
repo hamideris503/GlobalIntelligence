@@ -12,8 +12,9 @@ from email.utils import parsedate_to_datetime
 
 import httpx
 
-from domains.news.fetchers import RawItem
-from source_bot.security import assert_public_host, validate_url
+from domains.news.fetchers import SOURCE_PROVIDED_ONLY, TEXT_STATUS, RawItem
+from domains.news.source_verify import BlockedTarget, GuardedTransport, safe_get
+from source_bot.security import validate_url
 
 
 @dataclass
@@ -79,7 +80,6 @@ class RestJsonAdapter:
         if not check.ok:
             return JsonResult([], "http_error", f"refusing url: {check.reason}")
         assert url
-        from urllib.parse import urlparse as _up
 
         headers = {"User-Agent": "GlobalIntelligenceBot/0.1", "Accept": "application/json"}
         if url in self._etag:
@@ -97,10 +97,14 @@ class RestJsonAdapter:
         pages = 0
         try:
             async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False,
-                                         max_redirects=self.max_redirects) as client:
+                                         max_redirects=self.max_redirects,
+                                         transport=GuardedTransport()) as client:
                 while next_url and pages < max_pages and len(items) < limit:
                     pages += 1
-                    resp = await client.get(next_url, headers=headers)
+                    # هر صفحه و هر hop redirect پیش از اتصال بررسی می‌شود؛
+                    # مقصد «next» هم داده‌ی غیرقابل‌اعتماد است، پس همان سیاست را می‌بیند.
+                    resp = await safe_get(client, next_url, headers=headers,
+                                          max_redirects=self.max_redirects)
                     if resp.status_code == 304:
                         return JsonResult([], "not_modified", "not modified")
                     if resp.status_code in (401, 403):
@@ -109,16 +113,6 @@ class RestJsonAdapter:
                         return JsonResult(items, "http_error", "http_429 rate limited")
                     if resp.status_code == 404:
                         return JsonResult(items, "http_error", "http_404")
-                    if resp.status_code in (301, 302, 303, 307, 308):
-                        loc = resp.headers.get("location")
-                        if not loc:
-                            return JsonResult(items, "http_error", "redirect without location")
-                        chk = validate_url(loc)
-                        if not chk.ok:
-                            return JsonResult(items, "http_error", f"blocked redirect: {chk.reason}")
-                        assert_public_host((_up(loc).hostname or "").lower())
-                        next_url = loc
-                        continue
                     if resp.status_code >= 500:
                         return JsonResult(items, "http_error", f"http_{resp.status_code}")
                     resp.raise_for_status()
@@ -145,18 +139,21 @@ class RestJsonAdapter:
                             break
                         if not isinstance(row, dict):
                             continue
+                        body = str(pick(row, _FIELD_ALIASES["text"]) or "") or None
+                        meta: dict = {"adapter": "rest_json", "mock": False,
+                                      "external_id": pick(row, _FIELD_ALIASES["external_id"])}
+                        if body:
+                            # فیلد متنِ خود API؛ استخراج صفحهٔ مقاله رخ نداده است.
+                            meta[TEXT_STATUS] = SOURCE_PROVIDED_ONLY
                         items.append(
                             RawItem(
                                 title=str(pick(row, _FIELD_ALIASES["title"]) or "") or None,
                                 url=str(pick(row, _FIELD_ALIASES["url"]) or "") or None,
-                                raw_text=str(pick(row, _FIELD_ALIASES["text"]) or "") or None,
+                                raw_text=body,
                                 published_at=_parse_date(pick(row, _FIELD_ALIASES["published"])),
                                 author=str(pick(row, _FIELD_ALIASES["author"]) or "") or None,
                                 raw_payload=json.dumps(row, ensure_ascii=False, default=str),
-                                metadata={
-                                    "external_id": pick(row, _FIELD_ALIASES["external_id"]),
-                                    "adapter": "rest_json",
-                                },
+                                metadata=meta,
                             )
                         )
                     next_url = None
@@ -167,5 +164,7 @@ class RestJsonAdapter:
             return JsonResult(items, "ok", "", self._etag.get(url), self._last_mod.get(url))
         except httpx.TimeoutException:
             return JsonResult(items, "http_error", "timeout")
+        except BlockedTarget as exc:  # مقصد/redirect غیرمجاز، پیش از اتصال
+            return JsonResult(items, "http_error", f"blocked: {exc}")
         except Exception as exc:  # noqa: BLE001 — فقط نوع خطا، بدون secret
             return JsonResult(items, "http_error", f"fetch_error:{type(exc).__name__}")

@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from backend.ai.dispatch.service import DispatchService
 from backend.ai.gateway import get_gateway
 from backend.ai.prompts.classification import CLASSIFY_ARTICLE
 from backend.ai.schemas.types import AIError, AIErrorKind, AIRequest, Message
@@ -94,6 +95,10 @@ def apply_low_priority_skip(article, level: str) -> None:
         "skipped_ai": "low_priority_gate",
         "level": level,
         "decided_by": decided,
+        # گیت P3/P4 هیچ امتیاز تحلیلی محاسبه نمی‌کند؛ پس مقدار اولیه «نامعلوم» است
+        # (نه صفر/عدد ساختگی) و محدودسازی باند قابل بازسازی نیست.
+        "analytic_importance": None,
+        "band_clamped": None,
         "classified_at": datetime.now(UTC).isoformat(),
     }, ensure_ascii=False)
 
@@ -195,6 +200,23 @@ class ClassifyOutcome:
     errors: list[str] = field(default_factory=list)
 
 
+def _article_text(article: Article) -> str:
+    # AUDIT-REPAIR: متن کامل سند هم لحاظ می‌شود (قبلاً فقط title+summary که
+    # summary در ingest تهی بود). ترتیب اهمیت: عنوان، خلاصه، بدنه.
+    parts = [article.title or ""]
+    document = article.document
+    body = (document.raw_text if document is not None else None) or ""
+    summary = (article.summary or "").strip()
+    # خلاصهٔ قطعی محلی پیشوندِ همان بدنه است؛ دوباره‌افزودنش prompt را بی‌دلیل
+    # بلند می‌کند و بدنه را از پنجرهٔ ۴۰۰۰ حرفی بیرون می‌اندازد. خلاصهٔ AI
+    # (که پیشوند بدنه نیست) مثل قبل افزوده می‌شود.
+    if summary and not body.startswith(summary):
+        parts.append(summary)
+    if body:
+        parts.append(body)
+    return "\n".join(p for p in parts if p).strip()
+
+
 class ArticleClassifier:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -202,13 +224,7 @@ class ArticleClassifier:
         self._settings = get_settings()
 
     async def classify_article(self, article: Article) -> ClassificationResult:
-        # AUDIT-REPAIR: متن کامل سند هم لحاظ می‌شود (قبلاً فقط title+summary که
-        # summary در ingest تهی بود). ترتیب اهمیت: عنوان، خلاصه، بدنه.
-        parts = [article.title or "", article.summary or ""]
-        document = article.document
-        if document is not None and document.raw_text:
-            parts.append(document.raw_text)
-        text = "\n".join(p for p in parts if p).strip()
+        text = _article_text(article)
         if not text:
             raise ValueError("empty article text")
 
@@ -295,7 +311,17 @@ class ArticleClassifier:
         return result
 
     async def classify_pending(self, *, limit: int = 20) -> ClassifyOutcome:
-        """مقالات pending با تلاش کمتر از حد مجاز را پردازش می‌کند."""
+        """مقالات pending با تلاش کمتر از حد مجاز را پردازش می‌کند.
+
+        Stage89: screening decides **dispatch**, not classification. Every
+        pending article is classified as before, so existing classifier
+        contracts and decisions are preserved; the screening decision is stored
+        as provenance and only gates downstream analysis:
+        - True  -> event/claim/evidence dispatch rows are enqueued once.
+        - False -> article retained; no ordinary analysis job is created.
+        - None  -> a durable `screening` retry row is enqueued (never treated
+          as irrelevant).
+        """
         articles = list(self.db.execute(_pending_stmt(limit)).scalars().all())
         outcome = ClassifyOutcome()
         # Historical mock rows must not enter new classification in production.
@@ -319,12 +345,17 @@ class ArticleClassifier:
                             article.id, skipped_level)
                 self.db.commit()
                 continue
+
+            # Screening is advisory for dispatch only; it never blocks or
+            # rewrites the classification decision.
+            screening = await self._screen(article)
+
             try:
                 result = await self.classify_article(article)
             except AIError as exc:
-                if exc.kind == AIErrorKind.budget:
-                    # اتمام بودجه: نه شکست، نه مصرف attempts؛ pending می‌ماند.
-                    logger.warning("classify budget exceeded, kept pending | article=%s",
+                if exc.kind in (AIErrorKind.budget, AIErrorKind.quota_exhausted,
+                                AIErrorKind.free_unavailable):
+                    logger.warning("classify quota exhausted, kept pending | article=%s",
                                    article.id)
                     outcome.skipped += 1
                     continue
@@ -337,14 +368,18 @@ class ArticleClassifier:
                 continue
             article.classification_attempts = (article.classification_attempts or 0) + 1
             try:
-                # در production، نتیجه‌ی mock ذخیره نمی‌شود (P0-1)
                 if result.is_mock and not effective_mock_mode():
                     raise ValueError("mock result rejected in production mode")
 
-                self._apply(article, result)
+                self._apply(article, result, screening)
                 article.classification_status = "done"
                 article.classification_error = None
                 outcome.classified += 1
+
+                # Same transaction as the classification commit: a crash can
+                # never persist a screening decision without its dispatch rows.
+                dispatch_svc = DispatchService(self.db)
+                dispatch_svc.enqueue_after_screening(article.id, screening)
             except Exception as exc:  # noqa: BLE001
                 self._record_failure(article, outcome, exc)
             self.db.commit()
@@ -367,7 +402,34 @@ class ArticleClassifier:
         outcome.errors.append(f"article={article.id}: {exc}")
         logger.warning("classify failed | article=%s err=%s", article.id, exc)
 
-    def _apply(self, article: Article, result: ClassificationResult) -> None:
+    async def _screen(self, article: Article):
+        """One screening entry point: orchestrator + supervisor + AI fallback.
+
+        The legacy ``LocalScreener`` (ports 8009/8011) is not reachable from
+        this path. ``local_screening_enabled`` is deprecated and intentionally
+        not read; only the per-model panel flags decide local execution.
+        """
+        from backend.ai.local_screening import orchestrator as orch
+
+        level, _ = _doc_priority(article)
+        text = _article_text(article)
+        try:
+            return await orch.screen_with_db(self.db, text, level)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("screening error | article=%s err=%s",
+                           article.id, type(exc).__name__)
+            return orch.ScreeningDecision(
+                route="ERROR",
+                relevant=None,
+                reason_codes=[f"SCREENING_EXCEPTION:{type(exc).__name__}"],
+                fallback_used=False,
+                p0_p1_safeguard=False,
+                downstream_dispatch=False,
+                provenance={"error": type(exc).__name__},
+            )
+
+    def _apply(self, article: Article, result: ClassificationResult,
+               screening=None) -> None:
         # novelty و historical significance از سیستم
         result.importance_inputs.novelty = compute_novelty(self.db, article)
         result.importance_inputs.historical_significance = compute_historical_significance(
@@ -388,6 +450,11 @@ class ArticleClassifier:
         article.importance, article.decided_by = align_importance_to_level(
             level, analytic, priority_source=psrc)
         article.confidence = result.confidence
+        # شفاف‌سازی محدودسازی: مقدار تحلیلی واقعی پیش از باند و اینکه باند آن را
+        # تغییر داده یا نه. `null` یعنی باند معتبری نبود (تصمیم بازسازی‌ناپذیر)،
+        # نه اینکه «تغییر نکرده»؛ مقدار جایگزین نمی‌سازیم.
+        band = PRIORITY_BANDS.get(str(level or "").strip().upper())
+        band_clamped = None if band is None else article.importance != analytic
 
         # متادیتای اجرا برای Reproducibility
         meta = {
@@ -398,11 +465,28 @@ class ArticleClassifier:
             "repair_retry": result.repair_retry,
             "classified_at": datetime.now(UTC).isoformat(),
             "importance_inputs": result.importance_inputs.as_dict(),
+            "analytic_importance": analytic,
+            "band_clamped": band_clamped,
             "response_hash": hashlib.sha256(
                 json.dumps(result.topics, ensure_ascii=False).encode("utf-8")
             ).hexdigest()[:16],
         }
+        if screening is not None:
+            # Advisory only: never written as a classification decision.
+            meta["local_screening"] = screening.as_dict()
         article.classification_meta = json.dumps(meta, ensure_ascii=False)
+
+        # Create/update classification dispatch record (idempotent)
+        dispatch_svc = DispatchService(self.db)
+        dispatch = dispatch_svc.ensure_dispatch(
+            article.id,
+            "classification",
+            meta={
+                "screening_route": screening.route if hasattr(screening, 'route') else None,
+                "screening_decision": screening.relevant if hasattr(screening, 'relevant') else None,
+            },
+        )
+        dispatch_svc.mark_completed(dispatch, meta={"provider": result.provider, "model": result.model})
 
 
 def _validate(data: dict, schema: dict) -> None:

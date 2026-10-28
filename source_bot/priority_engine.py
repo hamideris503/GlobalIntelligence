@@ -5,6 +5,7 @@ score بالا به‌تنهایی به معنی confidence بالا نیست؛ 
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -13,19 +14,58 @@ from source_bot.config import BotSettings
 
 LEVELS = ("P0", "P1", "P2", "P3", "P4")
 
-URGENT_FA = [
-    "فوری", "اضطراری", "بحران", "هشدار", "زلزله", "جنگ", "حمله", "تحریم",
-    "ورشکستگی", "فروپاشی", "تعطیلی", "انفجار", "کودتا", "آتش",
-]
-URGENT_EN = [
-    "breaking", "urgent", "emergency", "crisis", "alert", "earthquake",
-    "war", "attack", "sanction", "bankrupt", "collapse", "explosion", "coup",
-]
 
-HIGH_FA = ["بانک مرکزی", "نرخ بهره", "تورم", "انتخابات", "توافق", "مذاکره", "نفت", "ارز"]
-HIGH_EN = ["central bank", "interest rate", "inflation", "election", "agreement", "oil price", "exchange rate"]
+def is_valid_level(value: object) -> bool:
+    """آیا مقدار دقیقاً یکی از سطوح مجاز P0..P4 است؟ (بدون نرمال‌سازی یا حدس)"""
+    return isinstance(value, str) and value in LEVELS
 
-_CONFLICT = ["contradict", "disputed", "conflict", "متناقض", "اختلاف"]
+# گروه‌های واژگانی موتور قواعد — تنها منبع: config/priority_keywords.toml.
+# نگاشت گروه→وزن و مرزِ کد در score_item است (الگوریتم امتیازدهی تغییر نمی‌کند).
+KEYWORD_GROUPS = ("urgent_fa", "urgent_en", "high_fa", "high_en", "conflict")
+
+
+class PriorityKeywordsError(RuntimeError):
+    """config/priority_keywords.toml ناقص یا خراب است — هیچ fallback بی‌صدایی نیست."""
+
+
+def _keywords_path() -> str:
+    """مسیر مطلق config/، مستقل از working directory جاری."""
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(repo_root, "config", "priority_keywords.toml")
+
+
+def load_priority_keywords(path: str | None = None) -> dict[str, list[str]]:
+    """خواندن گروه‌های واژگانی از TOML؛ خطای صریح در نبود/خرابی هر گروه."""
+    import tomllib
+
+    target = path or _keywords_path()
+    try:
+        with open(target, "rb") as fh:
+            data = tomllib.load(fh)
+    except FileNotFoundError as exc:
+        raise PriorityKeywordsError(f"priority keywords file not found: {target}") from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise PriorityKeywordsError(f"invalid TOML in {target}: {exc}") from exc
+    groups: dict[str, list[str]] = {}
+    for name in KEYWORD_GROUPS:
+        value = data.get(name)
+        if not isinstance(value, list) or not all(
+            isinstance(word, str) and word.strip() for word in value
+        ):
+            raise PriorityKeywordsError(f"group '{name}' missing or invalid in {target}")
+        groups[name] = list(value)
+    return groups
+
+
+_KEYWORDS_CACHE: dict[str, list[str]] | None = None
+
+
+def get_priority_keywords() -> dict[str, list[str]]:
+    """کش فرایندی کلیدواژه‌ها — فایل یک بار در عمر پروسه خوانده می‌شود."""
+    global _KEYWORDS_CACHE
+    if _KEYWORDS_CACHE is None:
+        _KEYWORDS_CACHE = load_priority_keywords()
+    return _KEYWORDS_CACHE
 
 
 def normalize_fa(text: str) -> str:
@@ -52,6 +92,50 @@ class PriorityResult:
     needs_ai: bool = False
 
 
+# آستانهٔ تک‌منبعی اطمینان قواعد: پایین‌تر از این مقدار تصمیم قواعد قطعی نیست.
+# مسیر عادی ingestion و Source Bot هر دو از همین یک مقدار استفاده می‌کنند.
+UNRELIABLE_CONFIDENCE = 0.3
+
+
+# قرارداد یکسان provenance اولویت، مشترک مسیر عادی ingestion و Source Bot.
+def priority_provenance(
+    *,
+    rules_confidence: float | None = None,
+    ai: dict | None = None,
+) -> dict:
+    """کلیدهای provenance در doc_metadata — فقط از نتیجهٔ واقعی، بدون مقدار جعلی.
+
+    منشأ تصمیم نهایی فقط از خودِ تصمیم مشتق می‌شود (نه از نام وضعیت عملیاتی):
+    - پاسخ معتبر و پذیرفته‌شدهٔ AI → `ai`؛
+    - وگرنه confidence قواعد ≥ `UNRELIABLE_CONFIDENCE` → `rules`؛
+    - وگرنه → `pending`: هیچ تصمیم قطعی‌ای وجود ندارد، پس `priority_confidence`
+      null می‌ماند و confidence قواعد در `rules_priority_confidence` جدا ثبت می‌شود.
+    - `ai` فقط پاسخ معتبر و پذیرفته‌شده است؛ پاسخ mock/نامعتبر هرگز اینجا نمی‌آید.
+    - `priority_score` همیشه امتیاز موتور قواعد است؛ `priority_score_source` آن را
+      صریح می‌کند تا با سطح AI‌محور اشتباه گرفته نشود.
+    """
+    accepted = ai if isinstance(ai, dict) else None
+    if accepted is not None:
+        decision = "ai"
+    elif rules_confidence is not None and rules_confidence >= UNRELIABLE_CONFIDENCE:
+        decision = "rules"
+    else:
+        decision = "pending"
+    ai_conf = accepted.get("confidence") if accepted else None
+    return {
+        "priority_decision_source": decision,
+        "priority_score_source": "rules",
+        "priority_confidence": (None if decision == "pending"
+                                else (ai_conf if accepted else rules_confidence)),
+        "rules_priority_confidence": rules_confidence,
+        "ai_priority_confidence": ai_conf,
+        "ai_priority_reason": accepted.get("reason") if accepted else None,
+        "ai_priority_reason_codes": (
+            [str(c) for c in accepted.get("reason_codes") or []] if accepted else None
+        ),
+    }
+
+
 def _level_for(score: float, s: BotSettings) -> str:
     if score >= s.th_p0:
         return "P0"
@@ -73,8 +157,10 @@ def score_item(
     published_at: datetime | None = None,
     has_author: bool = False,
     settings: BotSettings | None = None,
+    keywords: dict[str, list[str]] | None = None,
 ) -> PriorityResult:
     s = settings or BotSettings()
+    kw = keywords if keywords is not None else get_priority_keywords()
     text = f"{title or ''} {body or ''}"
     norm = normalize_fa(text)
     words = set(re.findall(r"\w+", norm)) | set(re.findall(r"\w+", text.lower()))
@@ -88,10 +174,10 @@ def score_item(
     if category in ("economy", "markets", "geopolitics", "alert"):
         score += 8.0
         codes.append("HIGH_CATEGORY")
-    if _any_kw(words, norm, URGENT_FA) or _any_kw(words, text.lower(), URGENT_EN):
+    if _any_kw(words, norm, kw["urgent_fa"]) or _any_kw(words, text.lower(), kw["urgent_en"]):
         score += 45.0
         codes.append("URGENT_KEYWORD")
-    elif _any_kw(words, norm, HIGH_FA) or _any_kw(words, text.lower(), HIGH_EN):
+    elif _any_kw(words, norm, kw["high_fa"]) or _any_kw(words, text.lower(), kw["high_en"]):
         score += 22.0
         codes.append("HIGH_IMPACT")
     if published_at is not None:
@@ -117,7 +203,7 @@ def score_item(
         codes.append("INCOMPLETE")
     if has_author:
         score += 2.0
-    if _any_kw(words, norm, _CONFLICT) or _any_kw(words, text.lower(), _CONFLICT):
+    if _any_kw(words, norm, kw["conflict"]) or _any_kw(words, text.lower(), kw["conflict"]):
         codes.append("CONFLICT_SIGNAL")
 
     score = max(0.0, min(100.0, score))

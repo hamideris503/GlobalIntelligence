@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from source_bot.adapters.csv import CsvAdapter
 from source_bot.adapters.html import extract_with_trafilatura
@@ -53,12 +54,11 @@ def test_xml_secure_and_feed_reroute():
     x = XmlAdapter()
     feed = x.parse(SAMPLE_RSS, limit=5, source_url="u")
     assert feed.is_feed is True
-    # XXE نباید اجرا شود
+    # XXE/DTD نباید اجرا شود: parse کنترل‌شده خطا می‌دهد، نه محتوای فایل خارجی
     xxe = b'<?xml version="1.0"?><!DOCTYPE r [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root><title>&xxe;</title></root>'
     r = x.parse(xxe, limit=5)
-    assert r.status in ("ok", "http_error")
-    if r.status == "ok":
-        assert "root" not in (r.items[0].raw_text or "root") or True
+    assert r.status == "http_error" and r.detail == "xml_parse_error"
+    assert r.items == []
 
 
 def test_csv_row_error_isolated(monkeypatch):
@@ -93,6 +93,98 @@ def test_trafilatura_from_same_html_no_redownload():
 def test_html_empty_not_fabricated():
     item = extract_with_trafilatura("<html><body></body></html>", "https://ex.com/e")
     assert item is None
+
+
+# --- provenance / text_status آداپتورها (مرحلهٔ ۳۳، بدون شبکه) ---
+
+class _Resp:
+    """پاسخ HTTP ساختگی برای adapterهای داده (فقط attributeهای مصرفی)."""
+
+    status_code = 200
+
+    def __init__(self, content: bytes = b"", payload=None) -> None:
+        self.content = content
+        self._payload = payload
+        self.headers: dict = {}
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        return self._payload
+
+
+def _fake_http(monkeypatch, resp) -> None:
+    import httpx
+
+    class FakeClient:
+        def __init__(self, *a, **k):  # noqa: ANN002, ANN003
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):  # noqa: ANN002
+            return False
+
+        async def get(self, *a, **k):  # noqa: ANN002, ANN003
+            return resp
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+
+
+def test_html_extraction_declares_real_full_text():
+    from backend.database.models.document import provenance_of
+    from domains.news.fetchers import FULL_TEXT, TEXT_STATUS
+
+    html = ("<html><head><title>Bank decision</title></head><body><article>"
+            "<h1>Bank decision</h1><p>"
+            + ("The central bank announced its interest rate decision today. " * 8)
+            + "</p></article></body></html>")
+    item = extract_with_trafilatura(html, "https://ex.com/p")
+    assert item is not None and item.raw_text
+    assert item.metadata["mock"] is False
+    assert item.metadata[TEXT_STATUS] == FULL_TEXT
+    assert provenance_of(json.dumps(item.metadata)) == "real"
+
+
+def test_xml_body_is_source_provided_not_full_text():
+    from backend.database.models.document import provenance_of
+    from domains.news.fetchers import SOURCE_PROVIDED_ONLY, TEXT_STATUS
+
+    r = XmlAdapter().parse(
+        b"<root><item><title>T</title><description>body</description></item>"
+        b"<item><title>N</title></item></root>", limit=5)
+    assert r.items[0].metadata["mock"] is False
+    assert r.items[0].metadata[TEXT_STATUS] == SOURCE_PROVIDED_ONLY
+    assert provenance_of(json.dumps(r.items[0].metadata)) == "real"
+    assert TEXT_STATUS not in r.items[1].metadata   # ردیف بدون متن: وضعیتی ادعا نمی‌شود
+
+
+def test_csv_adapter_declares_source_provided_provenance(monkeypatch):
+    from backend.database.models.document import provenance_of
+    from domains.news.fetchers import SOURCE_PROVIDED_ONLY, TEXT_STATUS
+
+    _fake_http(monkeypatch, _Resp(b"title,url,text\nA,https://a.com,x\n"))
+    r = asyncio.run(CsvAdapter().fetch(url="https://example.com/f.csv", limit=10))
+    item = r.items[0]
+    assert item.metadata["mock"] is False
+    assert item.metadata[TEXT_STATUS] == SOURCE_PROVIDED_ONLY
+    assert provenance_of(json.dumps(item.metadata)) == "real"
+
+
+def test_rest_json_adapter_declares_source_provided_provenance(monkeypatch):
+    from backend.database.models.document import provenance_of
+    from domains.news.fetchers import SOURCE_PROVIDED_ONLY, TEXT_STATUS
+
+    payload = {"items": [{"title": "T", "url": "https://a.com/1", "body": "b", "id": "x1"},
+                         {"title": "N", "url": "https://a.com/2", "id": "x2"}]}
+    _fake_http(monkeypatch, _Resp(json.dumps(payload).encode(), payload))
+    r = asyncio.run(RestJsonAdapter().fetch(url="https://example.com/api", limit=5))
+    assert r.items[0].metadata == {"adapter": "rest_json", "mock": False,
+                                   "external_id": "x1", TEXT_STATUS: SOURCE_PROVIDED_ONLY}
+    assert provenance_of(json.dumps(r.items[0].metadata)) == "real"
+    assert TEXT_STATUS not in r.items[1].metadata
 
 
 def test_scrapy_spider_exists_and_respects_robots():
@@ -248,7 +340,7 @@ def test_crawl_runs_multi_page_and_extracts():
     try:
         items = HtmlAdapter(timeout=10).crawl(
             start_urls=[base + "/"], allowed_domains=["127.0.0.1"],
-            max_pages=10)
+            authorized_origins=(base,), max_pages=10)
     finally:
         srv.shutdown()
     by_url = {it.url: it for it in items}
@@ -265,7 +357,7 @@ def test_crawl_offdomain_never_fetched_and_no_redownload():
     try:
         HtmlAdapter(timeout=10).crawl(
             start_urls=[base + "/"], allowed_domains=["127.0.0.1"],
-            max_pages=10)
+            authorized_origins=(base,), max_pages=10)
     finally:
         srv.shutdown()
     assert not any("example.test" in p for p in hits)
@@ -275,6 +367,24 @@ def test_crawl_offdomain_never_fetched_and_no_redownload():
         assert n == 1, f"{path} fetched {n}x"
 
 
+def test_crawl_extracts_from_the_same_response_with_trafilatura():
+    """Scrapy صفحه را می‌گیرد و Trafilatura همان پاسخ را استخراج می‌کند (بدون دانلود دوم)."""
+    from source_bot.adapters.html import HtmlAdapter
+
+    srv, base, hits = _run_stub_server()
+    try:
+        items = HtmlAdapter(timeout=10).crawl(
+            start_urls=[base + "/"], allowed_domains=["127.0.0.1"],
+            authorized_origins=(base,), max_pages=10)
+    finally:
+        srv.shutdown()
+    root = next(i for i in items if i.url == base + "/")
+    expected = extract_with_trafilatura(_stub_pages(0)["/"], base + "/")
+    assert expected is not None and root.title == expected.title
+    assert root.raw_text == expected.raw_text
+    assert hits.get("/", 0) == 1  # همان پاسخ؛ هیچ درخواست دومی به همان URL نیست
+
+
 def test_crawl_depth_limit_respected():
     from source_bot.adapters.html import HtmlAdapter
 
@@ -282,7 +392,7 @@ def test_crawl_depth_limit_respected():
     try:
         HtmlAdapter(timeout=10).crawl(
             start_urls=[base + "/"], allowed_domains=["127.0.0.1"],
-            max_pages=10)
+            authorized_origins=(base,), max_pages=10)
     finally:
         srv.shutdown()
     assert "/p4" not in hits  # عمق ۳ فراتر از DEPTH_LIMIT=2
@@ -291,9 +401,10 @@ def test_crawl_depth_limit_respected():
 def test_crawl_dead_host_returns_empty_not_crash():
     from source_bot.adapters.html import HtmlAdapter
 
+    # origin صریحاً مجاز است (تست محلی)؛ اتصال شکست می‌خورد → []، نه کرش
     assert HtmlAdapter(timeout=5).crawl(
         start_urls=["http://127.0.0.1:9/"], allowed_domains=["127.0.0.1"],
-        max_pages=5) == []
+        authorized_origins=("http://127.0.0.1:9",), max_pages=5) == []
 
 
 def test_runner_crawl_opt_in_and_fallback(monkeypatch):

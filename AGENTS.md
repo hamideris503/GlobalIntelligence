@@ -4,7 +4,7 @@ Modular monolith (FastAPI) + workers + React/Vite frontend + PostgreSQL + pinned
 
 ## Layout
 
-- `backend/` — FastAPI app. Entrypoint `backend/main.py:create_app()` (`app = create_app()`). Routers in `backend/api/routers/` (~40 domains), business logic in `backend/services/`, `backend/ai/gateway/` + `backend/ai/providers/` (mock, gemini, openai, anthropic, openrouter), analytical domains in `domains/`, background jobs in `workers/`.
+- `backend/` — FastAPI app. Entrypoint `backend/main.py:create_app()` (`app = create_app()`). Routers in `backend/api/routers/` (~40 domains), business logic in `backend/services/`, `backend/ai/gateway/` + `backend/ai/providers/` (mock, gemini, openai, anthropic, openrouter), analytical domains in `domains/`, background jobs run in-process via FastAPI `BackgroundTasks` (`source_bot/jobs.py`) and n8n workflows (`workers/` is still an empty placeholder — `.gitkeep` only).
 - `apps/web/` — React 18 + Vite 5 + Tailwind 4, RTL/Persian/dark. No charts in v1, tables only.
 - `db/migrations/` — Alembic scripts (`alembic.ini`: `script_location = db/migrations`). Seed via `python -m db.seed.sources`.
 - `tests/` — ~65 `test_*.py` files, `conftest.py` is source of truth. `integrations/n8n/workflows/` — n8n JSON. `scripts/` — ops helpers. `config/*.toml` — env/debate config.

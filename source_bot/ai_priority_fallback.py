@@ -46,6 +46,22 @@ def validate_ai_priority(payload: Any) -> dict | None:
     return {"priority": prio, "confidence": conf_f, "reason": reason.strip(), "reason_codes": clean_codes}
 
 
+def usage_meta(resp: Any) -> dict:
+    """متادیتای مصرف از پاسخ واقعی Gateway (بدون تخمین؛ فقط مقادیر موجود).
+
+    فقط چیزی که provider گزارش کرده کپی می‌شود؛ مقدار نبوده = None (نه صفر).
+    """
+    usage = getattr(resp, "usage", None)
+    return {
+        "provider": getattr(resp, "provider", None),
+        "model": getattr(resp, "model", None),
+        "prompt_tokens": getattr(usage, "prompt_tokens", None),
+        "completion_tokens": getattr(usage, "completion_tokens", None),
+        "total_tokens": getattr(usage, "total_tokens", None),
+        "cost_estimate": getattr(resp, "cost_estimate", None),
+    }
+
+
 async def ai_prioritize(*, title: str | None, text: str | None, metadata: dict | None = None) -> dict | None:
     """فراخوانی Gateway؛ خطا/نامعتبر -> None (fallback قواعد می‌ماند).
 
@@ -77,6 +93,8 @@ async def ai_prioritize(*, title: str | None, text: str | None, metadata: dict |
         if clean is None:
             return None
         clean["is_mock"] = bool(resp.is_mock)
+        # مصرف واقعی همان پاسخ (توکن provider) — پیش‌تر بین لایه‌ها گم می‌شد.
+        clean["usage"] = usage_meta(resp)
         return clean
     except Exception:  # noqa: BLE001
         return None

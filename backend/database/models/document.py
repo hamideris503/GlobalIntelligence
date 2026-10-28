@@ -2,7 +2,9 @@
 
 - `raw_payload`: نسخه‌ی اصلی و دست‌نخورده‌ی آیتم (XML/JSON) — بند 19.
 - `raw_text`: متن پاک‌سازی‌شده‌ی قابل جستجو (بعد از حذف HTML).
-- یکتایی فقط درون یک منبع: (source_id, hash, content_hash).
+- یکتایی URL‌دار درون یک منبع: (source_id, hash, content_hash).
+- یکتایی ردیف بدون URL درون یک منبع: (source_id, external_id) با index جزئی.
+- یکتایی محتوای بدون URL (بدون external_id معتبر): (source_id, content_hash) با index جزئی.
 """
 from __future__ import annotations
 
@@ -11,7 +13,17 @@ import uuid
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint, select
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    select,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, PointInTimeMixin, TimestampMixin, UUIDMixin
@@ -20,6 +32,20 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 Provenance = Literal["mock", "real", "unknown"]
+
+# هویت ردیف‌های بدون URL: (source_id, external_id) — index جزئی، چون NULL در
+# SQLite/PostgreSQL یکتایی را نمی‌شکند و ردیف‌های URL‌دار نباید تغییر کنند.
+_RIDLESS_IDENTITY_WHERE = "external_id IS NOT NULL AND hash IS NULL"
+
+# هویت محتوایی ردیف‌های بدون URL و بدون external_id معتبر: (source_id, content_hash).
+# `UniqueConstraint(source_id, hash, content_hash)` برای این ردیف‌ها بی‌اثر است چون
+# NULL در SQL متمایز شمرده می‌شود؛ پس تضمین یکتایی به همین index جزئی نیاز دارد.
+# `trim` عمدی است: external_id خالی/فاصله‌دار شناسه‌ی معتبر نیست و نباید ردیف را از
+# این index بیرون بیندازد.
+_RIDLESS_CONTENT_WHERE = (
+    "hash IS NULL AND content_hash IS NOT NULL "
+    "AND (external_id IS NULL OR trim(external_id) = '')"
+)
 
 
 def provenance_of(doc_metadata: str | None) -> Provenance:
@@ -86,6 +112,22 @@ class Document(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     __tablename__ = "documents"
     __table_args__ = (
         UniqueConstraint("source_id", "hash", "content_hash", name="uq_document_source_url_content"),
+        Index(
+            "uq_documents_source_external_id",
+            "source_id",
+            "external_id",
+            unique=True,
+            sqlite_where=text(_RIDLESS_IDENTITY_WHERE),
+            postgresql_where=text(_RIDLESS_IDENTITY_WHERE),
+        ),
+        Index(
+            "uq_documents_source_content_hash_ridless",
+            "source_id",
+            "content_hash",
+            unique=True,
+            sqlite_where=text(_RIDLESS_CONTENT_WHERE),
+            postgresql_where=text(_RIDLESS_CONTENT_WHERE),
+        ),
     )
 
     source_id: Mapped[uuid.UUID | None] = mapped_column(

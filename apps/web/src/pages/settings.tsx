@@ -1,6 +1,6 @@
 /** Settings panel — providers/models/agents/budget/debate runs (Step 8-B).
  * فارسی RTL. کلید write-only است و بعد از ذخیره از state پاک می‌شود. */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, getApiBase, setApiBase } from "../api";
 import { fa } from "../theme";
 import {
@@ -16,6 +16,10 @@ interface Provider {
 interface Model {
   id: string; provider_id: string; provider_name: string; model_name: string;
   price_in_per_mtok: number | null; price_out_per_mtok: number | null; enabled: boolean;
+  free_status: string; free_source_url: string | null; free_verified_on: string | null;
+  free_review_after: string | null; free_limits: string | null;
+  free_account_prereqs: string | null; free_privacy_notes: string | null;
+  free_verified_by: string | null; free_blocked_reason: string | null;
 }
 interface Assignment {
   agent: string; provider_id: string | null; provider_name: string | null;
@@ -220,8 +224,15 @@ function ModelsTab() {
   const models = useApi<Model[]>("/api/settings/models", [tick]);
   const [pid, setPid] = useState("");
   const [discovered, setDiscovered] = useState<string[]>([]);
-  const [form, setForm] = useState({ model_name: "", pin: "", pout: "" });
+  const [form, setForm] = useState({ model_name: "", pin: "", pout: "", source_url: "", limits: "", prereqs: "", privacy: "" });
   const [msg, setMsg] = useState<string | null>(null);
+  const [verifyId, setVerifyId] = useState<string | null>(null);
+  const [verifyForm, setVerifyForm] = useState({ source_url: "", limits: "", prereqs: "", privacy: "", confirm: false });
+  const [blockId, setBlockId] = useState<string | null>(null);
+  const [blockReason, setBlockReason] = useState("");
+
+  const freeTone = (s: string) => s === "FREE_VERIFIED" ? "ok" : (s === "BLOCKED" ? "bad" : "warn");
+  const freeLabel = (s: string) => s === "FREE_VERIFIED" ? "تأییدشده" : (s === "REVIEW_REQUIRED" ? "نیازمند بازبینی" : (s === "BLOCKED" ? "مسدود" : "تأییدنشده"));
 
   const discover = async () => {
     if (!pid) return;
@@ -240,12 +251,51 @@ function ModelsTab() {
         provider_id: pid, model_name: modelName,
         price_in_per_mtok: form.pin ? Number(form.pin) : undefined,
         price_out_per_mtok: form.pout ? Number(form.pout) : undefined,
+        free_source_url: form.source_url.trim() || undefined,
+        free_limits: form.limits.trim() || undefined,
+        free_account_prereqs: form.prereqs.trim() || undefined,
+        free_privacy_notes: form.privacy.trim() || undefined,
       });
-      setForm({ model_name: "", pin: "", pout: "" });
+      setForm({ model_name: "", pin: "", pout: "", source_url: "", limits: "", prereqs: "", privacy: "" });
       setMsg(null);
-      toast("مدل ثبت شد.", "ok");
+      toast("مدل ثبت شد (تأییدنشده و غیرفعال؛ برای فعال‌سازی اول تأیید کنید).", "ok");
       refresh();
     } catch (e) { setMsg(err(e)); }
+  };
+
+  const toggle = async (m: Model) => {
+    try {
+      await api.put(`/api/settings/models/${m.id}`, { enabled: !m.enabled });
+      refresh();
+    } catch (e) { toast(err(e), "bad"); }
+  };
+
+  const verify = async () => {
+    if (!verifyId) return;
+    try {
+      await api.post(`/api/settings/models/${verifyId}/verify`, {
+        source_url: verifyForm.source_url.trim() || undefined,
+        limits: verifyForm.limits.trim() || undefined,
+        account_prereqs: verifyForm.prereqs.trim() || undefined,
+        privacy_notes: verifyForm.privacy.trim() || undefined,
+        confirm: verifyForm.confirm,
+      });
+      setVerifyId(null);
+      setVerifyForm({ source_url: "", limits: "", prereqs: "", privacy: "", confirm: false });
+      toast("مدل تأیید شد (هنوز غیرفعال است؛ فعال‌سازی جداگانه لازم است).", "ok");
+      refresh();
+    } catch (e) { toast(err(e), "bad"); }
+  };
+
+  const block = async () => {
+    if (!blockId || blockReason.trim().length < 3) { toast("دلیل مسدودسازی لازم است.", "bad"); return; }
+    try {
+      await api.post(`/api/settings/models/${blockId}/block`, { reason: blockReason.trim() });
+      setBlockId(null);
+      setBlockReason("");
+      toast("مدل مسدود و غیرفعال شد.", "ok");
+      refresh();
+    } catch (e) { toast(err(e), "bad"); }
   };
 
   const remove = async (id: string) => {
@@ -276,21 +326,73 @@ function ModelsTab() {
           <input placeholder="قیمت خروجی $/MTok" value={form.pout} onChange={(e) => setForm({ ...form, pout: e.target.value })} dir="ltr" inputMode="decimal" />
           <button onClick={() => add()}>ثبت مدل</button>
         </div>
+        <div className="filters">
+          <input placeholder="لینک رسمی طرح رایگان" value={form.source_url} onChange={(e) => setForm({ ...form, source_url: e.target.value })} dir="ltr" />
+          <input placeholder="محدودیت‌ها (مثل 30 RPM / 1000 RPD)" value={form.limits} onChange={(e) => setForm({ ...form, limits: e.target.value })} />
+          <input placeholder="پیش‌شرط حساب (مثل بدون کارت)" value={form.prereqs} onChange={(e) => setForm({ ...form, prereqs: e.target.value })} />
+          <input placeholder="یادداشت حریم خصوصی" value={form.privacy} onChange={(e) => setForm({ ...form, privacy: e.target.value })} />
+        </div>
         {msg && <p className="err-text">{msg}</p>}
-        <p className="hint">قیمت هر میلیون توکن را از صفحه‌ی رسمی همان مدل بخوانید و وارد کنید؛ قیمت‌ها تغییر می‌کنند و debate بدون قیمت ثبت‌شده متوقف می‌شود.</p>
+        <p className="hint">مدل جدید همیشه «تأییدنشده و غیرفعال» ثبت می‌شود؛ فعال‌سازی فقط پس از تأیید صریح با شواهد کامل. قیمت‌ها تغییر می‌کنند و debate بدون قیمت ثبت‌شده متوقف می‌شود.</p>
         {models.data && (
           <Table
             columns={[
               { key: "provider_name", label: "شرکت" },
               { key: "model_name", label: "مدل" },
+              { key: "free_status", label: "وضعیت رایگان", render: (r) => {
+                const m = r as unknown as Model;
+                return (<span><Badge tone={freeTone(m.free_status)}>{freeLabel(m.free_status)}</Badge>
+                  {m.free_blocked_reason ? <span className="hint"> ({m.free_blocked_reason})</span> : null}</span>);
+              } },
+              { key: "enabled", label: "فعال", render: (r) => {
+                const m = r as unknown as Model;
+                return <button className="linkbtn" onClick={() => toggle(m)}>{m.enabled ? "بله" : "خیر"}</button>;
+              } },
+              { key: "free_source_url", label: "منبع/بازبینی", render: (r) => {
+                const m = r as unknown as Model;
+                return (<span>
+                  {m.free_source_url ? <a href={m.free_source_url} target="_blank" rel="noreferrer">منبع رسمی</a> : <span className="hint">—</span>}
+                  <span className="hint"> · بازبینی: {m.free_review_after ?? "—"}</span>
+                </span>);
+              } },
               { key: "price_in_per_mtok", label: "$ورودی", numeric: true, render: (r) => String(r.price_in_per_mtok ?? "—") },
               { key: "price_out_per_mtok", label: "$خروجی", numeric: true, render: (r) => String(r.price_out_per_mtok ?? "—") },
-              { key: "ops", label: "حذف", render: (r) => <button className="linkbtn" onClick={() => remove(String(r.id))}>حذف</button> },
+              { key: "ops", label: "اقدامات", render: (r) => {
+                const m = r as unknown as Model;
+                return (<span className="row">
+                  <button className="linkbtn" onClick={() => setVerifyId(m.id)}>تأیید</button>
+                  <button className="linkbtn" onClick={() => setBlockId(m.id)}>مسدود</button>
+                  <button className="linkbtn" onClick={() => remove(String(r.id))}>حذف</button>
+                </span>);
+              } },
             ]}
             rows={models.data as unknown as Record<string, unknown>[]}
             rowKey={(r) => String(r.id)}
             emptyText="مدلی ثبت نشده است."
           />
+        )}
+        {verifyId && (
+          <Modal title="تأیید طرح رایگان مدل" onClose={() => setVerifyId(null)}>
+            <p className="hint">«تأییدشده» یعنی بررسی مدیر بر اساس منبع رسمی و تاریخ ثبت‌شده — نه استعلام خودکار حساب ارائه‌دهنده و نه تضمین دائمی (بازبینی دوره‌ای لازم است). تأیید به‌معنای فعال‌سازی نیست؛ پس از تأیید باید جداگانه فعال کنید. همه‌ی موارد زیر الزامی‌اند.</p>
+            <Field label="لینک رسمی قیمت/طرح رایگان"><input value={verifyForm.source_url} onChange={(e) => setVerifyForm({ ...verifyForm, source_url: e.target.value })} dir="ltr" /></Field>
+            <Field label="محدودیت‌ها"><input value={verifyForm.limits} onChange={(e) => setVerifyForm({ ...verifyForm, limits: e.target.value })} /></Field>
+            <Field label="پیش‌شرط حساب و احتمال هزینه"><input value={verifyForm.prereqs} onChange={(e) => setVerifyForm({ ...verifyForm, prereqs: e.target.value })} /></Field>
+            <Field label="ملاحظات حریم خصوصی"><input value={verifyForm.privacy} onChange={(e) => setVerifyForm({ ...verifyForm, privacy: e.target.value })} /></Field>
+            <label className="row"><input type="checkbox" checked={verifyForm.confirm} onChange={(e) => setVerifyForm({ ...verifyForm, confirm: e.target.checked })} /> طرح رایگان را بررسی کردم و تأیید می‌کنم</label>
+            <div className="row">
+              <button onClick={verify} disabled={!verifyForm.confirm}>تأیید</button>
+              <button className="secondary" onClick={() => setVerifyId(null)}>لغو</button>
+            </div>
+          </Modal>
+        )}
+        {blockId && (
+          <Modal title="مسدودکردن مدل" onClose={() => { setBlockId(null); setBlockReason(""); }}>
+            <Field label="دلیل مسدودسازی (الزامی)"><input value={blockReason} onChange={(e) => setBlockReason(e.target.value)} /></Field>
+            <div className="row">
+              <button className="danger" onClick={block}>مسدود و غیرفعال کن</button>
+              <button className="secondary" onClick={() => { setBlockId(null); setBlockReason(""); }}>لغو</button>
+            </div>
+          </Modal>
         )}
       </Section>
     </div>
@@ -584,7 +686,87 @@ const TABS = [
   { id: "budget", label: "بودجه و سقف‌ها" },
   { id: "runs", label: "اجرای debate" },
   { id: "internal", label: "اتصال داخلی" },
+  { id: "local", label: "اجرای محلی" },
 ];
+
+function LocalRuntimesTab() {
+  const toast = useToast();
+  const [refresh, setRefresh] = useState(0);
+  const status = useApi<Record<string, any>>("/api/local-runtimes/status", [refresh]);
+  const app = useApi<Record<string, string>>("/api/settings/app", [refresh]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // Live polling while tab is visible.
+  useEffect(() => {
+    let cancelled = false;
+    const id = setInterval(() => { if (!cancelled) setRefresh((n) => n + 1); }, 2500);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const toggle = async (name: "kev" | "laya", enabled: boolean) => {
+    setBusy(name);
+    try {
+      await api.put(`/api/local-runtimes/status/${name}/enabled`, { enabled });
+      await api.put("/api/settings/app", { settings: { [`${name}_local_screening_enabled`]: enabled ? "true" : "false" } });
+      setRefresh((n) => n + 1);
+      toast("ذخیره شد.", "ok");
+    } catch (e) { toast(String(e), "bad"); }
+    finally { setBusy(null); }
+  };
+
+  const start = async (name: "kev" | "laya") => {
+    setBusy(name);
+    try {
+      await api.post(`/api/local-runtimes/status/${name}/start`, {});
+      setRefresh((n) => n + 1);
+      toast("راه‌اندازی شد.", "ok");
+    } catch (e) { toast(String(e), "bad"); }
+    finally { setBusy(null); }
+  };
+
+  const stop = async (name: "kev" | "laya") => {
+    setBusy(name);
+    try {
+      await api.post(`/api/local-runtimes/status/${name}/stop`, {});
+      setRefresh((n) => n + 1);
+      toast("متوقف شد.", "ok");
+    } catch (e) { toast(String(e), "bad"); }
+    finally { setBusy(null); }
+  };
+
+  const renderOne = (name: "kev" | "laya", label: string) => {
+    const st = (status.data as any)?.[name] ?? {};
+    return (
+      <Section title={label} error={st.last_error ?? null}>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          <span>وضعیت: <strong>{st.state ?? "—"}</strong></span>
+          {st.pid && <span>PID: {st.pid}</span>}
+          {st.last_error && <span style={{ color: "var(--err)" }}>{st.last_error}</span>}
+        </div>
+        <div className="row" style={{ gap: 8, marginTop: 8 }}>
+          <button disabled={busy === name} onClick={() => toggle(name, !(app.data?.[`${name}_local_screening_enabled`] === "true"))}>
+            {app.data?.[`${name}_local_screening_enabled`] === "true" ? "غیرفعال کردن" : "فعال کردن"}
+          </button>
+          <button disabled={busy === name} onClick={() => start(name)}>راه‌اندازی</button>
+          <button disabled={busy === name} onClick={() => stop(name)}>توقف</button>
+        </div>
+        <p className="hint">فعال بودن تنها به معنای «قابل زمان‌بندی» است، نه «بارگذاری‌شده». وضعیت واقعی از بک‌اند گزارش می‌شود.</p>
+      </Section>
+    );
+  };
+
+  return (
+    <div>
+      <Section title="اجرای محلی (Kev / Laya)" error={null}>
+        <p className="hint">پیش‌فرض: هر دو غیرفعال. فعال کردن به معنای آمادگی برای زمان‌بندی است؛ بارگذاری واقعی فقط هنگام نیاز.</p>
+        <p className="hint">فقط همین دو کلید تصمیم می‌گیرند؛ سوئیچ قدیمی <code>local_screening_enabled</code> در نسخه‌ی Stage89 نادیده گرفته می‌شود.</p>
+        {renderOne("kev", "Kev (local screening)")}
+        {renderOne("laya", "Laya (local screening)")}
+        <p className="hint">Laya در این نسخه supervisor فرآیندی ندارد و وضعیت ERROR/UNAVAILABLE گزارش می‌شود. Kev از runtime Stage79 استفاده می‌کند.</p>
+      </Section>
+    </div>
+  );
+}
 
 export function SettingsPanel() {
   const [tab, setTab] = useState("providers");
@@ -603,6 +785,7 @@ export function SettingsPanel() {
       {tab === "budget" && <BudgetTab />}
       {tab === "runs" && <RunsTab />}
       {tab === "internal" && <InternalTab />}
+{tab === "local" && <LocalRuntimesTab />}
     </div>
   );
 }

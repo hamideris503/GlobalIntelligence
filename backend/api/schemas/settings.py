@@ -60,14 +60,38 @@ class ModelCreate(BaseModel):
     model_name: str = Field(..., min_length=1, max_length=128)
     price_in_per_mtok: float | None = Field(default=None, ge=0)
     price_out_per_mtok: float | None = Field(default=None, ge=0)
-    enabled: bool = True
+    enabled: bool = True  # server forces False + UNVERIFIED for new models
+    free_source_url: str | None = Field(default=None, max_length=512)
+    free_limits: str | None = None
+    free_account_prereqs: str | None = None
+    free_privacy_notes: str | None = None
 
 
 class ModelUpdate(BaseModel):
     model_name: str | None = Field(default=None, min_length=1, max_length=128)
     price_in_per_mtok: float | None = Field(default=None, ge=0)
     price_out_per_mtok: float | None = Field(default=None, ge=0)
-    enabled: bool | None = None
+    enabled: bool | None = None  # True only if verification is fresh (else 422)
+    free_source_url: str | None = Field(default=None, max_length=512)
+    free_limits: str | None = None
+    free_account_prereqs: str | None = None
+    free_privacy_notes: str | None = None
+    free_review_days: int | None = Field(default=None, ge=1, le=365)
+
+
+class ModelVerifyRequest(BaseModel):
+    """Explicit admin confirmation with complete free-tier evidence."""
+
+    source_url: str | None = Field(default=None, max_length=512)
+    limits: str | None = None
+    account_prereqs: str | None = None
+    privacy_notes: str | None = None
+    review_days: int | None = Field(default=None, ge=1, le=365)
+    confirm: bool = False  # must be explicit True; checkbox alone is not enough
+
+
+class ModelBlockRequest(BaseModel):
+    reason: str = Field(..., min_length=3, max_length=500)
 
 
 class ModelRead(BaseModel):
@@ -78,6 +102,15 @@ class ModelRead(BaseModel):
     price_in_per_mtok: float | None
     price_out_per_mtok: float | None
     enabled: bool
+    free_status: str  # effective: UNVERIFIED/FREE_VERIFIED/REVIEW_REQUIRED/BLOCKED
+    free_source_url: str | None = None
+    free_verified_on: str | None = None
+    free_review_after: str | None = None
+    free_limits: str | None = None
+    free_account_prereqs: str | None = None
+    free_privacy_notes: str | None = None
+    free_verified_by: str | None = None
+    free_blocked_reason: str | None = None
 
 
 class AssignmentItem(BaseModel):

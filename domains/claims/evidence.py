@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 
@@ -31,6 +32,9 @@ MAX_EVIDENCE = 10
 MAX_TEXT_CHARS = 8000
 # سقف تلاش شواهد برای هر Claim (Step 6؛ خرابی دائمی retry بی‌نهایت نمی‌شود)
 MAX_EVIDENCE_ATTEMPTS = 5
+
+# Serialize in-process with the n8n /api/claims/evidence caller.
+_RUN_LOCK = asyncio.Lock()
 
 
 @dataclass
@@ -226,7 +230,13 @@ class EvidenceEngine:
         contradicts = sum(1 for e in claim.evidence if e.direction == "contradicts")
         claim.verification_status = verify_status(supports, contradicts)
 
-    async def run(self, *, limit: int = 50) -> EvidenceOutcome:
+    async def run(self, *, limit: int = 50,
+                  claim_ids: list | None = None) -> EvidenceOutcome:
+        async with _RUN_LOCK:
+            return await self._run(limit=limit, claim_ids=claim_ids)
+
+    async def _run(self, *, limit: int = 50,
+                   claim_ids: list | None = None) -> EvidenceOutcome:
         stmt = (
             select(Claim)
             .where(
@@ -236,6 +246,8 @@ class EvidenceEngine:
             .order_by(Claim.created_at.desc())
             .limit(limit)
         )
+        if claim_ids:
+            stmt = stmt.where(Claim.id.in_(list(claim_ids)))
         claims = list(self.db.execute(stmt).scalars().all())
         outcome = EvidenceOutcome()
         # Production guard BEFORE the attempts counter: claims on mock-linked

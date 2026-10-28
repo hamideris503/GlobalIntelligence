@@ -1,7 +1,9 @@
 """AI API — مسیر مستقل برای آزمون Gateway (محافظت‌شده با API key)."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from backend.ai.gateway import get_gateway
 from backend.ai.schemas.types import AIRequest, Message
@@ -13,6 +15,8 @@ from backend.api.schemas.ai import (
     AIStatusRead,
     AIUsageRead,
 )
+from backend.database.models.ai_settings import AIProviderRow
+from backend.database.session import get_db
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -69,37 +73,27 @@ def ai_status() -> AIStatusRead:
 
 
 @router.post("/chat", response_model=AIGenerateResponse)
-async def chat(payload: AIChatRequest) -> AIGenerateResponse:
+async def chat(payload: AIChatRequest, db: Session = Depends(get_db)) -> AIGenerateResponse:
     """گفت‌وگوی متنی با provider/model انتخابی کاربر (اعتبارسنجی سمت سرور).
 
     - provider تهی یعنی پیش‌فرض Gateway؛ در غیر این صورت باید ردیف DB فعال
       یا kind پیکربندی‌شده در .env باشد (در غیر این صورت 422).
     - model تهی یعنی پیش‌فرض همان provider.
     - metadata از کاربر پذیرفته نمی‌شود (جلوگیری از force/timeout دلخواه).
+    - session از dependency استاندارد `get_db` می‌آید (در تست‌ها override می‌شود).
     """
-    from fastapi import HTTPException
-
     from backend.ai import credentials_store as store
 
     metadata: dict = {}
     if payload.provider:
-        ok = False
         try:
-            from sqlalchemy import select as _select
-
-            from backend.database.models.ai_settings import AIProviderRow
-            from backend.database.session import get_session_factory
-
-            session = get_session_factory()()
-            try:
-                rows = session.execute(
-                    _select(AIProviderRow).where(AIProviderRow.enabled.is_(True))
-                ).scalars().all()
-                ok = any(r.name == payload.provider or r.kind == payload.provider
-                         for r in rows)
-            finally:
-                session.close()
-        except Exception:  # noqa: BLE001
+            rows = (
+                db.execute(select(AIProviderRow).where(AIProviderRow.enabled.is_(True)))
+                .scalars()
+                .all()
+            )
+            ok = any(r.name == payload.provider or r.kind == payload.provider for r in rows)
+        except Exception:  # noqa: BLE001 — قطعی DB نباید providerهای .env را ببندد
             ok = False
         if not ok:
             try:

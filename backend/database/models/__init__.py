@@ -11,6 +11,7 @@ from backend.database.models.ai_settings import (
 from backend.database.models.ai_token_ledger import AITokenLedger
 from backend.database.models.alert import Alert, AlertRule
 from backend.database.models.article import Article
+from backend.database.models.article_dispatch import ArticleDispatch
 from backend.database.models.audit_record import AuditRecord
 from backend.database.models.briefing import Briefing
 from backend.database.models.claim import Claim
@@ -50,6 +51,7 @@ __all__ = [
     "AlertRule",
     "AppSetting",
     "Article",
+    "ArticleDispatch",
     "AuditRecord",
     "Briefing",
     "Claim",

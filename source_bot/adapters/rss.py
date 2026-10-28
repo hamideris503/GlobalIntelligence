@@ -8,11 +8,15 @@ from source_bot.security import validate_url
 class BotRSSAdapter:
     name = "rss"
 
-    def __init__(self, timeout: float = 20.0) -> None:
-        self._inner = RSSFetcher(timeout=timeout)
+    def __init__(self, timeout: float = 20.0, max_bytes: int | None = None) -> None:
+        self._inner = RSSFetcher(timeout=timeout, max_bytes=max_bytes)
 
     async def fetch(self, *, url: str | None, limit: int = 20) -> list[RawItem]:
         check = validate_url(url or "")
         if not check.ok:
             raise ValueError(f"refusing url: {check.reason}")
         return await self._inner.fetch(url=url, limit=limit)
+
+    def parse(self, content: bytes, *, limit: int = 20) -> list[RawItem]:
+        """پارس فیدِ از قبل دانلودشده — بدون دانلود دوم همان URL."""
+        return self._inner.parse(content, limit=limit)

@@ -118,7 +118,7 @@ SELF-IMPROVEMENT
     /evaluation           # AI performance tracking
   /services              # business logic / orchestration
 
-/workers                 # background jobs (collection, analysis, forecast)
+/workers                 # background jobs (collection, analysis, forecast) — فعلاً placeholder (.gitkeep)؛ اجرای فعلی درون‌پروسه‌ای است (`source_bot/jobs.py` + n8n)
 
 /domains
   /news /events /claims /entities /macro /markets

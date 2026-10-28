@@ -46,7 +46,9 @@ GOLDEN = [
 class _GoldenProvider:
     """Provider جعلی که پاسخ واقع‌گرایانه بر اساس ورودی برمی‌گرداند."""
 
-    name = "golden"
+    # شناسه‌ی allowlist‌شده (Free-Only)؛ رفتار golden حفظ شده است.
+    name = "groq"
+    default_model = "openai/gpt-oss-20b"
 
     def __init__(self, mapping) -> None:
         self._mapping = mapping
@@ -107,9 +109,9 @@ def test_golden_classification_importance_and_country(monkeypatch) -> None:
     try:
         mapping = {item["title"][:30]: item for item in GOLDEN}
         classifier = ArticleClassifier(session)
-        classifier.gateway._providers["golden"] = _GoldenProvider(mapping)
+        classifier.gateway._providers["groq"] = _GoldenProvider(mapping)
         classifier.gateway._settings.mock_mode = False
-        classifier.gateway._settings.ai_default_provider = "golden"
+        classifier.gateway._settings.ai_default_provider = "groq"
 
         outcome = asyncio.run(classifier.classify_pending(limit=10))
         assert outcome.classified == 2
@@ -128,7 +130,7 @@ def test_golden_classification_importance_and_country(monkeypatch) -> None:
         # متادیتای اجرا ذخیره شده (Reproducibility)
         for a in arts:
             meta = json.loads(a.classification_meta or "{}")
-            assert meta.get("provider") == "golden"
+            assert meta.get("provider") == "groq"
             assert meta.get("prompt_version") == "v2"
             assert "importance_inputs" in meta
     finally:

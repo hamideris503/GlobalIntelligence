@@ -11,6 +11,7 @@ alembic>=1.13,<2
 psycopg[binary]>=3.2,<4
 python-dotenv>=1.0,<2
 httpx>=0.27,<1
+httpcore>=1.0,<2  # pin اتصال HTTPX به IP تأییدشده (backend/network_stream عمومی)
 feedparser>=6.0,<7
 jsonschema>=4.20,<5
 cryptography>=42,<52  # فقط برای رمزنگاری کلیدهای Provider در DB (Step 8؛ ADR-STEP8)

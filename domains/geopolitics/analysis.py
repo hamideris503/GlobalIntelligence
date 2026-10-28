@@ -88,7 +88,12 @@ class GeopoliticalEngine:
                 counts[name] += 1
         return counts
 
-    def analyze_all(self, *, period: str | None = None) -> GeoOutcome:
+    def analyze_all(
+        self,
+        *,
+        period: str | None = None,
+        actors: list[str] | None = None,
+    ) -> GeoOutcome:
         outcome = GeoOutcome()
         period = period or datetime.now(UTC).strftime("%Y-%m")
         sanction_counts = self._sanction_counts()
@@ -105,6 +110,13 @@ class GeopoliticalEngine:
                     key, {"display": raw.strip(), "events": []}
                 )
                 bucket["events"].append(e)
+
+        # Stage93 bounded adapter: with `actors`, recompute ONLY those actors
+        # (same normalization), each still over its FULL per-period bucket —
+        # the per-actor analysis semantics are unchanged.
+        if actors:
+            wanted = {normalize_actor(str(a)) for a in actors if str(a).strip()}
+            by_actor = {k: v for k, v in by_actor.items() if k in wanted}
 
         if not by_actor:
             outcome.skipped += 1

@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.ai.local_screening import get_screening_stats
 from backend.core.logging import get_logger
 from backend.database.models.alert import Alert
 from backend.database.models.article import Article
@@ -172,6 +173,89 @@ class MonitoringService:
         lines.append("# HELP gi_articles_pending pending classification")
         lines.append("# TYPE gi_articles_pending gauge")
         lines.append(f"gi_articles_pending {n_pending}")
+
+        screening = get_screening_stats().as_dict()
+        lines.extend([
+            "# HELP gi_local_screening_screens_total actual advisory screening runs",
+            "# TYPE gi_local_screening_screens_total counter",
+            f"gi_local_screening_screens_total {screening['screens']}",
+            "# HELP gi_local_screening_skipped_total screening runs skipped before inference",
+            "# TYPE gi_local_screening_skipped_total counter",
+            f"gi_local_screening_skipped_total {screening['skipped']}",
+            "# HELP gi_local_screening_calls_total provider requests attempted",
+            "# TYPE gi_local_screening_calls_total counter",
+            f"gi_local_screening_calls_total {screening['calls']}",
+            "# HELP gi_local_screening_success_total valid provider responses",
+            "# TYPE gi_local_screening_success_total counter",
+            f"gi_local_screening_success_total {screening['success']}",
+            "# HELP gi_local_screening_errors_total provider requests that failed",
+            "# TYPE gi_local_screening_errors_total counter",
+            f"gi_local_screening_errors_total {screening['errors']}",
+            "# HELP gi_local_screening_timeouts_total provider request timeouts",
+            "# TYPE gi_local_screening_timeouts_total counter",
+            f"gi_local_screening_timeouts_total {screening['timeouts']}",
+            "# HELP gi_local_screening_connection_errors_total provider connection failures",
+            "# TYPE gi_local_screening_connection_errors_total counter",
+            "gi_local_screening_connection_errors_total "
+            f"{screening['connection_errors']}",
+            "# HELP gi_local_screening_invalid_total rejected provider outputs",
+            "# TYPE gi_local_screening_invalid_total counter",
+            f"gi_local_screening_invalid_total {screening['invalid']}",
+            "# HELP gi_local_screening_unavailable_total unavailable provider attempts",
+            "# TYPE gi_local_screening_unavailable_total counter",
+            f"gi_local_screening_unavailable_total {screening['unavailable']}",
+            "# HELP gi_local_screening_decided_total advisory decisions",
+            "# TYPE gi_local_screening_decided_total counter",
+            f"gi_local_screening_decided_total {screening['decided']}",
+            "# HELP gi_local_screening_abstained_total advisory abstentions",
+            "# TYPE gi_local_screening_abstained_total counter",
+            f"gi_local_screening_abstained_total {screening['abstained']}",
+            "# HELP gi_local_screening_latency_ms_total provider latency sum",
+            "# TYPE gi_local_screening_latency_ms_total counter",
+            "gi_local_screening_latency_ms_total "
+            f"{screening['total_latency_ms']}",
+        ])
+        if screening["avg_latency_ms"] is not None:
+            lines.extend([
+                "# HELP gi_local_screening_latency_ms_avg mean provider latency",
+                "# TYPE gi_local_screening_latency_ms_avg gauge",
+                "gi_local_screening_latency_ms_avg "
+                f"{screening['avg_latency_ms']}",
+            ])
+
+        provider_metrics = [
+            ("calls", "calls", "counter", "provider requests"),
+            ("success", "success", "counter", "valid responses"),
+            ("errors", "errors", "counter", "failed requests"),
+            ("timeouts", "timeouts", "counter", "request timeouts"),
+            ("connection_errors", "connection_errors", "counter", "connection failures"),
+            ("invalid", "invalid", "counter", "rejected outputs"),
+            ("unavailable", "unavailable", "counter", "unavailable attempts"),
+            ("decided", "decided", "counter", "advisory decisions"),
+            ("abstained", "abstained", "counter", "abstentions"),
+            ("latency_ms_total", "total_latency_ms", "counter", "latency sum"),
+        ]
+        for suffix, key, kind, help_text in provider_metrics:
+            name = f"gi_local_screening_provider_{suffix}"
+            if kind == "counter" and not name.endswith("_total"):
+                name += "_total"
+            lines.append(f"# HELP {name} {help_text}")
+            lines.append(f"# TYPE {name} {kind}")
+            for provider, item in screening["providers"].items():
+                label = str(provider).replace("\\", "\\\\").replace('"', '\\"')
+                lines.append(f'{name}{{provider="{label}"}} {item[key]}')
+        lines.extend([
+            "# HELP gi_local_screening_provider_latency_ms_avg mean provider latency",
+            "# TYPE gi_local_screening_provider_latency_ms_avg gauge",
+        ])
+        for provider, item in screening["providers"].items():
+            if item["avg_latency_ms"] is None:
+                continue
+            label = str(provider).replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(
+                "gi_local_screening_provider_latency_ms_avg"
+                f'{{provider="{label}"}} {item["avg_latency_ms"]}'
+            )
         return "\n".join(lines) + "\n"
 
 

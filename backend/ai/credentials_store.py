@@ -54,6 +54,7 @@ def is_secret_key(key: str) -> bool:
 
 def resolve_provider_credential(name: str) -> dict[str, Any] | None:
     """اعتبارنامه‌ی DB برای یک Provider (تطبیق kind و بعد name). None یعنی fallback به .env."""
+    from backend.ai.free_policy import is_free_verified as _is_free_verified
     from backend.database.models.ai_settings import AIProviderRow
 
     db = _session()
@@ -85,6 +86,12 @@ def resolve_provider_credential(name: str) -> dict[str, Any] | None:
             [m for m in (match.models or []) if m.enabled],
             key=lambda m: m.created_at or datetime.min.replace(tzinfo=UTC),
         )
+        # Free-Only: مدل پیش‌فرض فقط از ردیف‌های تأییدشده و تازه انتخاب می‌شود؛
+        # در غیر این صورت None تا Gateway جفت نهایی را همچنان کنترل کند.
+        verified = [m for m in models if _is_free_verified(m)]
+        if models and not verified:
+            logger.warning("no verified model for provider row (name hidden); "
+                           "default model withheld")
         return {
             "row_id": str(match.id),
             "name": match.name,
@@ -92,7 +99,7 @@ def resolve_provider_credential(name: str) -> dict[str, Any] | None:
             "base_url": match.base_url,
             "api_key": api_key,
             "extra": extra,
-            "default_model": models[0].model_name if models else None,
+            "default_model": verified[0].model_name if verified else None,
         }
     finally:
         db.close()

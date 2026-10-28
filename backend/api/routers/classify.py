@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.api.schemas.ingestion import PriorityLevel
 from backend.database.models.article import Article
 from backend.database.session import get_db
 
@@ -18,6 +19,8 @@ router = APIRouter(prefix="/api/classify", tags=["classification"])
 class ClassifyOutcomeRead(BaseModel):
     classified: int
     failed: int
+    # موارد کنارگذاشته‌شده در همان اجرا (گیت اولویت، بودجه/سهمیه، محافظ mock در prod)
+    skipped: int = 0
     errors: list[str]
 
 
@@ -28,7 +31,10 @@ async def run_classify(
     """طبقه‌بندی مقالاتی که هنوز topics ندارند."""
     outcome = await ArticleClassifier(db).classify_pending(limit=limit)
     return ClassifyOutcomeRead(
-        classified=outcome.classified, failed=outcome.failed, errors=outcome.errors
+        classified=outcome.classified,
+        failed=outcome.failed,
+        skipped=outcome.skipped,
+        errors=outcome.errors,
     )
 
 
@@ -42,6 +48,9 @@ class ArticleClassifiedRead(BaseModel):
     importance: int | None
     decided_by: str | None = None
     confidence: float | None
+    # Ingest priority of the underlying document (P0..P4) — separate from the
+    # analytic `importance`; without it the triage view cannot show P0..P4.
+    priority: PriorityLevel | None = None
 
 
 class ArticleDetailRead(ArticleClassifiedRead):
@@ -66,10 +75,16 @@ def list_classified(
     db: Session = Depends(get_db),
 ) -> list[ArticleClassifiedRead]:
     from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
 
     from backend.database.models.article import Article
 
-    stmt = select(Article).order_by(Article.retrieved_at.desc().nullslast()).limit(limit)
+    stmt = (
+        select(Article)
+        .options(joinedload(Article.document))  # priority lives on the document
+        .order_by(Article.retrieved_at.desc().nullslast())
+        .limit(limit)
+    )
     if only_classified:
         stmt = stmt.where(Article.topics.is_not(None))
     rows = db.execute(stmt).scalars().all()
@@ -84,6 +99,7 @@ def list_classified(
             importance=a.importance,
             decided_by=a.decided_by,
             confidence=a.confidence,
+            priority=a.document.ingestion_priority if a.document else None,
         )
         for a in rows
     ]
@@ -111,6 +127,7 @@ def get_article(article_id: uuid.UUID, db: Session = Depends(get_db)) -> Article
         importance=article.importance,
         decided_by=article.decided_by,
         confidence=article.confidence,
+        priority=doc.ingestion_priority if doc is not None else None,
         summary=article.summary,
         language=article.language,
         country=article.country,

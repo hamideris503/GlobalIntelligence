@@ -28,6 +28,7 @@ COPY domains ./domains
 COPY source_bot ./source_bot
 COPY alembic.ini ./alembic.ini
 COPY db ./db
+COPY config ./config
 
 # entrypoint اعمال migration پیش از اجرای سرور
 COPY docker/backend-entrypoint.sh /usr/local/bin/backend-entrypoint.sh

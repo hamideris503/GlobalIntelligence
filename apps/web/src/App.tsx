@@ -10,6 +10,7 @@ import { GeoPage, IranPage } from "./pages/geo";
 import Markets from "./pages/markets";
 import { HelpPage, HistoryPage, OpsPage, SearchPage } from "./pages/misc";
 import { SettingsPanel } from "./pages/settings";
+import ScreeningOps from "./pages/screening";
 import News from "./pages/news";
 import { EvaluationPage, PortfolioPage } from "./pages/portfolio";
 import Society from "./pages/society";
@@ -40,6 +41,7 @@ export default function App() {
       {route.name === "evaluation" && <EvaluationPage />}
       {route.name === "history" && <HistoryPage />}
       {route.name === "ops" && <OpsPage />}
+      {route.name === "screening" && <ScreeningOps />}
       {route.name === "settings" && <SettingsPanel />}
       {route.name === "help" && <HelpPage />}
       {route.name === "search" && <SearchPage key={route.param} param={route.param} />}

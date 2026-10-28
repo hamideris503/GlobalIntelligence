@@ -13,7 +13,7 @@ import json
 import time
 import uuid
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from domains.audit.service import log_action
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -29,6 +29,7 @@ from backend.ai.credentials import (
     mask_secret,
     validate_base_url,
 )
+from backend.api.errors import DEFAULT_MESSAGE, SAFE_MESSAGES
 from backend.api.schemas.settings import (
     AppSettingsUpdate,
     AssignmentItem,
@@ -36,9 +37,11 @@ from backend.api.schemas.settings import (
     DiversityRead,
     ImportEnvResponse,
     KeyRotateRequest,
+    ModelBlockRequest,
     ModelCreate,
     ModelRead,
     ModelUpdate,
+    ModelVerifyRequest,
     ProviderCreate,
     ProviderRead,
     ProviderTestRequest,
@@ -299,6 +302,8 @@ def test_provider(provider_id: str, payload: ProviderTestRequest,
         from backend.ai.schemas.types import AIRequest, Message
 
         gateway = AIGateway()
+        # تست اتصال: دقیقاً یک تلاش صریح، بدون retry/fallback پنهان.
+        gateway._max_retries = 0
         resp = asyncio.run(gateway.generate(AIRequest(
             messages=[Message.user("Reply with exactly: OK")],
             task="connectivity_check", temperature=0.0, max_tokens=32,
@@ -319,14 +324,7 @@ def test_provider(provider_id: str, payload: ProviderTestRequest,
             error=None if ok else "mock response (check MOCK_MODE)",
         )
     except Exception as exc:  # noqa: BLE001
-        kind_err = getattr(exc, "kind", None)
-        simple = {
-            "auth": "authentication failed (check the API key)",
-            "rate_limit": "rate limited; retry later",
-            "timeout": "connection timed out",
-            "connection": "cannot reach the provider",
-            "bad_request": "request rejected (check model name)",
-        }.get(str(kind_err).split(".")[-1] if kind_err else "", "provider error; retry later")
+        simple = SAFE_MESSAGES.get(getattr(exc, "kind", None), DEFAULT_MESSAGE)
         try:
             if row is not None:
                 row.last_test_status = "fail"
@@ -368,8 +366,6 @@ def discover_models(provider_id: str, db: Session = Depends(get_db)) -> list[str
         return cached[1]
     if not api_key:
         raise HTTPException(status_code=422, detail="no API key stored for this provider")
-    import httpx
-
     headers = {"Content-Type": "application/json"}
     if kind == "gemini":
         headers["x-goog-api-key"] = api_key
@@ -384,10 +380,30 @@ def discover_models(provider_id: str, db: Session = Depends(get_db)) -> list[str
         if not base:
             return []
         url = f"{base.rstrip('/')}/models"
+    # Send-time revalidation: a stored custom URL may have gone stale since
+    # it was saved; fail closed here before any credential leaves the server.
     try:
-        resp = httpx.get(url, headers=headers, timeout=20.0)
-        resp.raise_for_status()
-        data = resp.json()
+        from backend.ai.credentials import validate_base_url
+        validate_base_url(url)
+    except CredentialError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    import httpx
+
+    from backend.ai.providers import http_base as _httpbase
+
+    try:
+        # No env proxy/CA trust, no redirects; bounded body. Same guarantees
+        # as the GuardedTransport model path, adapted to this sync endpoint.
+        with httpx.Client(timeout=20.0, follow_redirects=False,
+                          trust_env=False) as client:
+            req = client.build_request("GET", url, headers=headers)
+            resp = client.send(req, stream=True)
+            raw = _httpbase.read_limited_body_sync(
+                resp, _httpbase.DISCOVER_MAX_RESPONSE_BYTES)
+            resp.raise_for_status()
+            data = json.loads(raw)
+    except HTTPException:
+        raise
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail="could not fetch model list") from exc
     names: list[str] = []
@@ -402,11 +418,40 @@ def discover_models(provider_id: str, db: Session = Depends(get_db)) -> list[str
 
 # ---------- models ----------
 def _to_model_read(m: AIModelRow, provider_name: str) -> ModelRead:
+    from backend.ai import free_policy as _policy
+
+    review_after = _policy.review_after(m)
+    verified_on = getattr(m, "free_verified_on", None)
     return ModelRead(
         id=str(m.id), provider_id=str(m.provider_id), provider_name=provider_name,
         model_name=m.model_name, price_in_per_mtok=m.price_in_per_mtok,
         price_out_per_mtok=m.price_out_per_mtok, enabled=bool(m.enabled),
+        free_status=_policy.effective_free_status(m),
+        free_source_url=getattr(m, "free_source_url", None),
+        free_verified_on=verified_on.isoformat() if verified_on else None,
+        free_review_after=review_after.isoformat() if review_after else None,
+        free_limits=getattr(m, "free_limits", None),
+        free_account_prereqs=getattr(m, "free_account_prereqs", None),
+        free_privacy_notes=getattr(m, "free_privacy_notes", None),
+        free_verified_by=getattr(m, "free_verified_by", None),
+        free_blocked_reason=getattr(m, "free_blocked_reason", None),
     )
+
+
+def _require_verified_fresh(m: AIModelRow, action: str) -> None:
+    """Activation gate: only fresh FREE_VERIFIED models may be enabled."""
+    from backend.ai import free_policy as _policy
+
+    status = _policy.effective_free_status(m)
+    if status != _policy.FREE_VERIFIED:
+        hints = {
+            _policy.UNVERIFIED: "verify first via POST /models/{id}/verify",
+            _policy.REVIEW_REQUIRED: "review expired; re-verify to continue",
+            _policy.BLOCKED: f"blocked: {getattr(m, 'free_blocked_reason', None) or 'no reason'}",
+        }
+        raise HTTPException(
+            status_code=422,
+            detail=f"cannot {action}: model is {status} ({hints.get(status, '')})")
 
 
 @router.get("/models", response_model=list[ModelRead])
@@ -453,7 +498,13 @@ def create_model(payload: ModelCreate, db: Session = Depends(get_db)) -> ModelRe
     m = AIModelRow(
         provider_id=pid, model_name=payload.model_name.strip(),
         price_in_per_mtok=payload.price_in_per_mtok,
-        price_out_per_mtok=payload.price_out_per_mtok, enabled=payload.enabled,
+        price_out_per_mtok=payload.price_out_per_mtok,
+        # New models always start UNVERIFIED and disabled; verification is explicit.
+        enabled=False, free_status="UNVERIFIED",
+        free_source_url=(payload.free_source_url or "").strip() or None,
+        free_limits=(payload.free_limits or "").strip() or None,
+        free_account_prereqs=(payload.free_account_prereqs or "").strip() or None,
+        free_privacy_notes=(payload.free_privacy_notes or "").strip() or None,
     )
     db.add(m)
     db.commit()
@@ -474,11 +525,91 @@ def update_model(model_id: uuid.UUID, payload: ModelUpdate,
         m.price_in_per_mtok = payload.price_in_per_mtok
     if payload.price_out_per_mtok is not None:
         m.price_out_per_mtok = payload.price_out_per_mtok
+    for field in ("free_source_url", "free_limits", "free_account_prereqs",
+                  "free_privacy_notes"):
+        value = getattr(payload, field)
+        if value is not None:
+            setattr(m, field, value.strip() or None)
+    if payload.free_review_days is not None:
+        m.free_review_days = payload.free_review_days
     if payload.enabled is not None:
+        if payload.enabled:
+            _require_verified_fresh(m, "enable")
         m.enabled = payload.enabled
     db.commit()
     db.refresh(m)
     store.bump_version()
+    prov = db.get(AIProviderRow, m.provider_id)
+    return _to_model_read(m, prov.name if prov else "")
+
+
+@router.post("/models/{model_id}/verify", response_model=ModelRead)
+def verify_model(model_id: uuid.UUID, payload: ModelVerifyRequest,
+                 db: Session = Depends(get_db)) -> ModelRead:
+    """Explicit admin verification: complete evidence + confirm required.
+
+    Verification alone does not enable the model; enabling is a separate,
+    explicit step (no auto-activation).
+    """
+    from backend.ai import free_policy as _policy
+
+    m = db.get(AIModelRow, model_id)
+    if m is None:
+        raise HTTPException(status_code=404, detail="model not found")
+    if not payload.confirm:
+        raise HTTPException(status_code=422, detail="explicit confirm=true required")
+    source = (payload.source_url or getattr(m, "free_source_url", None) or "").strip()
+    limits = (payload.limits if payload.limits is not None
+              else getattr(m, "free_limits", None) or "").strip()
+    prereqs = (payload.account_prereqs if payload.account_prereqs is not None
+               else getattr(m, "free_account_prereqs", None) or "").strip()
+    privacy = (payload.privacy_notes if payload.privacy_notes is not None
+               else getattr(m, "free_privacy_notes", None) or "").strip()
+    missing = [k for k, v in (("source_url", source), ("limits", limits),
+                              ("account_prereqs", prereqs),
+                              ("privacy_notes", privacy)) if not v]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"incomplete free-tier evidence: {', '.join(missing)}")
+    m.free_status = _policy.FREE_VERIFIED
+    m.free_source_url = source
+    m.free_limits = limits
+    m.free_account_prereqs = prereqs
+    m.free_privacy_notes = privacy
+    if payload.review_days is not None:
+        m.free_review_days = payload.review_days
+    m.free_verified_on = date.today()
+    m.free_verified_by = "settings"
+    m.free_blocked_reason = None
+    db.commit()
+    db.refresh(m)
+    store.bump_version()
+    log_action(db, action="model_verify", actor="settings",
+               target_type="ai_model", target_id=str(m.id),
+               params={"model": m.model_name}, result={"ok": True})
+    prov = db.get(AIProviderRow, m.provider_id)
+    return _to_model_read(m, prov.name if prov else "")
+
+
+@router.post("/models/{model_id}/block", response_model=ModelRead)
+def block_model(model_id: uuid.UUID, payload: ModelBlockRequest,
+                db: Session = Depends(get_db)) -> ModelRead:
+    """Block a model: disabled at once, never auto-enabled again."""
+    from backend.ai import free_policy as _policy
+
+    m = db.get(AIModelRow, model_id)
+    if m is None:
+        raise HTTPException(status_code=404, detail="model not found")
+    m.free_status = _policy.BLOCKED
+    m.free_blocked_reason = payload.reason.strip()
+    m.enabled = False
+    db.commit()
+    db.refresh(m)
+    store.bump_version()
+    log_action(db, action="model_block", actor="settings",
+               target_type="ai_model", target_id=str(m.id),
+               params={"model": m.model_name}, result={"ok": True})
     prov = db.get(AIProviderRow, m.provider_id)
     return _to_model_read(m, prov.name if prov else "")
 
@@ -589,7 +720,9 @@ def diversity(db: Session = Depends(get_db)) -> DiversityRead:
 # ---------- app settings ----------
 APP_KEYS = ("debate_daily_budget_usd", "debate_max_tokens_per_run",
             "debate_max_rounds", "debate_targets",
-            "mock_mode", "ai_default_provider")
+            "mock_mode", "ai_default_provider",
+            "kev_local_screening_enabled", "laya_local_screening_enabled",
+            "local_screening_idle_unload_seconds")
 
 
 @router.get("/app")
@@ -597,7 +730,15 @@ def get_app(db: Session = Depends(get_db)) -> dict:
     from backend.database.models.ai_settings import AppSetting
 
     rows = db.execute(select(AppSetting)).scalars().all()
-    return {r.key: r.value for r in rows if r.key in APP_KEYS}
+    out = {r.key: r.value for r in rows if r.key in APP_KEYS}
+    defaults = {
+        "kev_local_screening_enabled": "false",
+        "laya_local_screening_enabled": "false",
+        "local_screening_idle_unload_seconds": "300",
+    }
+    for k, v in defaults.items():
+        out.setdefault(k, v)
+    return out
 
 
 @router.put("/app")
@@ -610,6 +751,16 @@ def put_app(payload: AppSettingsUpdate, db: Session = Depends(get_db)) -> dict:
             raise HTTPException(status_code=422, detail="mock_mode must be true/false")
         if key == "ai_default_provider" and not value.strip():
             raise HTTPException(status_code=422, detail="ai_default_provider is required")
+        if key in ("kev_local_screening_enabled", "laya_local_screening_enabled") and \
+                value.strip().lower() not in ("1", "true", "yes", "on", "0", "false", "no", "off"):
+            raise HTTPException(status_code=422, detail=f"{key} must be true/false")
+        if key == "local_screening_idle_unload_seconds":
+            try:
+                n = int(value.strip())
+            except ValueError:
+                raise HTTPException(status_code=422, detail="idle_unload_seconds must be an integer") from None
+            if n < 0 or n > 86400:
+                raise HTTPException(status_code=422, detail="idle_unload_seconds out of range")
         try:
             store.set_app_setting(db, key, value)
         except Exception as exc:  # noqa: BLE001

@@ -18,6 +18,33 @@ def _float(name: str, default: float) -> float:
         return default
 
 
+class BotConfigError(ValueError):
+    """پیکربندی ربات نامعتبر است — هیچ fallback بی‌صدایی به پیش‌فرض وجود ندارد."""
+
+
+def _threshold(name: str, default: float) -> float:
+    """آستانهٔ اولویت: عدد در [0, 100]؛ مقدار نامعتبر خطای پیکربندی صریح می‌دهد."""
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise BotConfigError(f"{name} must be a number within [0, 100], got {raw!r}") from exc
+    if not 0.0 <= value <= 100.0:
+        raise BotConfigError(f"{name} must be within [0, 100], got {value}")
+    return value
+
+
+def _validate_threshold_order(p0: float, p1: float, p2: float, p3: float) -> None:
+    """مرزها باید اکیداً نزولی باشند تا هر سطح مسیر تصمیم واقعی داشته باشد."""
+    if not p0 > p1 > p2 > p3:
+        raise BotConfigError(
+            "priority thresholds must be strictly descending "
+            f"(TH_P0 > TH_P1 > TH_P2 > TH_P3), got P0={p0}, P1={p1}, P2={p2}, P3={p3}"
+        )
+
+
 class BotSettings:
     def __init__(self) -> None:
         self.timeout_seconds = _float("SOURCE_BOT_TIMEOUT", 20.0)
@@ -30,11 +57,12 @@ class BotSettings:
         self.max_redirects = _int("SOURCE_BOT_MAX_REDIRECTS", 3)
         self.max_retries = _int("SOURCE_BOT_MAX_RETRIES", 2)
         self.per_source_interval = _int("SOURCE_BOT_INTERVAL", 3600)
-        # آستانه‌های اولویت (قابل تنظیم)
-        self.th_p0 = _float("SOURCE_BOT_TH_P0", 90.0)
-        self.th_p1 = _float("SOURCE_BOT_TH_P1", 75.0)
-        self.th_p2 = _float("SOURCE_BOT_TH_P2", 50.0)
-        self.th_p3 = _float("SOURCE_BOT_TH_P3", 25.0)
+        # آستانه‌های اولویت (قابل تنظیم؛ نامعتبر/بی‌ترتیب = BotConfigError)
+        self.th_p0 = _threshold("SOURCE_BOT_TH_P0", 90.0)
+        self.th_p1 = _threshold("SOURCE_BOT_TH_P1", 75.0)
+        self.th_p2 = _threshold("SOURCE_BOT_TH_P2", 50.0)
+        self.th_p3 = _threshold("SOURCE_BOT_TH_P3", 25.0)
+        _validate_threshold_order(self.th_p0, self.th_p1, self.th_p2, self.th_p3)
         # AI fallback فقط در عدم قطعیت
         self.ai_min_confidence = _float("SOURCE_BOT_AI_MIN_CONF", 0.55)
         self.ai_border_margin = _float("SOURCE_BOT_AI_MARGIN", 7.0)

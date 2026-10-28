@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from backend.ai.local_screening import get_screening_stats
 from backend.database.models.job import JobRun
 from domains.ops import monitoring as mon
 from domains.ops.service import MonitoringService
@@ -119,11 +120,45 @@ def test_prometheus_format() -> None:
         text = MonitoringService(session).prometheus()
         assert "gi_monitor_status" in text
         assert "gi_articles_total" in text
+        assert "gi_local_screening_screens_total" in text
         assert text.endswith("\n")
         for line in text.splitlines():
             assert not line.startswith(" "), line
     finally:
         session.close()
+
+
+def test_local_screening_metrics_separate_success_timeout_and_abstention(
+    client: TestClient,
+) -> None:
+    stats = get_screening_stats()
+    stats.reset()
+    stats.record_screen()
+    stats.record_attempt("kev", "ok", 12.0)
+    stats.record_result("decided", "kev")
+    stats.record_screen()
+    stats.record_attempt("laya", "unavailable", 20.0, "timeout")
+    stats.record_attempt("laya", "unavailable", 30.0, "connection")
+    stats.record_attempt("laya", "invalid", 5.0, "invalid_output")
+    stats.record_result("unavailable", None)
+
+    metrics = client.get("/api/ops/metrics")
+    assert metrics.status_code == 200
+    text = metrics.text
+    assert "gi_local_screening_screens_total 2" in text
+    assert "gi_local_screening_calls_total 4" in text
+    assert "gi_local_screening_success_total 1" in text
+    assert "gi_local_screening_errors_total 3" in text
+    assert "gi_local_screening_timeouts_total 1" in text
+    assert "gi_local_screening_connection_errors_total 1" in text
+    assert "gi_local_screening_invalid_total 1" in text
+    assert "gi_local_screening_decided_total 1" in text
+    assert "gi_local_screening_abstained_total 1" in text
+    assert 'gi_local_screening_provider_calls_total{provider="kev"} 1' in text
+    assert 'gi_local_screening_provider_calls_total{provider="laya"} 3' in text
+    assert 'gi_local_screening_provider_timeouts_total{provider="laya"} 1' in text
+    assert 'gi_local_screening_provider_connection_errors_total{provider="laya"} 1' in text
+    assert 'gi_local_screening_provider_invalid_total{provider="laya"} 1' in text
 
 
 # --- API tests ---

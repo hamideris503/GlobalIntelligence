@@ -103,3 +103,41 @@ Fallback         → Provider D
 
 هر Prompt دارای نسخه است و در `backend/ai/prompts/`. هر Forecast/Analysis
 نسخه‌ی Prompt خود را برای Reproducibility ثبت می‌کند.
+
+---
+
+## سیاست Free-Only (رایانش ابری رایگان)
+
+> هیچ درخواست واقعی AI نباید به مدل پولی برسد. اجرای مدل محلی (Ollama،
+> vLLM و مشابه) ممنوع است و اضافه نمی‌شود.
+
+**سازوکار:** `backend/ai/free_policy.py` فهرست دقیق `(provider, model)` را
+نگه می‌دارد و `AIGateway.generate` پیش از build و پیش از هر HTTP، هر نامزد
+زنجیره را بررسی می‌کند. نامجاز → توقف فوری با `provider_not_allowed` یا
+`model_not_allowed`؛ بدون fallback به بعدی. ورودی API، تنظیم پنل، رکورد
+دیتابیس و `set_routes` همگی از همین گیت مرکزی می‌گذرند و نمی‌توانند آن را
+دور بزنند. `mock` فقط در mock mode مجاز است.
+
+**فهرست فعال/غیرفعال (آخرین بررسی: 2026-10-17):**
+
+| Provider / Model | وضعیت | علت |
+|---|---|---|
+| Groq `openai/gpt-oss-20b` | ✅ فعال | سهمیه رایگان مستند (30 RPM / 1000 RPD / 8K TPM)؛ بدون آموزش روی داده |
+| Cloudflare `@cf/meta/llama-3.1-8b-instruct` | ⛔ غیرفعال | مجازبودن مدل روی طرح Free تأیید نشده |
+| Gemini `gemini-3.5-flash` | ⛔ غیرفعال | شروط EEA/CH/UK و کاربرد داده رایگان نیازمند شفاف‌سازی |
+| OpenRouter `:free` (کلی) | ⛔ غیرفعال | فهرست چرخشی، سقف ۵۰/روز، سوییچ‌های آموزشی |
+| OpenAI / Anthropic / openai_compatible | ⛔ مسدود | بدون مدرک طرح رایگان |
+
+**تعویض provider:** فقط با فعال/غیرفعال‌کردن ورودی‌های همین فهرست (پس از
+بررسی و تست آفلاین سازگاری JSON)؛ مصرف‌کنندگان Gateway بدون بازنویسی
+دنبال می‌کنند. مدل جایگزین باید همان قرارداد خروجی task را نگه دارد.
+
+**اتمام سهمیه:** `quota_exhausted` (روزانه، بدون retry بی‌فایده) متمایز از
+`rate_limit` موقتی (با احترام به `Retry-After` در سقف retry مجاز) است؛
+وقتی هیچ provider آزادی نماند `free_unavailable` برمی‌گردد. داده حذف
+نمی‌شود (مثلاً classification در `pending` می‌ماند).
+
+**سهمیه رایگان دائمی نیست:** هر ورودی حداکثر ۹۰ روز اعتبار دارد و پس از
+انقضا خودکار مسدود می‌شود. صفحات رسمی مبنا: `console.groq.com/docs/rate-limits`،
+`developers.cloudflare.com/workers-ai/platform/pricing`،
+`ai.google.dev/gemini-api/docs/pricing`، `openrouter.ai/docs/api_reference/limits`.

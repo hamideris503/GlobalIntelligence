@@ -9,11 +9,12 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from backend.ai.gateway import get_gateway
@@ -28,6 +29,10 @@ from domains.events.prompts import EVENT_SCHEMA, EXTRACT_EVENT
 logger = get_logger(__name__)
 
 MAX_ARTICLES_PER_EVENT = 8
+
+# One extraction at a time per process: the dispatch consumer and the n8n
+# /api/events/extract endpoint must not pick the same unlinked cluster twice.
+_RUN_LOCK = asyncio.Lock()
 
 
 @dataclass
@@ -51,8 +56,15 @@ class EventExtractor:
         self.gateway = get_gateway()
         self._settings = get_settings()
 
-    def _pending_clusters(self, *, limit: int) -> list[tuple[str, list[Article]]]:
-        """خوشه‌های مقالاتی که هنوز به هیچ Event وصل نشده‌اند."""
+    def _pending_clusters(
+        self, *, limit: int, article_ids: list | None = None,
+    ) -> list[tuple[str, list[Article]]]:
+        """خوشه‌های مقالاتی که هنوز به هیچ Event وصل نشده‌اند.
+
+        `article_ids` مسیر dispatch دوام‌دار است: فقط خوشه‌ی همین مقالات را
+        برمی‌گرداند و اعضای همان خوشه را کامل نگه می‌دارد (Event تک‌مقاله‌ای
+        نمی‌شود).
+        """
         stmt = (
             select(Article)
             .where(Article.event_id.is_(None))
@@ -60,6 +72,20 @@ class EventExtractor:
             .order_by(Article.retrieved_at.desc().nullslast())
             .limit(limit * MAX_ARTICLES_PER_EVENT)
         )
+        if article_ids:
+            targets = list(self.db.execute(
+                select(Article).where(Article.id.in_(list(article_ids)))
+            ).scalars().all())
+            cluster_keys = {a.duplicate_cluster for a in targets if a.duplicate_cluster}
+            single_ids = [a.id for a in targets if not a.duplicate_cluster]
+            conditions = []
+            if cluster_keys:
+                conditions.append(Article.duplicate_cluster.in_(cluster_keys))
+            if single_ids:
+                conditions.append(Article.id.in_(single_ids))
+            if not conditions:
+                return []
+            stmt = stmt.where(or_(*conditions))
         articles = list(self.db.execute(stmt).scalars().all())
 
         clusters: dict[str, list[Article]] = {}
@@ -137,9 +163,15 @@ class EventExtractor:
         event.event_metadata = json.dumps({"used_ai": used_ai, "article_count": len(articles)})
         return event
 
-    async def run(self, *, limit: int = 50) -> EventOutcome:
+    async def run(self, *, limit: int = 50,
+                  article_ids: list | None = None) -> EventOutcome:
+        async with _RUN_LOCK:
+            return await self._run(limit=limit, article_ids=article_ids)
+
+    async def _run(self, *, limit: int = 50,
+                   article_ids: list | None = None) -> EventOutcome:
         outcome = EventOutcome()
-        clusters = self._pending_clusters(limit=limit)
+        clusters = self._pending_clusters(limit=limit, article_ids=article_ids)
         # Cluster policy (production): a cluster containing ANY explicit-mock
         # article is skipped so mock evidence cannot seed a new event. Unknown
         # provenance is processed (it is not proof of mock). Dev/test unchanged.

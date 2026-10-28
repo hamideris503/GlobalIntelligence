@@ -2020,3 +2020,29 @@
 - Full suite: 591 collected = 591 passed. Ruff (project scope): clean. Pre-existing I001 in 4 old migration files (out of project lint scope, untouched).
 - Live-verified: ECB + BBC feeds via check=feed (ECB/BBC VERIFIED); Fed feed 404 → NEEDS_REVIEW (correct handling).
 - Pending by decision: feed-validation commit, 198 census sources, API keys, VPS deploy (last).
+
+### هماهنگی مستندات با رفتار واقعی — مرحله اصلاح ۸ (2026-10-19، مستندات‌محور)
+
+- `docs/SOURCE_BOT.md` — رفع drift وضعیت‌ها: در مسیر Source Bot دیگر `PRIORITY_PENDING` تولید
+  نمی‌شود. قطع AI وضعیت عملیاتی `RULES_FALLBACK_AI_UNAVAILABLE` (و mock: `RULES_MOCK_AI`) را حفظ
+  می‌کند و «کم‌اطمینانی» فقط در `priority_decision_source` ثبت می‌شود، نه با بازنویسی وضعیت.
+  بخش «provenance تصمیم اولویت» اضافه شد: مقادیر `rules`/`ai`/`pending`، تفکیک confidence نهایی از
+  confidence قواعد و از confidence AI، ثابت‌بودن `priority_score` روی امتیاز deterministic قواعد
+  (حتی در شاخهٔ AI)، و آستانهٔ تک‌منبعی `UNRELIABLE_CONFIDENCE = 0.3` در
+  `source_bot/priority_engine.py`. راهنمای مصرف‌کننده هم صریح شد: برای تشخیص تصمیم قطعی/نامطمئن،
+  `priority_decision_source` خوانده شود نه `priority_status`.
+- `docs/SOURCE_BOT.md` — وضعیت واقعی موارد ناتمام صریح شد: `attach_priority`
+  (`source_bot/output.py:147`) هنوز caller تولیدی ندارد و کلیدهای provenance جدید را نمی‌نویسد؛
+  ستون `canonical_id` هم بدون نویسندهٔ تولیدی است (لاگ `runner.py:278` id سند است، نه این ستون).
+- Classification API: `POST /api/classify/run` فیلدهای `classified`، `failed`، `skipped`، `errors`
+  را برمی‌گرداند. `skipped` مقدار واقعی `ClassifyOutcome.skipped` است و شمارندهٔ تجمیعی همان اجراست
+  (گیت کم‌اولویت P3/P4 + اتمام بودجه/سهمیهٔ AI + محافظ mock در production کمتر از `MOCK_MODE`)؛
+  علت‌ها در پاسخ HTTP از هم تفکیک **نمی‌شوند**.
+- ناتمام/متقارن‌نشده (بدون ادعای تکمیل): `duplicate_status` و برخی فیلدهای canonical در دو مسیر
+  ingest یکسان نیستند؛ اجرای خودکار ingest تا classification درون‌پروسه اثبات نشده است.
+- NOT_VERIFIED (شاهد مستقل در مخزن وجود ندارد): اجرای واقعی PostgreSQL (ایندکس یکتای جزئی
+  ردیف‌های بی‌URL فقط با SQLite/کامپایل dialect اثبات شده)، اجرای راه‌دور CI روی GitHub، provider
+  واقعی، و فعال‌بودن/اجرای واقعی workflowهای n8n.
+- مرحله‌های اصلاح ۱ تا ۷ در این فایل ثبت نشده‌اند؛ در این مرحله فقط همین مغایرت‌های مستنداتی
+  اصلاح شد و هیچ بخشی «تکمیل پروژه» اعلام نمی‌شود. هیچ فایل Python/TypeScript/تست/migration/schema
+  تغییر نکرد و تست یا build جدیدی اجرا نشد.

@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Literal
 
@@ -64,6 +65,26 @@ class Settings(BaseSettings):
     # یعنی بدون سقف task. از JSON محیط خوانده می‌شود.
     ai_task_max_tokens: dict[str, int] = {}
 
+    # --- Local screening (Kev/Laya؛ پیش‌فرض خاموش) ---
+    # خروجی هر دو مدل روی POST /v1/systemone است؛ هیچ وابستگی Python لازم
+    # نیست، فقط سرور محلی آن‌ها باید جداگانه نصب/اجرا شود.
+    # DEPRECATED (Stage89): master switch دیگر هیچ مسیری را فعال نمی‌کند.
+    # تنها منبع تصمیم، کلیدهای per-model زیر هستند (تنظیمات پنل).
+    local_screening_enabled: bool = False
+    local_screening_providers: str = "kev,laya"  # ترتیب مجاز اجرا
+    local_screening_confidence_threshold: float = 0.8
+    # CPU inference is slow: Kev measured 7.4–11.9s, so 5s was too short.
+    # One shared setting keeps the existing architecture; env override still wins.
+    local_screening_timeout_seconds: float = 20.0
+    local_screening_max_chars: int = 8000
+    local_screening_kev_base_url: str = f"http://127.0.0.1:{os.environ.get('KEV_RUNTIME_PORT', '8123')}"
+    local_screening_kev_model: str = "kev-latest"
+    # Stage89: these MUST be the supervised runtime ports (see
+    # local_runtimes.supervisor). 8009/8011 were the pre-supervisor servers and
+    # are no longer started by any code path.
+    local_screening_laya_base_url: str = f"http://127.0.0.1:{os.environ.get('LAYA_RUNTIME_PORT', '8124')}"
+    local_screening_laya_model: str = "jev-1"
+
     # Provider credentials (همه Optional — بدون آن Provider غیرفعال می‌شود)
     gemini_api_key: str | None = None
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
@@ -110,6 +131,15 @@ class Settings(BaseSettings):
     debate_model_geo: str | None = None
     debate_model_critic: str | None = None
     debate_model_report: str | None = None
+
+    # --- Durable downstream dispatch (Stage89) ---
+    # The dispatch loop reuses the existing in-process background runner
+    # convention; it is bounded per tick and never blocks the API.
+    dispatch_auto_run: bool = True
+    dispatch_poll_seconds: int = 20
+    dispatch_batch_limit: int = 20
+    dispatch_max_attempts: int = 3
+    dispatch_lease_seconds: int = 900
 
     # --- Data collection ---
     source_min_interval_seconds: int = 60

@@ -5,12 +5,15 @@
 """
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.ai.schemas.types import AIError
+from backend.api.errors import ai_error_handler
 from backend.api.routers import (
     ai,
     ai_routing,
@@ -23,6 +26,7 @@ from backend.api.routers import (
     debate,
     decisions,
     dedup,
+    dispatch,
     economic,
     evaluation,
     events,
@@ -54,6 +58,8 @@ from backend.api.routers import (
     worldstate,
 )
 from backend.api.routers import auth as auth_router
+from backend.api.routers import local_runtimes as local_runtimes_router
+from backend.api.routers import screening as screening_router
 from backend.api.routers import settings as settings_router
 from backend.auth.deps import require_api_key
 from backend.core.config import get_settings
@@ -83,7 +89,47 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         _budget.set_session_factory(_gsf())
     except Exception:  # noqa: BLE001
         logger.warning("credentials store factory not wired; .env only")
+    # Phase 2: Jobهای دریافت که وسط اجرا رها شده‌اند در startup علامت‌گذاری می‌شوند
+    try:
+        from source_bot.jobs import recover_interrupted_jobs
+
+        from backend.database.session import get_session_factory as _gsf_jobs
+
+        with _gsf_jobs()() as _db:
+            recover_interrupted_jobs(_db)
+    except Exception:  # noqa: BLE001 — بدون DB هم سرور باید بالا بیاید
+        logger.warning("ingest job recovery skipped (db unavailable)")
+
+    # Stage89: recover abandoned dispatch leases and decisions that have no
+    # dispatch rows, then start the bounded in-process consumer.
+    dispatch_stop: asyncio.Event | None = None
+    dispatch_task: asyncio.Task | None = None
+    try:
+        from backend.ai.dispatch.runner import recover_at_startup, run_forever
+        from backend.database.session import get_session_factory as _gsf_dispatch
+
+        with _gsf_dispatch()() as _db:
+            recovered = recover_at_startup(_db)
+        if recovered["stale"] or recovered["reenqueued"]:
+            logger.warning("dispatch recovery | %s", recovered)
+        if settings.dispatch_auto_run:
+            dispatch_stop = asyncio.Event()
+            dispatch_task = asyncio.create_task(
+                run_forever(
+                    dispatch_stop,
+                    interval=settings.dispatch_poll_seconds,
+                    limit=settings.dispatch_batch_limit,
+                )
+            )
+    except Exception:  # noqa: BLE001 — dispatch must not block startup
+        logger.warning("dispatch startup skipped (db or migration unavailable)")
     yield
+    if dispatch_stop is not None and dispatch_task is not None:
+        dispatch_stop.set()
+        with suppress(Exception):
+            await asyncio.wait_for(dispatch_task, timeout=5)
+        if not dispatch_task.done():  # pragma: no cover - defensive
+            dispatch_task.cancel()
     logger.info("shutdown | app=%s", settings.app_name)
 
 
@@ -117,6 +163,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # خطاهای ساختاریافته‌ی AI → وضعیت HTTP معنادار (بقیه‌ی exceptionها پیش‌فرض می‌مانند)
+    app.add_exception_handler(AIError, ai_error_handler)
 
     # /health بدون احراز هویت (برای probe)، لاگین هم عمومی است (خودش ورود است)
     app.include_router(health.router)
@@ -157,6 +206,9 @@ def create_app() -> FastAPI:
     app.include_router(scenarios.router, dependencies=protected)
     app.include_router(selfeval.router, dependencies=protected)
     app.include_router(settings_router.router, dependencies=protected)
+    app.include_router(dispatch.router, dependencies=protected)
+    app.include_router(local_runtimes_router.router, dependencies=protected)
+    app.include_router(screening_router.router, dependencies=protected)
     app.include_router(research.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)

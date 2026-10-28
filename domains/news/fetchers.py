@@ -22,6 +22,18 @@ from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# قرارداد وضعیت متن در `doc_metadata` — یک نقطهٔ حقیقت برای domains و source_bot:
+#   full_text_extracted  = متن کامل از استخراج تأییدشدهٔ صفحهٔ مقاله
+#   rss_summary_only     = فقط summary/description فید
+#   source_provided_only = بدنهٔ داده‌شدهٔ خود منبع (content:encoded یا فیلد متن adapter)؛
+#                          استخراج صفحهٔ مقاله نیست و full-text شمرده نمی‌شود
+#   extraction_failed    = استخراج واقعاً اجرا شد و متنی برنگشت
+TEXT_STATUS = "text_status"
+FULL_TEXT = "full_text_extracted"
+RSS_SUMMARY_ONLY = "rss_summary_only"
+SOURCE_PROVIDED_ONLY = "source_provided_only"
+EXTRACTION_FAILED = "extraction_failed"
+
 
 @dataclass
 class RawItem:
@@ -68,9 +80,13 @@ class RSSFetcher(BaseFetcher):
     name = "rss"
     max_bytes = 5_000_000
 
-    def __init__(self, timeout: float = 20.0, user_agent: str | None = None) -> None:
+    def __init__(self, timeout: float = 20.0, user_agent: str | None = None,
+                 max_bytes: int | None = None) -> None:
         self._timeout = timeout
         self._user_agent = user_agent or "GlobalIntelligenceBot/0.1"
+        # سقف اندازه از تنظیمات (BotSettings.max_bytes) قابل کنترل است؛
+        # نبود/نامعتبر بودن → همان پیش‌فرض کلاس (استفاده‌های فعلی دست‌نخورده).
+        self.max_bytes = int(max_bytes) if max_bytes else type(self).max_bytes
 
     async def fetch(self, *, url: str | None, limit: int = 20) -> list[RawItem]:
         import asyncio as _asyncio
@@ -80,7 +96,12 @@ class RSSFetcher(BaseFetcher):
         # SSRF guard (census §7): فید مدیریتی هم باید عمومی باشد
         from urllib.parse import urlparse as _up
 
-        from domains.news.source_verify import host_is_private
+        from domains.news.source_verify import (
+            BlockedTarget,
+            GuardedTransport,
+            host_is_private,
+            safe_get,
+        )
         host = (_up(url).hostname or "").lower()
         if not host or host_is_private(host):
             raise ValueError(f"refusing non-public feed host: {host or '?'}")
@@ -92,20 +113,21 @@ class RSSFetcher(BaseFetcher):
         for attempt in range(2):  # یک retry با backoff برای timeout/5xx
             try:
                 async with httpx.AsyncClient(timeout=self._timeout,
-                                             follow_redirects=True) as client:
-                    resp = await client.get(url, headers=headers)
+                                             follow_redirects=False,
+                                             transport=GuardedTransport()) as client:
+                    # هر hop (از جمله مقصد redirect) پیش از اتصال بررسی می‌شود
+                    resp = await safe_get(client, url, headers=headers)
                     if resp.status_code >= 500:
                         raise httpx.HTTPStatusError(
                             f"server error {resp.status_code}",
                             request=resp.request, response=resp)
                     resp.raise_for_status()
-                    final_host = (_up(str(resp.url)).hostname or "").lower()
-                    if host_is_private(final_host):
-                        raise ValueError(f"redirected to private host: {final_host}")
                     content = resp.content
                     if len(content) > self.max_bytes:
                         raise ValueError(f"feed too big: {len(content)} bytes")
                     return self.parse(content, limit=limit)
+            except BlockedTarget as exc:
+                raise ValueError(f"blocked feed target: {exc}") from exc
             except (httpx.TimeoutException, httpx.HTTPStatusError) as exc:
                 last_exc = exc
                 if attempt == 0:
@@ -132,14 +154,28 @@ class RSSFetcher(BaseFetcher):
 
             # متن: content:encoded ترجیح دارد، سپس summary/description
             body = None
+            status = None
             content_list = entry.get("content") or []
             if content_list:
                 body = content_list[0].get("value")
-            body = body or entry.get("summary") or entry.get("description")
+            if (body or "").strip():
+                # بدنهٔ اعلام‌شدهٔ فید، استخراج تأییدشدهٔ صفحهٔ مقاله نیست.
+                status = SOURCE_PROVIDED_ONLY
+            else:
+                body = entry.get("summary") or entry.get("description")
+                status = RSS_SUMMARY_ONLY if (body or "").strip() else None
 
             published = entry.get("published") or entry.get("updated")
             author = entry.get("author")
             guid = entry.get("id") or link
+
+            metadata: dict[str, Any] = {
+                "guid": guid, "feed_title": feed.feed.get("title"),
+                # منشأ صریح: این پارس از فید واقعی است، نه MockFetcher (که mock:True می‌گذارد).
+                "mock": False,
+            }
+            if status:
+                metadata[TEXT_STATUS] = status
 
             items.append(
                 RawItem(
@@ -149,7 +185,7 @@ class RSSFetcher(BaseFetcher):
                     published_at=_parse_date(published),
                     author=author,
                     raw_payload=json.dumps(dict(entry), ensure_ascii=False, default=str),
-                    metadata={"guid": guid, "feed_title": feed.feed.get("title")},
+                    metadata=metadata,
                 )
             )
         return items

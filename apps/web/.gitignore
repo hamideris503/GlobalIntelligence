@@ -16,3 +16,12 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.auth/
+
+# full-stack E2E scratch (throwaway SQLite DB + network-guard log)
+.e2e-fullstack/

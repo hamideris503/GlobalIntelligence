@@ -99,3 +99,25 @@ class DedupService:
         }
         logger.info("dedup done | %s", summary)
         return summary
+
+
+def run_post_ingest_dedup(db: Session, *, stored: int) -> str | None:
+    """dedup پس از ingest — نقطه‌ی مشترک مسیر pipeline و Source Bot.
+
+    قرارداد: حداکثر یک بار به‌ازای هر batch/اجرای دریافت، و فقط وقتی
+    `dedup_on_ingest` روشن است و سندی تازه ذخیره شده. خطا هرگز بالا نمی‌رود:
+    اسناد خام پیش‌تر commit شده‌اند (rollback فقط خوشه‌بندی ناتمام را دور می‌ریزد)،
+    session برای فراخوانی‌کننده سالم می‌ماند و پیام کوتاه برگردانده می‌شود.
+    """
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+    if not settings.dedup_on_ingest or not stored:
+        return None
+    try:
+        DedupService(db).run(limit=settings.dedup_window)
+    except Exception as exc:  # noqa: BLE001 — dedup نباید ingest را خراب کند
+        db.rollback()
+        logger.warning("post-ingest dedup failed | %s: %s", type(exc).__name__, exc)
+        return f"dedup failed: {type(exc).__name__}: {exc}"
+    return None
