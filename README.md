@@ -8,10 +8,19 @@
 
 ## وضعیت پروژه
 
-**Phase فعلی: 52 — Advanced Research**
-**Status: DONE**
+**فازهای 0 تا 52: DONE** — آخرین فاز (Advanced Research) شامل GraphRAG-lite است؛ Bayesian/causal با دلیل مستند به تعویق افتاد.
+**مرحلهٔ جاری: Stage 96 — تثبیت نسخه، PostgreSQL و CI**
+**تغییرهای بزرگ اخیر (Stage 88–95)** روی شاخهٔ `stage95-pg-ci-verification` هستند و هنوز به `main` ادغام نشده‌اند: غربالگری مشورتی Kev/Laya، صف تحویل (dispatch) بادوام، مسیریابی دامنه‌ای، سیاست AI رایگان و اجرای local runtime.
 
-> ⚠️ Advanced Research انجام شد: GraphRAG-lite (بازیابی زیرگراف + سنتز) پیاده و Bayesian/causal با دلیل مستند به تعویق افتاد. این آخرین فاز نقشه‌ی راه ۵۲ فازی است. 🎉
+| سنجه | وضعیت واقعی (۲۸ اکتبر ۲۰۲۶) |
+|---|---|
+| مجموعهٔ تست روی SQLite | ۱۴۸۰ passed / ۰ failed |
+| مجموعهٔ تست روی PostgreSQL 16 | نیازمند اصلاح: یک deadlock + ۱۰ شکست (کار Stage 96) |
+| CI روی شاخه | فقط زیرمجموعهٔ کوچکی از تست‌ها را اجرا می‌کند |
+| آمادگی production | نه — جزئیات در [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) |
+
+- مسیر کامل مراحل ۹۶ تا ۱۰۴: [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md)
+- فهرست نقص‌ها و بدهی‌ها: [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md)
 
 ---
 
@@ -50,6 +59,8 @@ WORLD
   → NORMALIZATION
   → DEDUPLICATION
   → SOURCE & EVIDENCE ANALYSIS
+  → CLASSIFICATION & SCREENING (قواعد قطعی + غربالگری مشورتی Kev/Laya)
+  → DISPATCH (مسیریابی بادوام و idempotent به موتورهای دامنه)
   → EVENT / CLAIM / ENTITY EXTRACTION
   → CENTRAL DATABASE
   → WORLD STATE
@@ -80,6 +91,7 @@ WORLD
 | Database | PostgreSQL 16 (بعداً TimescaleDB در صورت نیاز) | پیاده‌سازی‌شده |
 | Cache/Queue | Redis (فقط در صورت نیاز واقعی) | به تعویق افتاده |
 | AI | AI Gateway چند-Provider (Mock-first، Provider-Agnostic) | پیاده‌سازی‌شده |
+| AI محلی | Kev / Laya — مدل‌های تصمیم open-weight، فقط مشورتی | پیاده‌سازی‌شده، پیش‌فرض خاموش |
 | Packaging | Docker + docker-compose | پیاده‌سازی‌شده |
 
 ---
@@ -118,6 +130,19 @@ npm run dev
 
 > نکته: اگر PostgreSQL در حال اجرا نباشد، `/health/db` وضعیت `degraded` برمی‌گرداند اما سرور کار می‌کند (بدون crash).
 
+### تست و lint
+```bash
+# از ریشهٔ مخزن (همان ترتیبی که CI اجرا می‌کند)
+ruff check backend domains tests scripts source_bot
+pytest tests -q
+
+# تک‌فایل / تک‌تست
+pytest tests/test_<name>.py -q
+pytest tests/test_<name>.py -q -k <pattern>
+```
+
+> تست‌ها به‌صورت پیش‌فرض روی SQLite درون‌حافظه اجرا می‌شوند. برای اجرا روی PostgreSQL واقعی، `DATABASE_URL` را به یک دیتابیس تست با migration اجراشده بدهید؛ وضعیت فعلی این مسیر در [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md) ثبت شده است.
+
 ### دیتابیس و migration
 ```bash
 # اجرای migration‌ها (در Docker به‌صورت خودکار در entrypoint اجرا می‌شود)
@@ -143,8 +168,13 @@ powershell -ExecutionPolicy Bypass -File scripts/build_clean_archive.ps1
 
 | فایل | توضیح |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | معماری فنی، لایه‌ها، موجودیت‌ها |
-| [ROADMAP.md](ROADMAP.md) | نقشه راه ۵۲ فاز |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | معماری فنی، لایه‌ها، موجودیت‌ها، مسیر screening و dispatch |
+| [docs/ROADMAP_STAGE96_104.md](docs/ROADMAP_STAGE96_104.md) | نقشه راه جاری (Stage 96 تا 104) با شروط عبور |
+| [docs/FIXES_BACKLOG.md](docs/FIXES_BACKLOG.md) | فهرست نقص‌ها، باگ‌ها و بدهی‌های فنی |
+| [docs/LOCAL_SCREENING.md](docs/LOCAL_SCREENING.md) | غربالگری محلی Kev/Laya و گردش‌کار برچسب‌گذاری |
+| [docs/SOURCE_BOT.md](docs/SOURCE_BOT.md) | ربات جمع‌آوری منابع و provenance تصمیم اولویت |
+| [docs/BACKUP.md](docs/BACKUP.md) · [docs/STAGING.md](docs/STAGING.md) · [docs/VPS_DEPLOYMENT.md](docs/VPS_DEPLOYMENT.md) | بکاپ/بازیابی، محیط staging، استقرار VPS |
+| [ROADMAP.md](ROADMAP.md) | تاریخچهٔ ۵۲ فاز اول (آرشیو) |
 | [TASKS.md](TASKS.md) | کارهای TODO / IN_PROGRESS / DONE / BLOCKED |
 | [PROGRESS.md](PROGRESS.md) | گزارش پیشرفت هر مرحله |
 | [DECISIONS.md](DECISIONS.md) | ثبت تصمیمات معماری (ADR) |
