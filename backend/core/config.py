@@ -116,9 +116,13 @@ class Settings(BaseSettings):
     allow_private_base_url: bool = False
 
     # --- Dashboard login (Step 8; UX: نام کاربری/رمز به‌جای تایپ کلید) ---
-    # پیش‌فرض admin/admin برای لوکال؛ در production باید عوض شود (fail-fast).
-    admin_username: str = "admin"
-    admin_password: str = "admin"
+    # بدون مقدار پیش‌فرض: اگر تنظیم نشده باشند کاربر admin اولیه seed نمی‌شود
+    # (فقط هشدار در startup) و در production validate_production خطا می‌دهد.
+    admin_username: str = ""
+    admin_password: str = ""
+
+    # --- Sessions (مرحله ۱ احراز هویت؛ کوکی HttpOnly) ---
+    session_ttl_minutes: int = 720
 
     # --- Debate Engine (Step 3) ---
     debate_max_tokens_per_run: int = 60000
@@ -174,8 +178,8 @@ class Settings(BaseSettings):
             problems.append("POSTGRES_PASSWORD must be set")
         if "*" in self.cors_origins:
             problems.append("ALLOWED_ORIGINS must not contain '*' in production")
-        if self.admin_password == "admin":
-            problems.append("ADMIN_PASSWORD must be changed in production")
+        if self.admin_password in ("", "admin"):
+            problems.append("ADMIN_PASSWORD must be set and changed in production")
         if problems:
             raise ValueError("insecure production configuration: " + "; ".join(problems))
 

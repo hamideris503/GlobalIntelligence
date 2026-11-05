@@ -65,7 +65,7 @@ from backend.api.routers import auth as auth_router
 from backend.api.routers import local_runtimes as local_runtimes_router
 from backend.api.routers import screening as screening_router
 from backend.api.routers import settings as settings_router
-from backend.auth.deps import require_api_key
+from backend.auth.deps import require_user
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
 from backend.core.security import RateLimitMiddleware, SecurityHeadersMiddleware
@@ -93,6 +93,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         _budget.set_session_factory(_gsf())
     except Exception:  # noqa: BLE001
         logger.warning("credentials store factory not wired; .env only")
+    # مرحله ۱ احراز هویت: seed ادمین اولیه از ADMIN_USERNAME/ADMIN_PASSWORD
+    # (اگر تنظیم نشده باشند فقط هشدار؛ هیچ رمز پیش‌فرضی ساخته نمی‌شود).
+    try:
+        from backend.auth.bootstrap import seed_admin_user
+        from backend.database.session import get_session_factory as _gsf_auth
+
+        with _gsf_auth()() as _db:
+            seed_admin_user(_db)
+    except Exception:  # noqa: BLE001 — بدون DB هم سرور باید بالا بیاید
+        logger.warning("admin seed skipped (db or migration unavailable)")
     # Phase 2: Jobهای دریافت که وسط اجرا رها شده‌اند در startup علامت‌گذاری می‌شوند
     try:
         from source_bot.jobs import recover_interrupted_jobs
@@ -183,10 +193,11 @@ def create_app() -> FastAPI:
     # خطاهای ساختاریافته‌ی AI → وضعیت HTTP معنادار (بقیه‌ی exceptionها پیش‌فرض می‌مانند)
     app.add_exception_handler(AIError, ai_error_handler)
 
-    # /health بدون احراز هویت (برای probe)، لاگین هم عمومی است (خودش ورود است)
+    # /health بدون احراز هویت (برای probe)، ورود/خروج هم عمومی است (خودش ورود است)
     app.include_router(health.router)
     app.include_router(auth_router.router)
-    protected = [Depends(require_api_key)]
+    # نشست کوکی (UI) یا X-API-Key (n8n/اسکریپت‌ها) — مرحله ۱ احراز هویت
+    protected = [Depends(require_user)]
     app.include_router(jobs.router, dependencies=protected)
     app.include_router(ai.router, dependencies=protected)
     app.include_router(ai_routing.router, dependencies=protected)

@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.auth.deps import CurrentUser, require_user
 from backend.database.models.audit_record import AuditRecord
 from backend.database.session import get_db
 
@@ -76,13 +77,19 @@ def _to_log(r: AuditRecord) -> LogRead:
 
 
 @router.post("/log", response_model=LogRead)
-def create_log(req: LogRequest, db: Session = Depends(get_db)) -> LogRead:
+def create_log(
+    req: LogRequest,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(require_user),
+) -> LogRead:
     if not req.action.strip():
         raise HTTPException(status_code=422, detail="action must not be empty")
+    # actor از هویت واقعی می‌آید؛ سرویس‌ها می‌توانند نام خود را بفرستند.
+    actor = current.username if current.via == "session" else (req.actor.strip() or "service")
     record = log_action(
         db,
         action=req.action.strip(),
-        actor=req.actor,
+        actor=actor,
         target_type=req.target_type,
         target_id=req.target_id,
         params=req.params,

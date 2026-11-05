@@ -876,3 +876,22 @@ $env فقط کلید بک‌اند). جایگزین امن‌تر (Credentials) 
 **Context:** app_settings.mock_mode=false سرگردان، classify زمان‌بند را می‌شکست.
 **Decision:** بازگردانی به true + ثبت audit برای PUT /app + تست رفتار نبود provider.
 **Consequences:** هر تغییر تنظیمات از این پس ردیابی می‌شود.
+
+---
+
+## ADR-STEP1AUTH — هویت واقعی کاربر و نشست سمت سرور (مرحله ۱ UI)
+**Date:** 2026-11-06
+**Context:** `POST /api/auth/login` همان API_KEY سرور را برمی‌گرداند و هویتی نمی‌ساخت؛
+UI کلید خام را در مرورگر نگه می‌داشت و audit بدون actor واقعی بود.
+**Decision:** جدول `users` (Argon2id، نقش viewer|analyst|admin) + `sessions` (توکن
+تصادفی، فقط hash sha256 در DB، کوکی HttpOnly/SameSite=Lax/Secure-on-HTTPS) +
+`login_attempts` برای rate limit پایدار. dependency ترکیبی: نشست معتبر **یا**
+`X-API-Key` (نقش admin، actor="service"). درخواست تغییردهنده با کوکی نشست باید هدر
+`X-CSRF-Token` مطابق hash ذخیره‌شده بفرستد. کاربر admin اولیه فقط وقتی seed می‌شود
+که `ADMIN_USERNAME`/`ADMIN_PASSWORD` تنظیم شده باشند؛ در غیر این صورت هیچ رمز
+پیش‌فرضی وجود ندارد. `/api/auth/login` برای n8n/اسکریپت‌ها می‌ماند ولی deprecated است.
+**Alternatives:** JWT بدون جدول نشست (رد شد: ابطال فوری خروج لازم است)؛ نگه‌داشتن
+کلید خام در UI (رد شد: هویت و نقش واقعی لازم است).
+**Consequences:** هر درخواست UI یک کوئری نشست دارد؛ dev با `API_KEY` خالی همچنان
+بدون احراز هویت کار می‌کند تا تست‌ها/اجرای لوکال نشکنند. ادمین اولیه فقط با env
+ساخته می‌شود؛ بدون آن، UI تا زمانی که کاربری ساخته نشود قابل ورود نیست.

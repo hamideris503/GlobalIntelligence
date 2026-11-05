@@ -40,6 +40,7 @@ from backend.database.models.source import Source
 from backend.database.models.source_dependency import SourceDependency
 from backend.database.models.tournament import Tournament
 from backend.database.models.transmission_assessment import TransmissionAssessment
+from backend.database.models.user import LoginAttempt, User, UserSession
 from backend.database.models.world_state import WorldState
 
 __all__ = [
@@ -67,6 +68,7 @@ __all__ = [
     "GeopoliticalAssessment",
     "JobRun",
     "LearningInsight",
+    "LoginAttempt",
     "MacroAssessment",
     "MacroObservation",
     "MarketObservation",
@@ -85,5 +87,7 @@ __all__ = [
     "SourceDependency",
     "Tournament",
     "TransmissionAssessment",
+    "User",
+    "UserSession",
     "WorldState",
 ]
