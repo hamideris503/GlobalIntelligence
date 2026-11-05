@@ -26,13 +26,6 @@ services:
       MOCK_MODE: "true"
       DEBUG: "false"
 
-  frontend:
-    container_name: gi_staging_frontend
-    ports: !override
-      - "127.0.0.1:${STAGING_FRONTEND_PORT:-5174}:5173"
-    environment:
-      VITE_API_BASE_URL: http://localhost:${STAGING_BACKEND_PORT:-8001}
-
   n8n:
     container_name: gi_staging_n8n
     ports: !override

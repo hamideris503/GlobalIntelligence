@@ -8,7 +8,7 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:16-alpine
@@ -46,15 +46,33 @@ jobs:
           alembic upgrade head
       - name: Verify migration head
         run: alembic heads
-      - name: Dispatch & persistence integration tests (PostgreSQL)
+      - name: Full test suite (PostgreSQL)
+        timeout-minutes: 30
         run: |
-          echo "=== test_article_dispatch_migration ==="
-          pytest tests/test_article_dispatch_migration.py -v
-          echo "DONE_MIGRATION"
-      - name: Focused regression subset (PostgreSQL)
-        timeout-minutes: 15
+          pytest tests -q --basetemp=.pytest-ci
+
+  backend-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MOCK_MODE: "true"
+      APP_ENV: development
+      API_KEY: ""
+      APP_ENCRYPTION_KEY: "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
         run: |
-          pytest tests/test_screening_ops.py tests/test_screening_orchestrator.py tests/test_local_screening.py -q
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
+      - name: Run SQLite-compatible tests
+        timeout-minutes: 30
+        working-directory: backend
+        run: pytest ../tests -q -m "not pg" --basetemp=.pytest-sqlite
 
   docker:
     runs-on: ubuntu-latest
@@ -62,18 +80,3 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -f docker/backend.Dockerfile -t gi-backend:ci .
-      - name: Build frontend prod image
-        run: docker build -f docker/frontend.prod.Dockerfile -t gi-frontend:ci .
-
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install & build
-        working-directory: apps/web
-        run: |
-          npm ci || npm install
-          npm run build
