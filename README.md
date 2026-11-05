@@ -85,7 +85,7 @@ WORLD
 
 | لایه | فناوری | وضعیت |
 |---|---|---|
-| Frontend | React + Vite (RTL، Persian، Dark Mode) | پایه ساخته‌شده |
+| Frontend | Single-file HTML (RTL، Persian، Dark Mode) | پایه ساخته‌شده |
 | Backend | Python + FastAPI | پیاده‌سازی‌شده |
 | Orchestration | n8n (pinned 2.42.6) | پیاده‌سازی‌شده |
 | Database | PostgreSQL 16 (بعداً TimescaleDB در صورت نیاز) | پیاده‌سازی‌شده |
@@ -112,20 +112,15 @@ python scripts/check_env.py
 docker compose up -d --build
 # Backend API:  http://localhost:8000/health
 # API docs:     http://localhost:8000/docs
-# Frontend:     http://localhost:5173
+# UI:           http://localhost:8000/
 # n8n:          http://localhost:5678
 ```
 
 ### اجرای محلی بدون Docker
 ```bash
-# Backend
+# Backend (serves the UI at http://localhost:8000/)
 pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload
-
-# Frontend
-cd apps/web
-npm ci          # نصب تمیز و قابل‌بازتولید از روی package-lock
-npm run dev
 ```
 
 > نکته: اگر PostgreSQL در حال اجرا نباشد، `/health/db` وضعیت `degraded` برمی‌گرداند اما سرور کار می‌کند (بدون crash).

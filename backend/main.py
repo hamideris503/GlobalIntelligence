@@ -8,9 +8,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.ai.schemas.types import AIError
 from backend.api.errors import ai_error_handler
@@ -19,10 +21,12 @@ from backend.api.routers import (
     ai_routing,
     alerts,
     analogues,
+    archive,
     audit,
     briefings,
     claims,
     classify,
+    configuration,
     debate,
     decisions,
     dedup,
@@ -123,6 +127,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
     except Exception:  # noqa: BLE001 — dispatch must not block startup
         logger.warning("dispatch startup skipped (db or migration unavailable)")
+
+    # F-15: اعمال خودکار زنجیره‌ی تطبیقی (پیش‌فرض خاموش؛ فقط با آمار ثبت‌شده)
+    if settings.adaptive_routing_enabled:
+        try:
+            from backend.ai.adaptive_bootstrap import apply_adaptive_routes, parse_tasks
+            from backend.database.session import get_session_factory as _gsf_routes
+
+            with _gsf_routes()() as _db:
+                applied = apply_adaptive_routes(_db, parse_tasks(settings.adaptive_routing_tasks))
+            logger.info("adaptive routing applied | %s", applied)
+        except Exception:  # noqa: BLE001 — AI routing must not block startup
+            logger.warning("adaptive routing bootstrap skipped (db unavailable)")
     yield
     if dispatch_stop is not None and dispatch_task is not None:
         dispatch_stop.set()
@@ -178,6 +194,7 @@ def create_app() -> FastAPI:
     app.include_router(audit.router, dependencies=protected)
     app.include_router(briefings.router, dependencies=protected)
     app.include_router(sources.router, dependencies=protected)
+    app.include_router(configuration.router, dependencies=protected)
     app.include_router(ingestion.router, dependencies=protected)
     app.include_router(dedup.router, dependencies=protected)
     app.include_router(classify.router, dependencies=protected)
@@ -191,6 +208,7 @@ def create_app() -> FastAPI:
     app.include_router(worldstate.router, dependencies=protected)
     app.include_router(memory.router, dependencies=protected)
     app.include_router(analogues.router, dependencies=protected)
+    app.include_router(archive.router, dependencies=protected)
     app.include_router(macro.router, dependencies=protected)
     app.include_router(geopolitics.router, dependencies=protected)
     app.include_router(society.router, dependencies=protected)
@@ -214,6 +232,11 @@ def create_app() -> FastAPI:
     app.include_router(decisions.router, dependencies=protected)
     app.include_router(learning.router, dependencies=protected)
     app.include_router(iran.router, dependencies=protected)
+
+    # Serve the single-file UI at "/" (registered after all API routes so it cannot shadow them).
+    _static_dir = Path(__file__).resolve().parent / "static"
+    if _static_dir.is_dir():
+        app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static-ui")
     return app
 
 

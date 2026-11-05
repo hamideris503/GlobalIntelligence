@@ -8,20 +8,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from backend.core.config import get_settings
 from backend.database.session import check_database
 
 router = APIRouter(tags=["system"])
-
-
-@router.get("/")
-def root() -> dict[str, str]:
-    # AUDIT-REPAIR: env فاش نمی‌شود و لینک docs در production حذف است
-    settings = get_settings()
-    info: dict[str, str] = {"name": settings.app_name, "status": "ok"}
-    if settings.app_env != "production":
-        info["docs"] = "/docs"
-    return info
 
 
 @router.get("/health")

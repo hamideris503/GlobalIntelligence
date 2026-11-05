@@ -19,8 +19,6 @@ REQUIRED_LOCAL_FILES = [
     "docker-compose.yml",
     "docker-compose.prod.yml",
     "docker/backend.Dockerfile",
-    "docker/frontend.prod.Dockerfile",
-    "docker/nginx-spa.conf",
     ".env.example",
 ]
 

@@ -14,12 +14,8 @@ client = TestClient(app)
 def test_root() -> None:
     res = client.get("/")
     assert res.status_code == 200
-    body = res.json()
-    assert body["status"] == "ok"
-    assert "name" in body
-    # AUDIT-REPAIR: هیچ فیلد محیطی/حساسی فاش نشود
-    assert "env" not in body
-    assert "secret" not in str(body).lower()
+    assert "text/html" in res.headers.get("content-type", "")
+    assert "<html" in res.text.lower()
 
 
 def test_health_liveness() -> None:
