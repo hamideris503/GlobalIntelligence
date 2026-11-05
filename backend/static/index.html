@@ -159,6 +159,147 @@
 </div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div><aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" tabindex="-1"><div class="drawer-head"><div><div class="eyebrow">AI TRACE · SAMPLE</div><h2 id="drawerTitle">ردیابی تحلیل هوشمند</h2></div><button class="icon-btn" id="closeDrawer" aria-label="بستن">✕</button></div><div id="drawerBody"></div></aside><div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="جست‌وجوی سریع" aria-hidden="true"><div class="palette-box"><input class="palette-input" id="paletteInput" aria-label="جست‌وجوی بخش‌ها" placeholder="به کدام بخش می‌خواهید بروید؟"><div class="palette-results" id="paletteResults"></div><div class="tiny" style="padding:9px 15px;border-top:1px solid var(--line)">جست‌وجوی سریع بخش‌ها · Esc برای بستن</div></div></div>
 <script>
+// === Step 0: connection infrastructure (no page wired yet) ===
+const GI_KEY_STORAGE = 'gi_api_key';
+let giApiKey = '';
+try { giApiKey = sessionStorage.getItem(GI_KEY_STORAGE) || ''; } catch (e) { giApiKey = ''; }
+
+function giGetApiKey(){ return giApiKey; }
+function giSetApiKey(k){ giApiKey = (k || '').trim(); try { if (giApiKey) sessionStorage.setItem(GI_KEY_STORAGE, giApiKey); else sessionStorage.removeItem(GI_KEY_STORAGE); } catch (e) {} }
+function giClearApiKey(){ giApiKey = ''; try { sessionStorage.removeItem(GI_KEY_STORAGE); } catch (e) {} }
+
+async function api(method, path, opts){
+  opts = opts || {};
+  const url = new URL(path, location.origin);
+  if (opts.query){ Object.keys(opts.query).forEach(k => { if (opts.query[k] != null) url.searchParams.set(k, opts.query[k]); }); }
+  const headers = { 'Accept': 'application/json' };
+  const key = giGetApiKey();
+  if (key) headers['X-API-Key'] = key;
+  let body = opts.body;
+  if (body && typeof body !== 'string'){ body = JSON.stringify(body); headers['Content-Type'] = 'application/json'; }
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), opts.timeout || 15000);
+  let res;
+  try { res = await fetch(url.toString(), { method, headers, body, signal: ctrl.signal, credentials: 'same-origin' }); }
+  catch (err){ clearTimeout(t); const e = new Error(err && err.name === 'AbortError' ? 'timeout' : 'network'); e.status = 0; throw e; }
+  clearTimeout(t);
+  let data = null;
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('json')){ try { data = await res.json(); } catch (e) { data = null; } }
+  else { try { data = await res.text(); } catch (e) { data = null; } }
+  if (!res.ok){
+    const msg = (data && (data.detail || data.message)) || res.statusText || 'error';
+    const e = new Error(String(msg)); e.status = res.status; e.data = data;
+    if (res.status === 401){ try { giOpenAuth(); } catch (_) {} }
+    throw e;
+  }
+  return data;
+}
+
+const connectedPages = new Set();
+
+let giHealthStatus = 'unknown';
+async function giCheckHealth(){
+  try {
+    const r = await fetch('/health', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('bad');
+    giHealthStatus = 'ok';
+  } catch (e) {
+    giHealthStatus = 'down';
+  }
+  giUpdateRibbon();
+  return giHealthStatus;
+}
+
+function giNeedsKey(){ return !giGetApiKey(); }
+
+function giRibbonHtml(){
+  const backendLabel = giHealthStatus === 'down' ? 'قطع' : (giNeedsKey() ? 'نیازمند کلید' : 'متصل');
+  const keyLabel = giNeedsKey() ? 'نیازمند کلید' : 'کلید ثبت شد';
+  const dataLabel = (typeof activePage !== 'undefined' && connectedPages.has(activePage)) ? 'داده زنده' : 'داده نمونه';
+  const statusColor = giHealthStatus === 'ok' ? '#6fdfb2' : '#ff657f';
+  return '<div class="gi-prototype-ribbon" role="status"><b>Prototype</b><span style="color:' + statusColor + '">Backend: ' + backendLabel + '</span><span>کلید: ' + keyLabel + '</span><span>داده: ' + dataLabel + '</span><button type="button" onclick="giOpenAuth()" style="margin-right:auto;padding:4px 8px;border:1px solid #ffffff24;border-radius:6px;background:#0b1a2a;color:#dceaff;font-size:9px;cursor:pointer">ورود / کلید API</button></div>';
+}
+
+function giUpdateRibbon(){
+  const r = document.querySelector('.gi-prototype-ribbon');
+  if (r) r.outerHTML = giRibbonHtml();
+}
+
+let giAuthModal = null;
+function giEnsureAuthModal(){
+  if (giAuthModal) return giAuthModal;
+  const wrap = document.createElement('div');
+  wrap.id = 'giAuthModal';
+  wrap.style.cssText = 'position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  wrap.innerHTML = '<div style="width:min(420px,100%);background:#0b1726;border:1px solid #31557766;border-radius:12px;padding:18px;color:#e8f3ff;font-family:inherit;direction:rtl;">'
+    + '<h3 style="margin:0 0 12px;font-size:14px;">ورود / کلید API</h3>'
+    + '<div style="display:flex;gap:8px;margin-bottom:12px;">'
+    + '<button type="button" id="giAuthTabKey" style="flex:1;padding:6px;border:1px solid #ffffff24;border-radius:6px;background:#18324a;color:#e5f3ff;cursor:pointer;font-size:10px;">کلید API</button>'
+    + '<button type="button" id="giAuthTabLogin" style="flex:1;padding:6px;border:1px solid #ffffff24;border-radius:6px;background:#0a1726;color:#9db1cb;cursor:pointer;font-size:10px;">ورود با حساب</button>'
+    + '</div>'
+    + '<div id="giAuthKeyPanel">'
+    + '<label style="font-size:10px;color:#9db1cb;display:block;margin-bottom:4px;">کلید API</label>'
+    + '<input id="giAuthKeyInput" type="password" autocomplete="off" spellcheck="false" style="width:100%;padding:8px;border:1px solid #ffffff24;border-radius:6px;background:#0a1726;color:#e5f3ff;font-size:11px;" placeholder="X-API-Key">'
+    + '<p style="font-size:9px;color:#7e96b5;margin:6px 0 12px;">کلید فقط در sessionStorage این تب نگه داشته می‌شود.</p>'
+    + '</div>'
+    + '<div id="giAuthLoginPanel" style="display:none;">'
+    + '<label style="font-size:10px;color:#9db1cb;display:block;margin-bottom:4px;">نام کاربری</label>'
+    + '<input id="giAuthUser" type="text" style="width:100%;padding:8px;border:1px solid #ffffff24;border-radius:6px;background:#0a1726;color:#e5f3ff;font-size:11px;margin-bottom:8px;">'
+    + '<label style="font-size:10px;color:#9db1cb;display:block;margin-bottom:4px;">رمز عبور</label>'
+    + '<input id="giAuthPass" type="password" style="width:100%;padding:8px;border:1px solid #ffffff24;border-radius:6px;background:#0a1726;color:#e5f3ff;font-size:11px;margin-bottom:8px;">'
+    + '</div>'
+    + '<div id="giAuthError" style="color:#ff657f;font-size:10px;min-height:14px;margin-bottom:8px;"></div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    + '<button type="button" id="giAuthCancel" style="padding:6px 12px;border:1px solid #ffffff24;border-radius:6px;background:#0a1726;color:#9db1cb;cursor:pointer;font-size:10px;">انصراف</button>'
+    + '<button type="button" id="giAuthLogout" style="padding:6px 12px;border:1px solid #ff657f44;border-radius:6px;background:#2a1218;color:#ff9aae;cursor:pointer;font-size:10px;">خروج</button>'
+    + '<button type="button" id="giAuthSubmit" style="padding:6px 12px;border:1px solid #5d9ddd88;border-radius:6px;background:#1a3652;color:#e8f4ff;cursor:pointer;font-size:10px;">اتصال</button>'
+    + '</div></div>';
+  document.body.appendChild(wrap);
+  giAuthModal = wrap;
+
+  const tabKey = wrap.querySelector('#giAuthTabKey');
+  const tabLogin = wrap.querySelector('#giAuthTabLogin');
+  const panelKey = wrap.querySelector('#giAuthKeyPanel');
+  const panelLogin = wrap.querySelector('#giAuthLoginPanel');
+  tabKey.onclick = function(){ panelKey.style.display=''; panelLogin.style.display='none'; tabKey.style.background='#18324a'; tabKey.style.color='#e5f3ff'; tabLogin.style.background='#0a1726'; tabLogin.style.color='#9db1cb'; };
+  tabLogin.onclick = function(){ panelKey.style.display='none'; panelLogin.style.display=''; tabLogin.style.background='#18324a'; tabLogin.style.color='#e5f3ff'; tabKey.style.background='#0a1726'; tabKey.style.color='#9db1cb'; };
+  wrap.querySelector('#giAuthCancel').onclick = function(){ wrap.style.display='none'; };
+  wrap.querySelector('#giAuthLogout').onclick = function(){ giClearApiKey(); wrap.querySelector('#giAuthError').textContent='خروج انجام شد.'; giUpdateRibbon(); giCheckHealth(); };
+  wrap.querySelector('#giAuthSubmit').onclick = async function(){
+    const err = wrap.querySelector('#giAuthError');
+    err.textContent = '';
+    const submit = wrap.querySelector('#giAuthSubmit');
+    submit.disabled = true;
+    try {
+      if (panelKey.style.display !== 'none'){
+        const k = wrap.querySelector('#giAuthKeyInput').value;
+        if (!k){ err.textContent = 'کلید خالی است.'; return; }
+        giSetApiKey(k);
+        await giCheckHealth();
+        wrap.style.display = 'none';
+      } else {
+        const u = wrap.querySelector('#giAuthUser').value;
+        const p = wrap.querySelector('#giAuthPass').value;
+        const data = await api('POST', '/api/auth/login', { body: { username: u, password: p } });
+        if (data && data.api_key){ giSetApiKey(data.api_key); await giCheckHealth(); wrap.style.display = 'none'; }
+        else { err.textContent = 'پاسخ نامعتبر.'; }
+      }
+    } catch (e) {
+      giClearApiKey();
+      err.textContent = (e && e.status === 401) ? 'نام کاربری/رمز یا کلید نامعتبر است.' : ('خطا: ' + (e && e.message ? e.message : e));
+    } finally { submit.disabled = false; }
+  };
+  return wrap;
+}
+function giOpenAuth(){ const m = giEnsureAuthModal(); m.style.display = 'flex'; const e = m.querySelector('#giAuthError'); if (e) e.textContent = ''; }
+
+function giLoadingHtml(msg){ return '<div class="panel panel-pad" role="status"><p class="muted">' + (msg || 'در حال بارگذاری...') + '</p></div>'; }
+function giEmptyHtml(msg){ return '<div class="panel panel-pad"><p class="muted">' + (msg || 'داده‌ای موجود نیست') + '</p></div>'; }
+function giErrorHtml(msg, retryFnName){ return '<div class="panel panel-pad"><p style="color:#ff657f">' + (msg || 'خطا در دریافت داده') + '</p>' + (retryFnName ? '<button type="button" onclick="' + retryFnName + '()" style="margin-top:8px;padding:6px 12px;border:1px solid #ffffff24;border-radius:6px;background:#0a1726;color:#dceaff;cursor:pointer;font-size:10px;">تلاش مجدد</button>' : '') + '</div>'; }
+
+setTimeout(function(){ giCheckHealth(); }, 300);
+PYEOF
 const pages={
 'overview':['مرکز هوشمندی','تصویر یکپارچه از تحلیل‌های AI، شواهد، پیش‌بینی‌ها و تصمیم‌های پیشنهادی','INTELLIGENCE OVERVIEW'],
 'ai-analysis':['مرکز تحلیل هوشمند AI','خروجی تحلیل‌ها، استنتاج‌ها، ارزیابی شواهد و نتیجه‌گیری مدل‌ها در فضای قابل ممیزی','AI ANALYSIS WORKSPACE'],
@@ -347,12 +488,12 @@ function renderPage(id){
    let html=pageRenderers[activePage]?pageRenderers[activePage]():genericDomain(activePage);
    if(activePage==='world')html=worldMonitorPage();
    else if(['geopolitics','iran','macro','markets','portfolio','entity-graph','alerts'].includes(activePage))html=genericDomain(activePage);
-   main.innerHTML=`<div class="gi-prototype-ribbon" role="status"><b>حالت Prototype</b><span>Backend: متصل نیست</span><span>داده‌ها: نمونه / شماتیک</span><span>عملیات واقعی اجرا نمی‌شود</span></div>${html}`;
+   main.innerHTML=`${giRibbonHtml()}${html}`;
    labelMissingControls(document);
    main.querySelectorAll('[data-tab]').forEach(x=>{x.disabled=true;x.setAttribute('aria-disabled','true');x.title='تعویض سنجه پس از اتصال خروجی ارزیابی واقعی فعال می‌شود'});
  }catch(err){
    console.error('Page render failed:',activePage,err);
-   main.innerHTML=`<div class="gi-prototype-ribbon" role="status"><b>حالت Prototype</b><span>Backend: متصل نیست</span><span>داده‌ها: نمونه / شماتیک</span></div><section class="panel panel-pad"><h2>بارگذاری این بخش ناموفق بود</h2><p class="muted">خطای رابط ثبت شد. صفحه را دوباره باز کنید؛ داده‌ای تغییر نکرده است.</p></section>`;
+   main.innerHTML=`${giRibbonHtml()}<section class="panel panel-pad"><h2>بارگذاری این بخش ناموفق بود</h2><p class="muted">خطای رابط ثبت شد. صفحه را دوباره باز کنید؛ داده‌ای تغییر نکرده است.</p></section>`;
  }
  document.querySelectorAll('.nav-item').forEach(a=>a.classList.toggle('active',a.dataset.page===activePage));
  document.getElementById('breadcrumb').textContent=pages[activePage][0];
