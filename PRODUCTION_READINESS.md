@@ -1,6 +1,6 @@
 # PRODUCTION_READINESS.md — Deployment Readiness Assessment
 
-> نتیجه: **آماده‌ی local/staging؛ آماده‌ی production نیست** (دلایل: §4).
+> نتیجه: **آماده‌ی local (روی SQLite)؛ آماده‌ی staging/production نیست** (دلایل: §2.1 و §4).
 
 ## 1. آماده ✅
 
@@ -23,7 +23,17 @@
 - workflowها `active:false` (فعال‌سازی عمداً دستی؛ شامل daily-debate جدید).
 - تحویل alert و scrape Prometheus جدا پیاده نشده.
 - Threshold/confidenceهای ثابت (v1) کالیبره‌ی تجربی نیستند.
-- CI: فایل `.github/workflows/ci.yml` موجود و tracked است (۳ job: `backend` با pytest+ruff+زنجیره‌ی migration، `docker` با build هر دو ایمیج، `frontend` با `npm ci`+`npm run build`)؛ اجرای راه‌دور روی GitHub تأیید نشده (**NOT_VERIFIED**) — فقط معادل محلی‌اش سبز است.
+- CI: فایل `.github/workflows/ci.yml` موجود و tracked است (۳ job: `backend`، `docker`، `frontend`). روی شاخهٔ `stage95-pg-ci-verification` مرحلهٔ تست بک‌اند عمداً فقط یک زیرمجموعهٔ کوچک را اجرا می‌کند (~۷۷ تست از ۱۴۸۰ ≈ ۵٪) و همین، شکست‌های PostgreSQL را پنهان کرده است؛ بازگرداندن کل suite کار Stage 96 است. اجرای راه‌دور روی GitHub تأیید نشده (**NOT_VERIFIED**).
+
+### 2.1 وضعیت سنجیده‌شدهٔ تست (۲۸ اکتبر ۲۰۲۶)
+
+| مسیر اجرا | نتیجه |
+|---|---|
+| SQLite درون‌حافظه (پیش‌فرض) | ۱۴۸۰ passed / ۰ failed — ۱۵:۱۲ |
+| PostgreSQL 16 واقعی | deadlock در `test_dispatch.py::test_claim_is_atomic` + ۱۰ شکست دیگر |
+| migration روی PG16 | `upgrade head` / `downgrade base` / `upgrade head` موفق؛ head یکتا `88a9b2c1d4e5` |
+
+بنابراین ادعای «آماده‌ی local» فقط برای مسیر SQLite معتبر است؛ تا سبز شدن مسیر PostgreSQL، آمادگی staging هم مشروط است. جزئیات هر قلم در [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md).
 
 ## 3. غایب ❌ (پیش از production واقعی لازم است)
 

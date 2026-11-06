@@ -1,0 +1,632 @@
+[
+  {
+    "route": "dashboard",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 2039,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 8,
+    "skeletonCount": 0,
+    "h1": "مرکز هوش اقتصادی و ژئوپلیتیک",
+    "headingCount": 1,
+    "panels": 9,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "news",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 701,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "اخبار و رویدادها",
+    "headingCount": 1,
+    "panels": 1,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "sources",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 699,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "منابع اطلاعاتی",
+    "headingCount": 1,
+    "panels": 2,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "ai",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 683,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 4,
+    "skeletonCount": 0,
+    "h1": "هوش مصنوعی و مدل‌ها",
+    "headingCount": 1,
+    "panels": 5,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "settings",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 686,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "تنظیمات",
+    "headingCount": 1,
+    "panels": 3,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "ops",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 681,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 3,
+    "skeletonCount": 0,
+    "h1": "کارهای خودکار و پردازش‌ها",
+    "headingCount": 1,
+    "panels": 3,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "archive",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "ms": 729,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 1440,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 1156,
+    "sidebarWidth": 284,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 8,
+    "skeletonCount": 0,
+    "h1": "مرکز هوش اقتصادی و ژئوپلیتیک",
+    "headingCount": 1,
+    "panels": 9,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "dashboard",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 4017,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 8,
+    "skeletonCount": 0,
+    "h1": "مرکز هوش اقتصادی و ژئوپلیتیک",
+    "headingCount": 1,
+    "panels": 9,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "news",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 660,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "اخبار و رویدادها",
+    "headingCount": 1,
+    "panels": 1,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "sources",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 684,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "منابع اطلاعاتی",
+    "headingCount": 1,
+    "panels": 2,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "ai",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 672,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 4,
+    "skeletonCount": 0,
+    "h1": "هوش مصنوعی و مدل‌ها",
+    "headingCount": 1,
+    "panels": 5,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "settings",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 668,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "تنظیمات",
+    "headingCount": 1,
+    "panels": 3,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "ops",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 687,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 3,
+    "skeletonCount": 0,
+    "h1": "کارهای خودکار و پردازش‌ها",
+    "headingCount": 1,
+    "panels": 3,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "archive",
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    },
+    "ms": 753,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 768,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 768,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 3,
+    "skeletonCount": 12,
+    "h1": "مرکز هوش اقتصادی و ژئوپلیتیک",
+    "headingCount": 1,
+    "panels": 14,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "dashboard",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 10347,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 8,
+    "skeletonCount": 0,
+    "h1": "مرکز هوش اقتصادی و ژئوپلیتیک",
+    "headingCount": 1,
+    "panels": 9,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "news",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 664,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "اخبار و رویدادها",
+    "headingCount": 1,
+    "panels": 1,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "sources",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 658,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "منابع اطلاعاتی",
+    "headingCount": 1,
+    "panels": 2,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "ai",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 683,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 4,
+    "skeletonCount": 0,
+    "h1": "هوش مصنوعی و مدل‌ها",
+    "headingCount": 1,
+    "panels": 5,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "settings",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 653,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 1,
+    "skeletonCount": 0,
+    "h1": "تنظیمات",
+    "headingCount": 1,
+    "panels": 3,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "ops",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 649,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 3,
+    "skeletonCount": 0,
+    "h1": "کارهای خودکار و پردازش‌ها",
+    "headingCount": 1,
+    "panels": 3,
+    "apiKeyMissingNotice": true
+  },
+  {
+    "route": "archive",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "ms": 667,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "title": "GlobalIntelligence",
+    "dir": "rtl",
+    "theme": "dark",
+    "fontFamily": "\"Times New Roman\"",
+    "fontSize": "14.72px",
+    "docScrollWidth": 390,
+    "horizontalOverflow": false,
+    "mainScrollWidth": 390,
+    "sidebarWidth": 300,
+    "sidebarVisible": true,
+    "topbarHeight": 60,
+    "clippedElements": [],
+    "smallTargets": 0,
+    "alertCount": 8,
+    "skeletonCount": 0,
+    "h1": "مرکز هوش اقتصادی و ژئوپلیتیک",
+    "headingCount": 1,
+    "panels": 9,
+    "apiKeyMissingNotice": true
+  }
+]

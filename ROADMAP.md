@@ -1,9 +1,9 @@
 # ROADMAP.md
 
 > نقشه راه GlobalIntelligence — ۵۲ فاز
-> اصل: هر بار فقط یک Phase فعال است. از Phase فعلی جلوتر نمی‌رویم.
+> این سند **آرشیو** فازهای ۰–۵۲ است. مرجع وضعیت جاری: [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md).
 
-**Phase فعلی:** 52 ✅ COMPLETE
+**وضعیت فازهای ۰–۵۲:** COMPLETE · **مرحلهٔ جاری پروژه:** Stage 96 (تثبیت نسخه، PostgreSQL و CI) — بخش «بعد از Phase 52» در پایان همین فایل
 
 ---
 
@@ -371,7 +371,7 @@
 - API: `POST /api/learning/run`, `GET /api/learning/insights`
 - CLI: `python -m domains.learning.run_learn`
 - تست شد: ۸ تست پاس؛ کل ۳۷۶ تست پاس؛ زنده ۲ بینش رژیم + idempotent
-## Phase 52 — Advanced Research (GraphRAG, Bayesian networks, causal discovery, …) ✅ (این مرحله — پایانی)
+## Phase 52 — Advanced Research (GraphRAG, Bayesian networks, causal discovery, …) ✅ (پایان فازهای ۰–۵۲؛ این سند آرشیو است)
 - ارزیابی هر ۳ تکنیک؛ پیاده‌سازی GraphRAG-lite: resolve نام + همسایگی k-hop جهت‌دار + رتبه‌ی وزن/درجه + سقف + سنتز (LLM در prod، استخراجی صادقانه در mock)
 - تعویق مستند: Bayesian (نیازمند pgmpy + داده‌ی شرطی بیشتر)، causal (سری‌های بلند ایستا لازم دارد — تاریخچه‌ی Phase 16/17 کوتاه است)
 - API: `POST /api/research/graphrag` (اعتبارسنجی hops/limit)، `GET /api/research/methods`
@@ -388,3 +388,16 @@ Forecast Engine، Knowledge Graph، Trading، Complex AI agents، Microservices�
 
 ## Post-52 session scope (verified 2026-10-16, see PROGRESS.md Stage 0)
 Debate engine, settings/Auth, census, phase58 migration, Source Bot (+4 fixes), Phase A mock, evidence pipeline, gateway Step-8, MIME/routing/prompts, feed validation (uncommitted). VPS deploy stays LAST, only after local validation + user approval.
+
+---
+
+## بعد از Phase 52 (به‌روزشده ۲۸ اکتبر ۲۰۲۶)
+
+Phase 52 پایان فازهای ۰–۵۲ بود، نه پایان پروژه. پس از آن:
+
+- **Stage 88–95 روی شاخهٔ `stage95-pg-ci-verification`** پیاده شد و هنوز به `main` ادغام نشده است: غربالگری مشورتی Kev/Laya، هارنس ارزیابی/برچسب‌گذاری، صف تحویل بادوام (dispatch)، مسیریابی دامنه، سیاست AI رایگان، supervisor اجرای محلی، و migration مربوطه (در مجموع ۴۰ migration در برابر ۳۶ در `main`).
+- **مرحلهٔ جاری Stage 96 است** (تثبیت نسخه، PostgreSQL و CI).
+- نقشهٔ کامل و شروط عبور مراحل ۹۶–۱۰۴: [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md)
+- فهرست نقص‌ها و بدهی‌ها: [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md)
+
+وضعیت اندازه‌گیری‌شده در ۲۸ اکتبر: روی SQLite کل مجموعه (۱۴۸۰ تست) سبز است؛ روی PostgreSQL یک deadlock و ۱۰ شکست وجود دارد؛ CI روی شاخه فقط زیرمجموعه‌ای (~۵٪ تست‌ها) را اجرا می‌کند. VPS deployment همان Stage 103 و همچنان آخرین گام است.

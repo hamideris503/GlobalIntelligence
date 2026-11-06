@@ -1,0 +1,310 @@
+{
+  "rows": [
+    {
+      "viewport": "360",
+      "route": "dashboard",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 8,
+      "h1": "مرکز هوش اقتصادی و ژئوپلیتیک"
+    },
+    {
+      "viewport": "360",
+      "route": "news",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": false,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 4,
+      "h1": "اخبار و رویدادها"
+    },
+    {
+      "viewport": "360",
+      "route": "sources",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 5,
+      "h1": "منابع اطلاعاتی"
+    },
+    {
+      "viewport": "360",
+      "route": "screening",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": true,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 4,
+      "h1": "غربالگری و صف پردازش"
+    },
+    {
+      "viewport": "360",
+      "route": "settings",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": true,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 4,
+      "h1": "تنظیمات"
+    },
+    {
+      "viewport": "360",
+      "route": "ops",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 4,
+      "h1": "کارهای خودکار و پردازش‌ها"
+    },
+    {
+      "viewport": "360",
+      "route": "archive",
+      "dir": "rtl",
+      "docOverflow": true,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 4,
+      "h1": "آرشیو و نگهداری"
+    },
+    {
+      "viewport": "768",
+      "route": "dashboard",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 4,
+      "h1": "مرکز هوش اقتصادی و ژئوپلیتیک"
+    },
+    {
+      "viewport": "768",
+      "route": "news",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": false,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 0,
+      "h1": "اخبار و رویدادها"
+    },
+    {
+      "viewport": "768",
+      "route": "sources",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 1,
+      "h1": "منابع اطلاعاتی"
+    },
+    {
+      "viewport": "768",
+      "route": "screening",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": false,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 0,
+      "h1": "غربالگری و صف پردازش"
+    },
+    {
+      "viewport": "768",
+      "route": "settings",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": true,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 0,
+      "h1": "تنظیمات"
+    },
+    {
+      "viewport": "768",
+      "route": "ops",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 0,
+      "h1": "کارهای خودکار و پردازش‌ها"
+    },
+    {
+      "viewport": "768",
+      "route": "archive",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 0,
+      "h1": "آرشیو و نگهداری"
+    },
+    {
+      "viewport": "1024",
+      "route": "dashboard",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 6,
+      "h1": "مرکز هوش اقتصادی و ژئوپلیتیک"
+    },
+    {
+      "viewport": "1024",
+      "route": "news",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": false,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 2,
+      "h1": "اخبار و رویدادها"
+    },
+    {
+      "viewport": "1024",
+      "route": "sources",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 3,
+      "h1": "منابع اطلاعاتی"
+    },
+    {
+      "viewport": "1024",
+      "route": "screening",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": false,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 2,
+      "h1": "غربالگری و صف پردازش"
+    },
+    {
+      "viewport": "1024",
+      "route": "settings",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [
+        {
+          "clipped": true,
+          "scrollableX": "auto"
+        }
+      ],
+      "smallTargets": 2,
+      "h1": "تنظیمات"
+    },
+    {
+      "viewport": "1024",
+      "route": "ops",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 2,
+      "h1": "کارهای خودکار و پردازش‌ها"
+    },
+    {
+      "viewport": "1024",
+      "route": "archive",
+      "dir": "rtl",
+      "docOverflow": false,
+      "overflowing": [],
+      "kv": [],
+      "tables": [],
+      "tabs": [],
+      "smallTargets": 2,
+      "h1": "آرشیو و نگهداری"
+    }
+  ],
+  "issues": [
+    "360/dashboard: document overflow (true)",
+    "360/news: document overflow (true)",
+    "360/sources: document overflow (true)",
+    "360/screening: document overflow (true)",
+    "360/settings: document overflow (true)",
+    "360/ops: document overflow (true)",
+    "360/archive: document overflow (true)"
+  ]
+}

@@ -2,7 +2,16 @@
 
 > مدیریت کارهای پروژه. هر تسک یکی از چهار وضعیت را دارد: TODO / IN_PROGRESS / DONE / BLOCKED
 
-**به‌روزرسانی:** Phase 52 ✅ COMPLETE
+**به‌روزرسانی:** ۲۸ اکتبر ۲۰۲۶ — Phase 52 COMPLETE است، اما پروژه تمام نشده؛ مرحلهٔ جاری **Stage 96** است.
+
+> ⚠️ این فایل تاریخچهٔ کارها را نگه می‌دارد. مرجع وضعیت جاری و بدهی‌ها: [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md) و [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md).
+
+### اصلاح ادعاهای کهنه (بازبینی ۲۸ اکتبر)
+
+- `ruff check` **اکنون شامل `source_bot`** است و پاس می‌شود؛ بند قدیمی زیر دربارهٔ کمبودن scope دیگر معتبر نیست.
+- `tests/conftest.py` وقتی `DATABASE_URL` به PostgreSQL اشاره کند، **واقعاً به PostgreSQL وصل می‌شود** (NullPool، بدون `create_all`)؛ ادعای «pytest همیشه روی SQLite اجرا می‌شود» دیگر درست نیست.
+- CI شاخهٔ `stage95-pg-ci-verification` عمداً به زیرمجموعه‌ای از تست‌ها کوچک شده است (F-03) — این یک وضعیت موقت نیست و باید در Stage 96 برگردد.
+- کارهای باز جدید (با شاهد و روش اثبات) در `docs/FIXES_BACKLOG.md` ثبت شده‌اند: F-01 تا F-35.
 
 ---
 

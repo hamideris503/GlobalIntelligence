@@ -1,8 +1,8 @@
 # ARCHITECTURE.md
 
 > معماری فنی GlobalIntelligence
-> نسخه: 0.1 (Phase 0)
-> وضعیت: پیش‌نویس تثبیت‌شده
+> نسخه: 0.2 (بازبینی ۲۸ اکتبر ۲۰۲۶ — پس از Stage 88–95)
+> وضعیت: جاری و هم‌راستا با کد؛ فازهای 0–52 پیاده‌سازی شده‌اند و مراحل تثبیت/تکمیل در [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md) است.
 
 ---
 
@@ -67,6 +67,10 @@ DEDUPLICATION          (hash / near-duplicate / repost clusters)
  ↓
 SOURCE & EVIDENCE ANALYSIS (credibility, independence)
  ↓
+CLASSIFICATION & SCREENING (rules + advisory local models + AI Gateway)
+ ↓
+DISPATCH               (durable downstream tasks، idempotent، retry/terminal)
+ ↓
 EVENT / CLAIM / ENTITY EXTRACTION
  ↓
 CENTRAL DATABASE       (PostgreSQL)
@@ -105,24 +109,30 @@ SELF-IMPROVEMENT
   /web                    # فرانت‌اند React + Vite
 
 /backend
-  /api                    # لایه HTTP: routers, dependencies, schemas
+  /api                    # لایه HTTP: ۴۵ router, dependencies, schemas
   /core                   # config, logging, errors, base classes
   /auth                   # authentication + authorization
   /database              # engine, session, migrations glue
   /ai
-    /gateway              # AI Gateway (orchestration)
-    /providers            # adapters: mock, gemini, openai, anthropic, openrouter
+    /gateway              # AI Gateway (orchestration، fallback، گیت mock در prod)
+    /providers            # adapters: mock, gemini, openai, anthropic, openrouter, local_decision
     /schemas              # structured output schemas
     /routing              # task→model routing rules
     /prompts              # versioned prompt templates
-    /evaluation           # AI performance tracking
-  /services              # business logic / orchestration
+    /evaluation           # AI performance tracking + هارنس ارزیابی/برچسب‌گذاری غربالگری
+    /local_screening      # orchestrator/service/review غربالگری محلی (Kev/Laya)
+    /local_runtimes       # supervisor اجرای محلی مدل‌ها (kev.serve / laya_wrapper)
+    /dispatch             # صف تحویل بادوام: routing، service، runner
+    free_policy.py        # سیاست مصرف رایگان؛ providerهای محلی معاف‌اند
+  /services              # فعلاً placeholder (.gitkeep)؛ منطق کسب‌وکار در domains/ و backend/ai/ است
 
 /workers                 # background jobs (collection, analysis, forecast) — فعلاً placeholder (.gitkeep)؛ اجرای فعلی درون‌پروسه‌ای است (`source_bot/jobs.py` + n8n)
 
 /domains
   /news /events /claims /entities /macro /markets
   /geopolitics /society /forecast /risk /decision /iran
+  /worldstate /scenarios /portfolio /memory /analogue /narratives
+  /learning /research /briefings /alerts /audit /selfeval /ops /debate /ai_routing
 
 /integrations
   /worldmonitor /investigator /openbb /tradingagents /n8n
@@ -142,7 +152,7 @@ SELF-IMPROVEMENT
 /docker
 ```
 
-> **توجه:** در Phase 0 فقط اسکلت پوشه‌ها ساخته شده است. محتوای هر پوشه در فاز مربوطه اضافه می‌شود.
+> **توجه:** این درخت وضعیت جاری است. تنها پوشه‌ای که هنوز placeholder است `workers/` است؛ اجرای پس‌زمینه فعلاً درون‌پروسه‌ای (`source_bot/jobs.py` + `BackgroundTasks`) یا از طریق workflowهای n8n انجام می‌شود.
 
 ---
 
@@ -194,6 +204,14 @@ class AIProvider(Protocol):
 
 نقش‌ها به مدل‌های مشخص Map می‌شوند (قابل تنظیم). جزئیات در [`AI_MODELS.md`](AI_MODELS.md).
 
+### 5.5 مدل‌های تصمیم محلی (Kev / Laya)
+
+- Kev و Laya مدل‌های تصمیم open-weight هستند، نه chat؛ API مشترک `POST /v1/systemone` با پرسش‌های typed (`noul` / `choice` / `score`).
+- از طریق AI Gateway و adapter `providers/local_decision.py` صدا زده می‌شوند؛ supervisor در `ai/local_runtimes/` آن‌ها را به‌صورت subprocess مدیریت می‌کند.
+- خروجی آن‌ها **مشورتی** است و در متادیتای classifier ثبت می‌شود؛ هیچ‌وقت جای قواعد قطعی یا classifier ابری را نمی‌گیرد. پیش‌فرض خاموش است.
+- `ai/free_policy.py` این providerهای محلی را از سهمیهٔ مصرف رایگان معاف می‌کند (اجرا روی سخت‌افزار خودمان).
+- در production زنجیرهٔ fallback نمی‌تواند به Kev/Laya به‌عنوان جانشین تصمیم پرریسک تکیه کند؛ جزئیات و وضعیت برچسب‌گذاری در [`docs/LOCAL_SCREENING.md`](docs/LOCAL_SCREENING.md).
+
 ---
 
 ## 6. مدل داده اصلی (Core Entities)
@@ -206,6 +224,15 @@ class AIProvider(Protocol):
 `Forecast`, `ForecastOutcome`, `Scenario`, `Recommendation`, `UserProfile`,
 `Model`, `ModelRun`, `PromptVersion`, `AuditRecord`, `DecisionChange`,
 `DataSnapshot`.
+
+جدول‌های افزوده‌شده در Stage 88–95:
+
+| موجودیت | نقش |
+|---|---|
+| `ArticleDispatch` | صف تحویل بادوام؛ کلید یکتا `(article_id, task_name)`، وضعیت‌های `pending/running/retryable/completed/terminal`، `attempts`، `next_retry_at` |
+| `AIProviderRow`, `AIModelRow`, `AITokenLedger` | تنظیمات provider/مدل (کلید رمزشده) و دفتر مصرف روزانه با ردیابی برآورد/هزینه |
+| `AlertRule`, `Alert` | قواعد آستانه و رکورد هشدار؛ تحویل کانالی هنوز پیاده نشده |
+| `LearningInsight` | بینش‌های بلندمدت (روند خطا، نرخ رژیم، آستانهٔ چندک) |
 
 فیلدهای کلیدی هرکدام در بخش 7 تا 10 توضیح داده شده‌اند.
 
@@ -322,6 +349,18 @@ configuration، timestamp، code version.
 | risk | VaR/CVaR/Monte Carlo, tails |
 | decision | decision framework + recommendation |
 | iran | Iran Intelligence Mode + transmission model |
+| worldstate | ۹ سیگنال قطعی + رژیم‌های macro/market |
+| scenarios | چهار سناریو با احتمال و invalidation |
+| portfolio | پورتفوی و snapshot |
+| memory / analogue | حافظهٔ تاریخی چندلایه و مقایسهٔ آنالوگ |
+| narratives | خوشه‌بندی روایت و قدرت آن |
+| learning | یادگیرنده‌های قطعی بلندمدت |
+| research | GraphRAG-lite |
+| briefings | خلاصهٔ روزانه/هفتگی |
+| alerts | قواعد هشدار و ارزیابی (بدون تحویل) |
+| audit / selfeval / ops | ثبت/بازپخش، خودارزیابی، وضعیت عملیاتی |
+| debate | موتور مناظره (proposals + scorecard) |
+| ai_routing | ثبت عملکرد provider برای مسیریابی تطبیقی |
 
 ---
 
@@ -331,10 +370,11 @@ configuration، timestamp، code version.
 - `.env.example` فقط کلیدهای خالی/نمونه دارد.
 - اگر یک Provider API Key نداشت → Provider disabled + fallback (بدون Crash).
 - `MOCK_MODE=true` → اجرای کامل بدون هزینه و بدون اینترنت.
+- کلید providerهایی که از پنل Settings ثبت می‌شوند با Fernet رمز می‌شوند؛ `APP_ENCRYPTION_KEY` برای ذخیرهٔ کلید الزامی است و مقدار کلید هرگز به UI یا log برنمی‌گردد.
 
 ---
 
-## 13. Deployment (هدف نهایی، نه Phase فعلی)
+## 13. Deployment (هدف نهایی، نه وضعیت فعلی)
 
 ```
 Internet → Reverse Proxy → Frontend → Backend → Workers → PostgreSQL
@@ -345,6 +385,8 @@ n8n متصل به Backend/Workers
 
 مسیر: `LOCAL → TEST → DOCKER → STAGING → VPS → 24/7 PRODUCTION`
 تا پیش از آماده شدن نسخه محلی، Deployment واقعی به VPS انجام نمی‌شود.
+
+استقرار VPS همان **Stage 103** در [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md) است و تا فراهم‌شدن دسترسی و عبور گیت‌های ۹۶–۱۰۰ مسدود می‌ماند. ابزار آن (`scripts/deploy_vps.py`) پیش‌فرض dry-run دارد و هیچ‌وقت `.env` را منتقل نمی‌کند.
 
 ---
 
@@ -357,3 +399,46 @@ n8n متصل به Backend/Workers
 - Multi-Agentهای پیچیده
 - اجرای معامله واقعی
 - وابستگی اجباری به Ollama یا هر Provider خاص
+
+---
+
+## 15. مسیر Screening و Dispatch (Stage 88–95)
+
+پس از ذخیرهٔ سند و استخراج مقاله، دو لایهٔ جدید بین «داده» و «تحلیل دامنه» قرار می‌گیرند:
+
+```
+Article
+  ↓
+Classifier (قواعد قطعی → مدل کوچک/محلی → Gateway)
+  ├── screening advisory محلی (Kev/Laya) — اختیاری، در classification_meta
+  └── اهمیت/کشور/موضوع + provenance (decided_by ∈ rules | ai | small_model)
+  ↓
+ArticleDispatch  (کلید یکتا (article_id, task_name))
+  ↓  routing: article → taskهای منطقی (event_extraction، domain_geopolitics، …)
+  ↓  runner: claim → handler → completed | retryable(backoff) | terminal
+  ↓
+Domain engines (geopolitics / society / markets / …)
+```
+
+قواعد کلیدی:
+
+1. **Idempotency:** یک ردیف برای هر `(article, task)`؛ ثبت مجدد همان ردیف را برمی‌گرداند، نه ردیف دوم.
+2. **Claim اتمی:** فقط `pending/retryable` و ردیف‌های due قابل claim هستند؛ ردیفی که worker دیگری گرفته، دوباره اجرا نمی‌شود.
+3. **Retry محدود:** `attempts` و `next_retry_at` صریح‌اند؛ پس از سقف، وضعیت `terminal` می‌شود، نه حلقهٔ بی‌پایان.
+4. **Provenance:** تصمیم غربالگری و منبع آن در متادیتای مقاله می‌ماند و با retry بازنویسی نمی‌شود (تاریخچه حفظ می‌شود).
+5. **Mock در production:** خروجی mock هرگز به‌عنوان تصمیم واقعی پذیرفته نمی‌شود؛ زنجیرهٔ fallback در prod به مدل محلی به‌عنوان تصمیم پرریسک تکیه نمی‌کند.
+
+جزئیات غربالگری: [`docs/LOCAL_SCREENING.md`](docs/LOCAL_SCREENING.md) · ربات جمع‌آوری: [`docs/SOURCE_BOT.md`](docs/SOURCE_BOT.md) · وضعیت و بدهی‌ها: [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md)
+
+---
+
+## 16. وضعیت جاری و مسیر تکمیل
+
+- فازهای 0 تا 52 پیاده‌سازی شده‌اند.
+- تغییرهای Stage 88–95 روی شاخهٔ `stage95-pg-ci-verification` هستند و هنوز ادغام نشده‌اند.
+- مرحلهٔ بعدی **Stage 96 (تثبیت)** است: تعیین‌تکلیف کارهای commit‌نشده، رفع deadlock و شکست‌های PostgreSQL، آفلاین‌کردن تست‌ها و بازگرداندن کل suite به CI.
+- برنامهٔ کامل مراحل ۹۶–۱۰۴ و شروط عبور هر کدام: [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md).
+
+
+## Target Architecture & ADRs (2026-11-05 audit)
+See docs/TARGET_ARCHITECTURE.md, docs/DOMAIN_OWNERSHIP.md, docs/MODULE_CAPABILITY_MATRIX.md, docs/SHARED_CONTRACTS.md, docs/AI_PLATFORM_ARCHITECTURE.md, docs/JOB_WORKFLOW_ARCHITECTURE.md, docs/EVIDENCE_LINEAGE.md, docs/GEOINT_ARCHITECTURE.md, docs/INTEGRATION_CONTROL_PLANE.md, docs/FRONTEND_PLATFORM.md, docs/ARCHITECTURE_TESTS.md, docs/LOCAL_RUNBOOK.md, docs/ARCHITECTURE_DECISIONS/.

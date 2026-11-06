@@ -2046,3 +2046,25 @@
 - مرحله‌های اصلاح ۱ تا ۷ در این فایل ثبت نشده‌اند؛ در این مرحله فقط همین مغایرت‌های مستنداتی
   اصلاح شد و هیچ بخشی «تکمیل پروژه» اعلام نمی‌شود. هیچ فایل Python/TypeScript/تست/migration/schema
   تغییر نکرد و تست یا build جدیدی اجرا نشد.
+
+### بازبینی مستقل نقشه‌راه و وضعیت واقعی — ۲۸ اکتبر ۲۰۲۶ (مستندات‌محور + اجرای واقعی)
+
+- مبنای بررسی: `main` = `6e6a4b0` و `stage95-pg-ci-verification` = `9292754` (۹ commit جلوتر، ادغام‌نشده).
+- **اندازه‌گیری‌شده:** کل مجموعهٔ تست روی SQLite = **۱۴۸۰ passed / ۰ failed** در ۱۵:۱۲.
+- **اندازه‌گیری‌شده:** همان مجموعه روی **PostgreSQL 16 واقعی** (کانتینر موقت + Alembic تا head) در
+  `tests/test_dispatch.py::test_claim_is_atomic` قفل می‌کند (۱۶+ دقیقه بلوکه روی قفل تراکنش؛
+  بازتولید تک‌فایل: timeout در ۱۰۰s). بقیهٔ مجموعه بدون آن فایل و بدون ۵ فایل کند source_bot:
+  **۱۳۰۸ passed / ۱۰ failed** در ۷:۴۳.
+- **اندازه‌گیری‌شده:** migration روی PG16 سالم است: `upgrade head` ✅، head یکتا `88a9b2c1d4e5`،
+  `downgrade base` + `upgrade head` ✅. تعداد migration: `main` = ۳۶، شاخه = ۴۰ (عدد ۴۱ از شمارش
+  پوشهٔ `__pycache__` می‌آمد).
+- **اندازه‌گیری‌شده:** CI شاخه فقط ۴ فایل از ۱۰۶ فایل تست را اجرا می‌کند (۷۷ تست از ۱۴۸۰ ≈ ۵٪) و
+  همین موضوع، خرابی PostgreSQL را پنهان کرده است؛ CI در `main` کل suite را روی postgres:16 اجرا می‌کرد.
+- علت کندی suite: fixture «آفلاین» `tests/conftest.py` روی مسیر `source_bot` اثر ندارد
+  (`source_bot/security.py` تابع resolver را با import مقداری گرفته)، بنابراین تست‌های ingest
+  واقعاً DNS می‌زنند (کندترین تست ~۲۴s).
+- ادعای «سه تست شکست‌خورده» بازتولید نشد؛ تصویر واقعی همان SQLite سبز / PostgreSQL شکسته است.
+- خروجی مستنداتی این بازبینی: `docs/ROADMAP_STAGE96_104.md` (نقشهٔ جاری با شروط عبور) و
+  `docs/FIXES_BACKLOG.md` (۳۵ قلم با شاهد). `README.md`، `ARCHITECTURE.md`، `AGENTS.md`،
+  `ROADMAP.md`، `TASKS.md` و `PRODUCTION_READINESS.md` با این وضعیت هم‌گام شدند.
+- هیچ فایل کد، تست یا migration تغییر نکرد و هیچ commit/ادغامی انجام نشد.
