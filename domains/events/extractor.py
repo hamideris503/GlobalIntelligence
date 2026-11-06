@@ -110,7 +110,12 @@ class EventExtractor:
         data: dict = {}
         confidence = None
         used_ai = False
+        ai_failure_kind: str | None = None
+        ai_failure_message: str | None = None
+        ai_status_code: int | None = None
         try:
+            if effective_mock_mode():
+                raise RuntimeError("mock_mode_active: no real provider configured")
             prompt = EXTRACT_EVENT.render(articles=joined[:8000])
             request = AIRequest(
                 messages=[
@@ -124,13 +129,34 @@ class EventExtractor:
                 metadata={"prompt_version": EXTRACT_EVENT.version},
             )
             response = await self.gateway.structured_generate(request, EVENT_SCHEMA)
-            if response.is_mock and not effective_mock_mode():
-                raise ValueError("mock event rejected in production mode")
+            if getattr(response, "is_mock", False):
+                raise RuntimeError("mock_provider_response: provider returned mock")
             data = response.structured or _safe_json(response.text) or {}
             confidence = data.get("confidence")
             used_ai = True
         except Exception as exc:  # noqa: BLE001
-            logger.warning("event extraction failed, fallback to lightweight | err=%s", exc)
+            ai_failure_kind = type(exc).__name__
+            ai_failure_message = str(exc)[:300]
+            # try to recover an HTTP status code from the exception chain
+            for attr in ("status_code", "status"):
+                val = getattr(exc, attr, None)
+                if isinstance(val, int):
+                    ai_status_code = val
+                    break
+            if ai_status_code is None:
+                # search cause chain
+                cur = getattr(exc, "__cause__", None) or getattr(exc, "__context__", None)
+                while cur is not None and ai_status_code is None:
+                    for attr in ("status_code", "status"):
+                        val = getattr(cur, attr, None)
+                        if isinstance(val, int):
+                            ai_status_code = val
+                            break
+                    cur = getattr(cur, "__cause__", None) or getattr(cur, "__context__", None)
+            logger.warning(
+                "event extraction failed, fallback to deterministic | err=%s kind=%s status=%s",
+                exc, ai_failure_kind, ai_status_code,
+            )
 
         # Event را بساز
         source_ids = sorted({str(a.document.source_id) for a in articles if a.document and a.document.source_id})
@@ -140,7 +166,7 @@ class EventExtractor:
         type_reason = None
         type_score = None
         type_keywords: list[str] = []
-        if not ai_type or str(ai_type).strip().lower() == "unknown":
+        if (not ai_type or str(ai_type).strip().lower() in ("unknown", "mock")):
             etype, reason, score, matched = classify_event_type(joined_text)
             if etype != "unknown":
                 ai_type = etype
@@ -207,6 +233,9 @@ class EventExtractor:
             "type_score": type_score,
             "type_keywords": type_keywords,
             "location_reason": location_reason,
+            "ai_failure_kind": ai_failure_kind,
+            "ai_failure_message": ai_failure_message,
+            "ai_status_code": ai_status_code,
         }, ensure_ascii=False)
         return event
 

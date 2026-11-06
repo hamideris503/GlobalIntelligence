@@ -35,6 +35,21 @@ def test_precision_filter(client: TestClient) -> None:
     assert body2["features"][0]["properties"]["location_precision"] == "country"
 
 
+def test_non_geo_type_not_on_map(client: TestClient) -> None:
+    s = TestingSession()
+    s.add(_ev("city", 35.0, 51.0))
+    s.commit()
+    s.close()
+    # update type via direct session
+    s2 = TestingSession()
+    e = s2.query(Event).first()
+    e.event_type = "politics"
+    s2.commit()
+    s2.close()
+    body = client.get("/api/geo/events").json()
+    assert len(body["features"]) == 0
+
+
 def test_precision_invalid_rejected(client: TestClient) -> None:
     res = client.get("/api/geo/events", params={"precision": "region"})
     assert res.status_code == 422

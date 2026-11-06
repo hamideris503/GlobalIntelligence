@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -31,6 +33,7 @@ class OpsStatusRead(BaseModel):
     latest_self_eval: dict
     active_alerts: int
     latest_world_state: dict
+    ai_extraction_failures: int = 0
 
 
 @router.get("/status", response_model=OpsStatusRead)
@@ -107,6 +110,22 @@ def ops_status(db: Session = Depends(get_db)) -> OpsStatusRead:
     except Exception:  # noqa: BLE001
         pass
 
+    ai_failures = 0
+    try:
+        for ev in db.execute(select(Event)).scalars().all():
+            meta_raw = ev.event_metadata
+            if not meta_raw:
+                continue
+            try:
+                meta = json.loads(meta_raw)
+            except (TypeError, ValueError):
+                meta = {}
+            if isinstance(meta, dict) and (meta.get("ai_failure_kind") or meta.get("used_ai") is False):
+                # count only those that recorded an explicit failure kind
+                if meta.get("ai_failure_kind"):
+                    ai_failures += 1
+    except Exception:  # noqa: BLE001
+        pass
     return OpsStatusRead(
         database_ok=db_ok,
         counts=counts,
@@ -114,4 +133,5 @@ def ops_status(db: Session = Depends(get_db)) -> OpsStatusRead:
         latest_self_eval=latest_eval,
         active_alerts=active_alerts,
         latest_world_state=latest_ws,
+        ai_extraction_failures=ai_failures,
     )

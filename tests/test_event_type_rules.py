@@ -40,6 +40,26 @@ def test_sanctions_classified() -> None:
     assert t == "sanctions"
 
 
+def test_politics_classified() -> None:
+    t, *_ = classify_event_type("Mayoral candidate wins election")
+    assert t == "politics"
+
+
+def test_diplomacy_classified() -> None:
+    t, *_ = classify_event_type("Ambassador signs treaty at summit")
+    assert t == "diplomacy"
+
+
+def test_corporate_classified() -> None:
+    t, *_ = classify_event_type("CEO announces merger and layoffs, shares fall")
+    assert t == "corporate"
+
+
+def test_energy_classified() -> None:
+    t, *_ = classify_event_type("OPEC cuts oil production, crude prices rise")
+    assert t == "energy"
+
+
 def test_empty_text_is_unknown() -> None:
     assert classify_event_type(None)[0] == "unknown"
     assert classify_event_type("   ")[0] == "unknown"

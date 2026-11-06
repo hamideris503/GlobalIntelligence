@@ -48,6 +48,11 @@ def test_empty_unresolved() -> None:
     assert geocode_text("")["location_status"] == "unresolved"
 
 
+def test_new_city_resolves() -> None:
+    r = geocode_text("Meeting in Pretoria and Cape Town")
+    assert r["location_status"].startswith("resolved")
+
+
 def test_unknown_never_on_map_feature() -> None:
     # geocode for unknown returns no coordinates
     r = geocode_text("A sunny day in the park")
