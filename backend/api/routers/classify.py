@@ -40,6 +40,8 @@ async def run_classify(
 
 class ArticleClassifiedRead(BaseModel):
     id: str
+    # Provenance (UI-00 / G-6): ردیابی شاهد → سند → مقاله در صفحهٔ شواهد و ادعاها.
+    document_id: str | None = None
     title: str | None
     topics: list[str]
     entities: list[dict]
@@ -51,6 +53,8 @@ class ArticleClassifiedRead(BaseModel):
     # Ingest priority of the underlying document (P0..P4) — separate from the
     # analytic `importance`; without it the triage view cannot show P0..P4.
     priority: PriorityLevel | None = None
+    # F12.1.1 (F-21): خوشهٔ dedup — تشخیص، نه حذف؛ null یعنی بدون خوشه.
+    duplicate_cluster: str | None = None
 
 
 class ArticleDetailRead(ArticleClassifiedRead):
@@ -91,6 +95,7 @@ def list_classified(
     return [
         ArticleClassifiedRead(
             id=str(a.id),
+            document_id=str(a.document_id) if a.document_id else None,
             title=a.title,
             topics=_parse_list(a.topics),
             entities=_parse_list(a.entities),
@@ -100,6 +105,7 @@ def list_classified(
             decided_by=a.decided_by,
             confidence=a.confidence,
             priority=a.document.ingestion_priority if a.document else None,
+            duplicate_cluster=a.duplicate_cluster,
         )
         for a in rows
     ]
@@ -119,6 +125,7 @@ def get_article(article_id: uuid.UUID, db: Session = Depends(get_db)) -> Article
         meta = {}
     return ArticleDetailRead(
         id=str(article.id),
+        document_id=str(article.document_id) if article.document_id else None,
         title=article.title,
         topics=_parse_list(article.topics),
         entities=_parse_list(article.entities),
@@ -128,6 +135,7 @@ def get_article(article_id: uuid.UUID, db: Session = Depends(get_db)) -> Article
         decided_by=article.decided_by,
         confidence=article.confidence,
         priority=doc.ingestion_priority if doc is not None else None,
+        duplicate_cluster=article.duplicate_cluster,
         summary=article.summary,
         language=article.language,
         country=article.country,

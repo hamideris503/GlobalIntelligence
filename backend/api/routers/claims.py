@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from domains.claims.evidence import EvidenceEngine
 from domains.claims.extractor import ClaimExtractor
@@ -39,6 +40,10 @@ class EvidenceRead(BaseModel):
     summary: str | None
     weight: float | None
     confidence: float | None
+    # Provenance (UI-00 / G-6): بدون این دو، صفحهٔ شواهد نمی‌تواند «منبع هر شاهد» را
+    # نشان دهد و مقالهٔ اصلی را باز کند. افزودنی و سازگار با مصرف‌کننده‌های فعلی.
+    source_id: str | None = None
+    document_id: str | None = None
 
 
 class ClaimRead(BaseModel):
@@ -48,6 +53,7 @@ class ClaimRead(BaseModel):
     predicate: str | None
     object: str | None
     claim_type: str | None
+    claimed_at: datetime | None = None
     confidence: float | None
     verification_status: str
     supporting_source_count: int = 0
@@ -95,6 +101,7 @@ def list_claims(
             predicate=c.predicate,
             object=c.object,
             claim_type=c.claim_type,
+            claimed_at=c.claimed_at,
             confidence=c.confidence,
             verification_status=c.verification_status,
             supporting_source_count=c.supporting_source_count,
@@ -107,6 +114,8 @@ def list_claims(
                     summary=e.summary,
                     weight=e.weight,
                     confidence=e.confidence,
+                    source_id=str(e.source_id) if e.source_id else None,
+                    document_id=str(e.document_id) if e.document_id else None,
                 )
                 for e in c.evidence
             ],
@@ -131,6 +140,8 @@ def list_claim_evidence(claim_id: str, db: Session = Depends(get_db)) -> list[Ev
             summary=e.summary,
             weight=e.weight,
             confidence=e.confidence,
+            source_id=str(e.source_id) if e.source_id else None,
+            document_id=str(e.document_id) if e.document_id else None,
         )
         for e in rows
     ]

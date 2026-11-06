@@ -142,7 +142,6 @@ def cluster_documents(
     items: list[DedupInput],
     *,
     near_threshold: float = NEAR_DUP_THRESHOLD,
-    same_source_dupes: bool = True,
 ) -> DedupResult:
     """اسناد را به خوشه‌های تکراری/مشابه خوشه‌بندی می‌کند."""
     result = DedupResult()
