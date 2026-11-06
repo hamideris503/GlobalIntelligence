@@ -46,6 +46,15 @@ class EventRead(BaseModel):
     confidence: float | None
     occurred_at: str | None
     article_count: int
+    article_ids: list[str] = []
+    # geospatial (resolved, not stored)
+    latitude: float | None = None
+    longitude: float | None = None
+    country: str | None = None
+    location_precision: str | None = None
+    location_source: str | None = None
+    location_status: str | None = None
+    location_confidence: float | None = None
 
 
 @router.post("/extract", response_model=EventOutcomeRead)
@@ -71,37 +80,49 @@ def list_events(
     db: Session = Depends(get_db),
 ):
     """فهرست رویدادها؛ بدون `page`/`page_size`/`sort` همان لیست قدیمی (limit)."""
-    if page is None and page_size is None and sort is None:
+    paginated = page is not None or page_size is not None or sort is not None
+    params = page_params(
+        page=page, page_size=page_size, sort=sort, sortable=SORT_FIELDS
+    ) if paginated else None
+    if params is None:
         rows = (
             db.execute(select(Event).order_by(Event.created_at.desc()).limit(limit))
             .scalars()
             .all()
         )
         total = None
-        params = None
     else:
-        params = page_params(
-            page=page, page_size=page_size, sort=sort, sortable=SORT_FIELDS
-        )
         stmt = select(Event).order_by(
             sort_expression(params, SORT_COLUMNS, Event.created_at.desc())
         )
         rows, total = paginate(db, stmt, params)
-    items = [
-        EventRead(
-            id=str(e.id),
-            event_type=e.event_type,
-            action=e.action,
-            location=e.location,
-            actors=_parse_list(e.actors),
-            affected_assets=_parse_list(e.affected_assets),
-            confidence=e.confidence,
-            occurred_at=e.occurred_at.isoformat() if e.occurred_at else None,
-            article_count=len(e.articles),
+    from domains.geo.resolver import resolve_location
+
+    out = []
+    for e in rows:
+        geo = resolve_location(e.location)
+        out.append(
+            EventRead(
+                id=str(e.id),
+                event_type=e.event_type,
+                action=e.action,
+                location=e.location,
+                actors=_parse_list(e.actors),
+                affected_assets=_parse_list(e.affected_assets),
+                confidence=e.confidence,
+                occurred_at=e.occurred_at.isoformat() if e.occurred_at else None,
+                article_count=len(e.articles),
+                article_ids=[str(a.id) for a in e.articles],
+                latitude=geo["latitude"],
+                longitude=geo["longitude"],
+                country=geo["country"],
+                location_precision=geo["precision"],
+                location_source=geo["source"],
+                location_status=geo["status"],
+                location_confidence=geo["confidence"],
+            )
         )
-        for e in rows
-    ]
-    return items if params is None else page_response(items, total or 0, params)
+    return out if params is None else page_response(out, total or 0, params)
 
 
 def _parse_list(value: str | None) -> list:

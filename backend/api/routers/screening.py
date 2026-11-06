@@ -42,6 +42,8 @@ class ReviewItemRead(BaseModel):
     classification_error: str | None = None
     retrieved_at: str | None = None
     screening: dict | None = None
+    domains: list[str] | None = None
+    domain_state: str | None = None
     screening_status: str
     review_required: bool
     review_reasons: list[str]

@@ -117,7 +117,6 @@ def list_sources(
     return page_response([_to_read(s) for s in window], len(rows), params)
 
 
-
 @router.post("", response_model=SourceRead, status_code=201)
 def create_source(payload: SourceCreate, db: Session = Depends(get_db)) -> SourceRead:
     reg = SourceRegistry(db)
@@ -145,6 +144,45 @@ def update_source(
         raise HTTPException(status_code=404, detail="source not found")
     reg.update(source, **payload.model_dump(exclude_unset=True))
     return _to_read(source)
+
+
+@router.post("/{source_id}/preview")
+def preview_source(
+    source_id: uuid.UUID,
+    limit: int = Query(default=5, ge=1, le=20),
+    db: Session = Depends(get_db),
+) -> dict:
+    """پیش‌نمایش منبع **بدون ingest** (UX-01).
+
+    قبلاً دکمه‌ی «دریافت آزمایشی» در UI مستقیم `POST /api/ingest` می‌زد و داده
+    ذخیره می‌کرد. این مسیر فقط fetch/parse می‌کند: هیچ Document/Article ساخته
+    نمی‌شود، شمارنده‌ی دریافت و `last_success` دست نمی‌خورند.
+
+    اگر منبع پیکربندی پین‌شده داشته باشد، پیش‌نمایش همان چیزی را می‌بیند که اجرای
+    واقعی می‌بیند (۲.۷).
+    """
+    from backend.configuration import preview as preview_mod
+    from backend.configuration.runtime import resolve_source_plan
+
+    source = SourceRegistry(db).get(source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="source not found")
+    plan, pinned_revision = resolve_source_plan(db, source)
+    if plan.adapter in ("skip", "specialized"):
+        raise HTTPException(
+            status_code=422,
+            detail=f"preview not available for this source ({plan.adapter}): {plan.reason}",
+        )
+    try:
+        result = preview_mod.preview_fetch(plan.adapter, plan.url, limit)
+    except preview_mod.PreviewError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        **result,
+        "source_id": str(source_id),
+        "source_name": source.name,
+        "config_revision": pinned_revision,
+    }
 
 
 @router.post("/{source_id}/health", response_model=SourceRead)
