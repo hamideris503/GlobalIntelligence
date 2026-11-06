@@ -401,6 +401,15 @@
 | POST | `/api/screening/screen` | analyst |
 | GET | `/api/screening/queue` | viewer |
 | POST | `/api/screening/review/{article_id}/ack` | analyst |
+| POST | `/api/screening/review/{article_id}/decision` | analyst |
+| GET | `/api/screening/summary` | viewer |
+
+## `/inbox`
+
+| متد | مسیر | حداقل نقش |
+| --- | --- | --- |
+| GET | `/api/inbox` | viewer |
+| GET | `/api/inbox/summary` | viewer |
 
 ## `/research`
 

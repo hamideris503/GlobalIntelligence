@@ -28,6 +28,7 @@ from backend.database.models.event import Event
 from backend.database.models.evidence import Evidence
 from backend.database.models.forecast import Forecast, ForecastOutcome
 from backend.database.models.geopolitical_assessment import GeopoliticalAssessment
+from backend.database.models.human_review import HumanReview
 from backend.database.models.job import JobRun
 from backend.database.models.learning_insight import LearningInsight
 from backend.database.models.macro_assessment import MacroAssessment
@@ -67,6 +68,7 @@ __all__ = [
     "Claim",
     "ConfigurationInstance",
     "ConfigurationRevision",
+    "HumanReview",
     "DebateMessage",
     "DebateRun",
     "Document",

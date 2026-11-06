@@ -45,6 +45,7 @@ from backend.api.routers import (
     geopolitics,
     graph,
     health,
+    inbox,
     independence,
     ingestion,
     iran,
@@ -276,6 +277,7 @@ def create_app() -> FastAPI:
     app.include_router(dispatch.router, dependencies=protected)
     app.include_router(local_runtimes_router.router, dependencies=protected)
     app.include_router(screening_router.router, dependencies=protected)
+    app.include_router(inbox.router, dependencies=protected)
     app.include_router(research.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)
