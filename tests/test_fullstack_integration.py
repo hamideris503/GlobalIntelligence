@@ -110,11 +110,15 @@ def _req(**metadata: object) -> AIRequest:
 # --- environment isolation ---
 def test_routers_use_the_temporary_test_database() -> None:
     """The session the app hands to routers is the isolated test DB, not the real one."""
+    from tests.conftest import TestingSession
+
     assert get_settings().app_env != "production"
     override = app.dependency_overrides[get_db]
     session = next(iter(override()))
     try:
-        assert "sqlite" in str(session.get_bind().url)
+        # Identity, not a driver string: the point is that routers get the
+        # isolated test database on whichever backend the lane runs (F-07).
+        assert session.get_bind() is TestingSession.kw["bind"]
     finally:
         session.close()
 

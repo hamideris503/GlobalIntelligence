@@ -67,3 +67,14 @@ logs/
 
 # --- Tool output (regenerable) ---
 graphify-out/
+
+# --- Scratch / test outputs (untracked by design) ---
+pg*.txt
+pytest-*.txt
+.pytest-tmp*/
+.pytest-pg-tmp/
+.pytest-ci/
+pytest_temp/
+.freebuff/
+.tmp-*/
+.cloud-attachments/

@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from backend.ai.dispatch.routing import domain_matrix
-from backend.ai.dispatch.runner import recover_at_startup, run_once
+from backend.ai.dispatch.runner import _HANDLERS, recover_at_startup, run_once
 from backend.ai.dispatch.service import ANALYSIS_TASKS, DispatchService, logical_task, task_key
 from backend.database.models.article import Article
 from backend.database.models.article_dispatch import ArticleDispatch
@@ -73,11 +73,15 @@ def _event(db, article: Article, *, actors: list[str] | None = None,
     return event
 
 
-def _orphan(db, task: str) -> None:
-    """Dispatch row whose article no longer exists (terminal path)."""
-    db.add(ArticleDispatch(article_id=uuid.uuid4(), task_name=task_key(task),
-                           status="pending"))
-    db.commit()
+def _orphan(task: str) -> ArticleDispatch:
+    """Transient dispatch whose article does not exist (handler terminal path).
+
+    PostgreSQL enforces the ``article_dispatches.article_id`` FK, so such a row
+    can never be persisted (F-06). The handler contract is therefore exercised
+    directly with an in-memory row instead of writing an invalid record.
+    """
+    return ArticleDispatch(article_id=uuid.uuid4(), task_name=task_key(task),
+                           status="pending")
 
 
 def _get(db, article_id, task: str) -> ArticleDispatch:
@@ -257,13 +261,11 @@ def test_geopolitics_engine_exception_is_retryable(monkeypatch) -> None:
 def test_geopolitics_missing_article_is_terminal() -> None:
     db = TestingSession()
     try:
-        _orphan(db, "domain_geopolitics")
-        outcome = asyncio.run(run_once(db, limit=5, task="domain_geopolitics"))
-        assert outcome.terminal == 1
-        row = db.execute(select(ArticleDispatch).where(
-            ArticleDispatch.task_name == task_key("domain_geopolitics")
-        )).scalars().one()
-        assert row.status == "terminal"
+        result = asyncio.run(
+            _HANDLERS["domain_geopolitics"](db, _orphan("domain_geopolitics"))
+        )
+        assert result.status == "terminal"
+        assert "article not found" in result.detail
     finally:
         db.close()
 
@@ -330,9 +332,9 @@ def test_society_waits_for_classification() -> None:
 def test_society_missing_article_is_terminal() -> None:
     db = TestingSession()
     try:
-        _orphan(db, "domain_society")
-        outcome = asyncio.run(run_once(db, limit=5, task="domain_society"))
-        assert outcome.terminal == 1
+        result = asyncio.run(_HANDLERS["domain_society"](db, _orphan("domain_society")))
+        assert result.status == "terminal"
+        assert "article not found" in result.detail
     finally:
         db.close()
 

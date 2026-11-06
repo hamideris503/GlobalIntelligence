@@ -78,16 +78,15 @@ def _event_with_claims(db, *, source: Source, claim_source_ids: list[list[str]])
     return art
 
 
-def _orphans(db, task: str, n: int) -> None:
-    """Dispatch rows for articles that no longer exist (the terminal path).
+def _orphan(task: str) -> ArticleDispatch:
+    """Transient dispatch whose article does not exist (the handler terminal path).
 
-    SQLite test sessions do not enforce the FK pragma, matching how the
-    runner must behave on a database that predates a cleanup.
+    PostgreSQL enforces the ``article_dispatches.article_id`` FK, so such a row
+    cannot be persisted there (F-06). The handler contract is exercised directly
+    with an in-memory row instead of writing an invalid record.
     """
-    for _ in range(n):
-        db.add(ArticleDispatch(article_id=uuid.uuid4(), task_name=task_key(task),
-                               status="pending"))
-    db.commit()
+    return ArticleDispatch(article_id=uuid.uuid4(), task_name=task_key(task),
+                           status="pending")
 
 
 # --- 1) the audited routing matrix ------------------------------------------
@@ -271,14 +270,9 @@ def test_domain_routing_retries_until_classification_done() -> None:
 def test_domain_routing_missing_article_is_terminal() -> None:
     db = TestingSession()
     try:
-        _orphans(db, "domain_routing", 1)
-        outcome = asyncio.run(run_once(db, limit=5, task="domain_routing"))
-        assert outcome.terminal == 1
-        row = db.execute(select(ArticleDispatch).where(
-            ArticleDispatch.task_name == task_key("domain_routing")
-        )).scalars().one()
-        assert row.status == "terminal"
-        assert "article not found" in row.last_error
+        result = asyncio.run(_HANDLERS["domain_routing"](db, _orphan("domain_routing")))
+        assert result.status == "terminal"
+        assert "article not found" in result.detail
     finally:
         db.close()
 
@@ -411,13 +405,11 @@ def test_claim_independence_with_event_but_no_claims_retries() -> None:
 def test_claim_independence_missing_article_is_terminal() -> None:
     db = TestingSession()
     try:
-        _orphans(db, "claim_independence", 1)
-        outcome = asyncio.run(run_once(db, limit=5, task="claim_independence"))
-        assert outcome.terminal == 1
-        row = db.execute(select(ArticleDispatch).where(
-            ArticleDispatch.task_name == task_key("claim_independence")
-        )).scalars().one()
-        assert row.status == "terminal"
+        result = asyncio.run(
+            _HANDLERS["claim_independence"](db, _orphan("claim_independence"))
+        )
+        assert result.status == "terminal"
+        assert "article not found" in result.detail
     finally:
         db.close()
 

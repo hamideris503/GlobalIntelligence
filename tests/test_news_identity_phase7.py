@@ -57,9 +57,10 @@ def _index_sql(engine) -> str | None:  # noqa: ANN001
 def test_partial_unique_index_is_declared_and_enforced():
     from tests.conftest import engine
 
-    sql = _index_sql(engine) or ""
-    assert "CREATE UNIQUE INDEX" in sql.upper()
-    assert PREDICATE in sql
+    if engine.dialect.name == "sqlite":
+        sql = _index_sql(engine) or ""
+        assert "CREATE UNIQUE INDEX" in sql.upper()
+        assert PREDICATE in sql
 
     src = _series_source(TestingSession(), "idx-src")
     db = TestingSession()

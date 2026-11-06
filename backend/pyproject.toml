@@ -46,6 +46,10 @@ ignore = [
 asyncio_mode = "auto"
 testpaths = ["../tests"]
 python_files = ["test_*.py"]
+markers = [
+    "migration: migration chain tests (may be SQLite- or PG-specific)",
+    "pg: tests requiring a live PostgreSQL instance",
+]
 
 [tool.mypy]
 python_version = "3.11"

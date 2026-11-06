@@ -37,7 +37,9 @@ def test_check_no_env_refuses() -> None:
 
 
 def test_check_local_files() -> None:
-    missing = check_local_files(Path("."))
+    # ریشهٔ مخزن، نه cwd؛ تست باید از backend/ هم سبز شود (F-09)
+    root = Path(__file__).resolve().parents[1]
+    missing = check_local_files(root)
     assert missing == []
 
 
