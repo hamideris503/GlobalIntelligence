@@ -44,6 +44,8 @@ class SourceMetrics:
     ai_cost_events: int = 0
     pending: int = 0              # ذخیره‌شده‌های با priority_decision_source=pending
     duration_ms: int | None = None
+    # revision پیکربندی که این اجرا روی آن پین شد (None = ردیف زنده Source)
+    config_revision: int | None = None
 
     def record_ai(self, result: dict | None) -> None:
         """ثبت یک فراخوانی AI: شمارش رویداد + مصرف واقعی همان پاسخ.
@@ -105,6 +107,7 @@ class SourceMetrics:
             "ai_cost_events": self.ai_cost_events,
             "pending": self.pending,
             "duration_ms": self.duration_ms,
+            "config_revision": self.config_revision,
         }
 
 

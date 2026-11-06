@@ -219,9 +219,11 @@ async def run_source(db: Session, source: Source, metrics: BotMetrics, settings=
     if should_stop():  # توقف از پیش درخواست‌شده: هیچ درخواست خارجیای شروع نمی‌شود
         raise BotStop
     sm = metrics.source(source.name)  # آمار همان منبع؛ پیش‌نیاز گزارش روزانهٔ هر منبع
-    from source_bot.registry import pick_adapter as _pick
+    # بند ۲.۷: revision فعال پیکربندی منبع در همین اجرا پین می‌شود.
+    from backend.configuration.runtime import resolve_source_plan
 
-    plan = _pick(source)
+    plan, pinned_revision = resolve_source_plan(db, source)
+    sm.config_revision = pinned_revision
     if plan.adapter == "skip":
         metrics.sources_failed[str(source.name)] = f"skip: {plan.reason}"
         return

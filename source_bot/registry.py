@@ -13,6 +13,13 @@ from backend.database.models.source import Source
 
 _API_KEY_ENV_RE = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
 
+# آداپترهای شناخته‌شده — تنها منبع حقیقت برای descriptor و preview (F03.0).
+ADAPTERS: tuple[str, ...] = (
+    "rss", "rest_json", "csv", "xml", "html", "specialized", "skip",
+)
+# فقط این آداپترها مسیر preview بدون ingest دارند.
+PREVIEW_ADAPTERS: tuple[str, ...] = ("rss",)
+
 
 @dataclass
 class SourcePlan:
