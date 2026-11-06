@@ -25,6 +25,8 @@ from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.article import Article
 from backend.database.models.event import Event
 from domains.events.prompts import EVENT_SCHEMA, EXTRACT_EVENT
+from domains.events.type_rules import classify_event_type
+from domains.geo.gazetteer import geocode_text
 
 logger = get_logger(__name__)
 
@@ -132,11 +134,49 @@ class EventExtractor:
 
         # Event را بساز
         source_ids = sorted({str(a.document.source_id) for a in articles if a.document and a.document.source_id})
+        ai_type = data.get("event_type")
+        ai_location = data.get("location")
+        joined_text = joined
+        type_reason = None
+        type_score = None
+        type_keywords: list[str] = []
+        if not ai_type or str(ai_type).strip().lower() == "unknown":
+            etype, reason, score, matched = classify_event_type(joined_text)
+            if etype != "unknown":
+                ai_type = etype
+            type_reason = reason
+            type_score = score
+            type_keywords = matched
+        if not type_reason:
+            type_reason = "ai_or_topic"
+        event_type_value = ai_type or (articles[0].topics and _first_topic(articles[0])) or "unknown"
+
+        geo = geocode_text(ai_location if ai_location else joined_text)
+        if ai_location and geo["location_status"] == "unresolved":
+            geo2 = geocode_text(joined_text)
+            if geo2["location_status"].startswith("resolved"):
+                geo = geo2
+        location_value = ai_location or geo["location"]
+        resolved = geo["location_status"].startswith("resolved")
+        latitude_value = geo["latitude"] if resolved else None
+        longitude_value = geo["longitude"] if resolved else None
+        country_value = geo["country"] if resolved else None
+        precision_value = geo["location_precision"] if resolved else None
+        source_value = geo["location_source"] if resolved else None
+        conf_value = geo["location_confidence"] if resolved else None
+        location_reason = geo["location_reason"]
+
         event = Event(
-            event_type=data.get("event_type") or (articles[0].topics and _first_topic(articles[0])) or "unknown",
+            event_type=event_type_value,
             occurred_at=_parse_dt(data.get("occurred_at"))
             or min((a.published_at for a in articles if a.published_at), default=None),
-            location=data.get("location"),
+            location=location_value,
+            latitude=latitude_value,
+            longitude=longitude_value,
+            country=country_value,
+            location_precision=precision_value,
+            location_source=source_value,
+            location_confidence=conf_value,
             actors=json.dumps(data.get("actors") or [], ensure_ascii=False),
             action=data.get("action") or (articles[0].title or None),
             expected=data.get("expected"),
@@ -160,7 +200,14 @@ class EventExtractor:
             a.event_id = event.id
             a.event_cluster = cluster_id
 
-        event.event_metadata = json.dumps({"used_ai": used_ai, "article_count": len(articles)})
+        event.event_metadata = json.dumps({
+            "used_ai": used_ai,
+            "article_count": len(articles),
+            "type_reason": type_reason,
+            "type_score": type_score,
+            "type_keywords": type_keywords,
+            "location_reason": location_reason,
+        }, ensure_ascii=False)
         return event
 
     async def run(self, *, limit: int = 50,

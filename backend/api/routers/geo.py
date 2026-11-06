@@ -87,6 +87,7 @@ def geo_events(
     until: datetime | None = Query(default=None),
     country: str | None = Query(default=None, max_length=8),
     category: str | None = Query(default=None, max_length=32),
+    precision: str | None = Query(default=None, max_length=16),
     min_confidence: float | None = Query(default=None, ge=0, le=1),
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     db: Session = Depends(get_db),
@@ -99,6 +100,10 @@ def geo_events(
         category = category.strip().lower()
         if category not in CATEGORIES:
             raise _invalid("category", "unknown category")
+    if precision is not None:
+        precision = precision.strip().lower()
+        if precision not in ("city", "country"):
+            raise _invalid("precision", "must be city or country")
     if country is not None:
         country = country.strip().upper() or None
 
@@ -120,6 +125,8 @@ def geo_events(
     )
 
     located = [Event.latitude.is_not(None), Event.longitude.is_not(None)]
+    if precision is not None:
+        located.append(Event.location_precision == precision)
     if box is not None:
         min_lon, min_lat, max_lon, max_lat = box
         located.extend([
