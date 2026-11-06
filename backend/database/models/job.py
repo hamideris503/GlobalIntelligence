@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy import DateTime, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database.base import Base, UUIDMixin
@@ -14,6 +14,17 @@ from backend.database.base import Base, UUIDMixin
 
 class JobRun(UUIDMixin, Base):
     __tablename__ = "job_runs"
+    __table_args__ = (
+        # F-14: at most one active (pending/running) ingest job per job_name.
+        # Partial unique index keeps completed/failed rows free to repeat.
+        Index(
+            "uq_job_runs_active",
+            "job_name",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'running')"),
+            sqlite_where=text("status IN ('pending', 'running')"),
+        ),
+    )
 
     job_name: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
     source: Mapped[str | None] = mapped_column(String(64))  # n8n | worker | manual | api

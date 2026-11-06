@@ -12,6 +12,7 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.core.logging import get_logger
@@ -44,7 +45,11 @@ def create_job(db: Session, *, spec: dict) -> JobRun:
         message="accepted",
     )
     db.add(run)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise RuntimeError("ingest job already active") from exc
     db.refresh(run)
     return run
 

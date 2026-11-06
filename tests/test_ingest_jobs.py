@@ -9,7 +9,9 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from backend.database import models as _models
 from backend.database.models.job import JobRun
@@ -171,22 +173,44 @@ def test_claim_prevents_second_execution(monkeypatch) -> None:
         db.close()
 
 
+def test_job_runs_active_unique_index_blocks_second_active_row() -> None:
+    """F-14: تضمین در سطح DB است، نه فقط check-then-insert.
+
+    دو درخواست هم‌زمان می‌توانستند هر دو ردیف active بسازند؛ ایندکس یکتای جزئی
+    `uq_job_runs_active` ردیف دومِ pending/running را رد می‌کند، اما ردیف پایانی
+    (completed) آزاد است.
+    """
+    db = TestingSession()
+    try:
+        db.add(JobRun(job_name=jobs_module.JOB_NAME, source="api", status="pending"))
+        db.commit()
+        db.add(JobRun(job_name=jobs_module.JOB_NAME, source="api", status="running"))
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        db.add(JobRun(job_name=jobs_module.JOB_NAME, source="api", status="completed",
+                      finished_at=datetime.now(UTC)))
+        db.commit()
+        assert db.query(JobRun).filter_by(job_name=jobs_module.JOB_NAME).count() == 2
+    finally:
+        db.close()
+
+
 def test_recovery_marks_interrupted_jobs_failed(client: TestClient) -> None:
     """بعد از restart هیچ Job نیمه‌کاره‌ای در running/pending نمی‌ماند."""
     db = TestingSession()
     try:
         db.add_all([
             JobRun(job_name="ingest", source="api", status="pending"),
-            JobRun(job_name="ingest", source="api", status="running"),
             JobRun(job_name="ingest", source="api", status="completed",
                    finished_at=datetime.now(UTC)),
             JobRun(job_name="other", source="n8n", status="received"),
         ])
         db.commit()
-        assert jobs_module.recover_interrupted_jobs(db) == 2
+        assert jobs_module.recover_interrupted_jobs(db) == 1
 
         ingest = db.query(JobRun).filter_by(job_name="ingest").all()
-        assert sorted(r.status for r in ingest) == ["completed", "failed", "failed"]
+        assert sorted(r.status for r in ingest) == ["completed", "failed"]
         for r in ingest:
             if r.status == "failed":
                 assert r.message == jobs_module.INTERRUPTED_MESSAGE
@@ -196,6 +220,15 @@ def test_recovery_marks_interrupted_jobs_failed(client: TestClient) -> None:
         db.close()
 
     # و بعد از recovery، Job جدید پذیرفته می‌شود (قفل فعلی وجود ندارد)
+    # running (پس از recovery قبلی، ردیف active جدید مجاز است)
+    db2 = TestingSession()
+    try:
+        db2.add(JobRun(job_name="ingest", source="api", status="running"))
+        db2.commit()
+        assert jobs_module.recover_interrupted_jobs(db2) == 1
+    finally:
+        db2.close()
+
     db = TestingSession()
     try:
         assert jobs_module.create_job(db, spec={"limit": 5}).status == "pending"
