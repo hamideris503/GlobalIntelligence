@@ -25,7 +25,7 @@ from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.article import Article
 from backend.database.models.event import Event
 from domains.events.prompts import EVENT_SCHEMA, EXTRACT_EVENT
-from domains.events.type_rules import classify_event_type
+from domains.events.type_rules import ONTOLOGY_TYPES, classify_event_type
 from domains.geo.gazetteer import geocode_text
 
 logger = get_logger(__name__)
@@ -133,6 +133,38 @@ class EventExtractor:
                 raise RuntimeError("mock_provider_response: provider returned mock")
             data = response.structured or _safe_json(response.text) or {}
             confidence = data.get("confidence")
+            # Anti-hallucination validation (stage 3.7)
+            issues: list[str] = []
+            ai_type_raw = data.get("event_type")
+            if ai_type_raw is not None:
+                nt = str(ai_type_raw).strip().lower()
+                if nt and nt not in ("unknown", "mock") and nt not in ONTOLOGY_TYPES:
+                    issues.append("invalid_event_type")
+                    data["event_type"] = None
+                    ai_type_raw = None
+            ai_loc = data.get("location")
+            if ai_loc:
+                # Anti-hallucination: AI location must literally appear in the
+                # article/event text. Gazetteer is used for coordinates only.
+                if _normalize_text(str(ai_loc)) not in _normalize_text(joined):
+                    issues.append("location_not_in_text")
+                    data["location"] = None
+                    ai_loc = None
+            # never trust AI coordinates
+            data.pop("latitude", None)
+            data.pop("longitude", None)
+            data["validation_issues"] = issues
+            # conflict with deterministic rules
+            det_type, _, _, _ = classify_event_type(joined)
+            ai_vs_rules = {
+                "ai": ai_type_raw,
+                "rules": det_type,
+                "conflict": bool(ai_type_raw and det_type not in ("unknown",)
+                                 and str(ai_type_raw).strip().lower() != det_type),
+            }
+            data["ai_vs_rules"] = ai_vs_rules
+            if ai_vs_rules["conflict"]:
+                data.setdefault("review_flags", []).append("ai_rules_conflict")
             used_ai = True
         except Exception as exc:  # noqa: BLE001
             ai_failure_kind = type(exc).__name__
@@ -162,12 +194,11 @@ class EventExtractor:
         source_ids = sorted({str(a.document.source_id) for a in articles if a.document and a.document.source_id})
         ai_type = data.get("event_type")
         ai_location = data.get("location")
-        joined_text = joined
         type_reason = None
         type_score = None
         type_keywords: list[str] = []
         if (not ai_type or str(ai_type).strip().lower() in ("unknown", "mock")):
-            etype, reason, score, matched = classify_event_type(joined_text)
+            etype, reason, score, matched = classify_event_type(joined)
             if etype != "unknown":
                 ai_type = etype
             type_reason = reason
@@ -177,9 +208,9 @@ class EventExtractor:
             type_reason = "ai_or_topic"
         event_type_value = ai_type or (articles[0].topics and _first_topic(articles[0])) or "unknown"
 
-        geo = geocode_text(ai_location if ai_location else joined_text)
+        geo = geocode_text(ai_location if ai_location else joined)
         if ai_location and geo["location_status"] == "unresolved":
-            geo2 = geocode_text(joined_text)
+            geo2 = geocode_text(joined)
             if geo2["location_status"].startswith("resolved"):
                 geo = geo2
         location_value = ai_location or geo["location"]
@@ -236,6 +267,9 @@ class EventExtractor:
             "ai_failure_kind": ai_failure_kind,
             "ai_failure_message": ai_failure_message,
             "ai_status_code": ai_status_code,
+            "validation_issues": data.get("validation_issues", []),
+            "ai_vs_rules": data.get("ai_vs_rules"),
+            "review_flags": data.get("review_flags", []),
         }, ensure_ascii=False)
         return event
 
@@ -280,6 +314,13 @@ class EventExtractor:
             outcome.skipped,
         )
         return outcome
+
+
+def _normalize_text(value: str | None) -> str:
+    if not value:
+        return ""
+    import re
+    return re.sub(r"\s+", " ", value.strip().lower())
 
 
 def _first_topic(article: Article) -> str | None:

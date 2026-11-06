@@ -78,3 +78,4 @@ pytest_temp/
 .freebuff/
 .tmp-*/
 .cloud-attachments/
+data/gazetteer/

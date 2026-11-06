@@ -130,6 +130,12 @@ RULES: tuple[TypeRule, ...] = (
     )),
 )
 
+ONTOLOGY_TYPES: frozenset[str] = frozenset({
+    "conflict", "attacks", "military", "protests", "sanctions", "economic",
+    "aviation", "maritime", "infrastructure", "natural", "cyber", "risk",
+    "politics", "diplomacy", "corporate", "energy", "unknown",
+})
+
 _NORMALIZE_RE = re.compile(r"[\s_\-/.,:;!?\"'()\[\]{}]+")
 
 
