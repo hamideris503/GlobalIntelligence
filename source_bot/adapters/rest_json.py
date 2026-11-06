@@ -56,6 +56,13 @@ def pick(d: dict, keys: tuple[str, ...]) -> object:
     return None
 
 
+# �?�?�?�?�?�? ETag/Last-Modified �?�?�?�?�?�?�?�?�?�?�?�? (F-16): adapter �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
+# �?�?�?�?�?�?�?�?�?�?�?�?�?�? �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�? �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
+# �?�?�?�?�?�?�?�?�?�? �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?.
+_SHARED_ETAG: dict[str, str] = {}
+_SHARED_LAST_MOD: dict[str, str] = {}
+
+
 class RestJsonAdapter:
     name = "rest_json"
 
@@ -66,6 +73,12 @@ class RestJsonAdapter:
         self.max_redirects = max_redirects
         self._etag: dict[str, str] = {}
         self._last_mod: dict[str, str] = {}
+
+    def _etag_for(self, url: str) -> str | None:
+        return self._etag.get(url) or _SHARED_ETAG.get(url)
+
+    def _last_mod_for(self, url: str) -> str | None:
+        return self._last_mod.get(url) or _SHARED_LAST_MOD.get(url)
 
     async def fetch(
         self,
@@ -82,10 +95,12 @@ class RestJsonAdapter:
         assert url
 
         headers = {"User-Agent": "GlobalIntelligenceBot/0.1", "Accept": "application/json"}
-        if url in self._etag:
-            headers["If-None-Match"] = self._etag[url]
-        if url in self._last_mod:
-            headers["If-Modified-Since"] = self._last_mod[url]
+        etag = self._etag_for(url)
+        last_mod = self._last_mod_for(url)
+        if etag:
+            headers["If-None-Match"] = etag
+        if last_mod:
+            headers["If-Modified-Since"] = last_mod
         if api_key_env:
             key = os.getenv(api_key_env or "")
             if not key:
@@ -118,8 +133,10 @@ class RestJsonAdapter:
                     resp.raise_for_status()
                     if resp.headers.get("etag"):
                         self._etag[next_url] = resp.headers["etag"]
+                        _SHARED_ETAG[next_url] = resp.headers["etag"]
                     if resp.headers.get("last-modified"):
                         self._last_mod[next_url] = resp.headers["last-modified"]
+                        _SHARED_LAST_MOD[next_url] = resp.headers["last-modified"]
                     if len(resp.content) > self.max_bytes:
                         return JsonResult(items, "http_error", "response too big")
                     data = resp.json()

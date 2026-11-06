@@ -48,8 +48,8 @@ def test_e2e_bot_to_evidence():
     from domains.events.extractor import EventExtractor
     from domains.news.classifier import ArticleClassifier
     from domains.news.dedup_service import DedupService
+    from domains.news.normalizer import normalize
     from source_bot.deduplicator import canonical_url
-    from source_bot.normalizer import normalize_item
     from source_bot.output import deliver
     from source_bot.priority_engine import score_item
 
@@ -62,7 +62,7 @@ def test_e2e_bot_to_evidence():
     item = RawItem(title=TITLE, url=URL, raw_text=BODY, author="Test Desk")
 
     # 1) normalize قرارداد موجود
-    norm = normalize_item(item)
+    norm = normalize(item)
     assert norm.content_hash and norm.hash
     assert norm.title == TITLE and norm.url == URL
 

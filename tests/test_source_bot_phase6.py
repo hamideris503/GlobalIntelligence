@@ -101,7 +101,7 @@ def _allow_policy_dns(monkeypatch, allowed: dict[str, list[str]],
 # =====================================================================
 def test_vetted_ip_returns_exact_validated_connect_ip(monkeypatch):
     """خروجی = همان `ip`ی که Twisted به آن وصل می‌شود (نه یک resolve تازه)."""
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: [PUBLIC_IP])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: [PUBLIC_IP])
     assert security.vetted_ip(PUBLIC_IP, "site.test") == PUBLIC_IP
 
 
@@ -114,7 +114,7 @@ def test_vetted_ip_returns_exact_validated_connect_ip(monkeypatch):
 def test_vetted_ip_blocks_unsafe_answers(monkeypatch, ip, answers):
     from twisted.internet.error import DNSLookupError
 
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: answers)
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: answers)
     with pytest.raises(DNSLookupError):
         security.vetted_ip(ip, "site.test")
 
@@ -123,7 +123,7 @@ def test_vetted_ip_allow_hosts_seam_is_explicit_and_narrow(monkeypatch):
     """seam فقط میزبان صریح را مجاز می‌کند؛ میزبان دیگر مسدود می‌ماند."""
     from twisted.internet.error import DNSLookupError
 
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: [])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: [])
     assert security.vetted_ip("127.0.0.1", "pinned.test",
                               allow_hosts=("pinned.test",)) == "127.0.0.1"
     with pytest.raises(DNSLookupError):

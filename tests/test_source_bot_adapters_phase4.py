@@ -49,6 +49,26 @@ class FakeResp:
         return self._json
 
 
+def _recording_factory(responses: list[FakeResp], seen: list[dict]):
+    """کارخان клиента که هدرهای ارسالی هر درخواست را ثبت می‌کند."""
+
+    class RecordingClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url, **kwargs):
+            seen.append(dict(kwargs.get("headers") or {}))
+            return responses.pop(0)
+
+    return RecordingClient
+
+
 def _client_factory(resp: FakeResp):
     class FakeClient:
         def __init__(self, *a, **k):
@@ -239,6 +259,38 @@ def test_rest_json_304_not_modified(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", _client_factory(FakeResp(status=304)))
     r = asyncio.run(RestJsonAdapter().fetch(url="https://example.test/api"))
     assert r.status == "not_modified"
+
+
+def test_rest_json_conditional_headers_survive_adapter_rebuild(monkeypatch):
+    """F-16: runner در هر fetch نمونهٔ تازه می‌سازد؛ هدر شرطی باید باز هم برود."""
+    from source_bot.adapters import rest_json as rest_json_module
+
+    saved_etag = dict(rest_json_module._SHARED_ETAG)
+    saved_last_mod = dict(rest_json_module._SHARED_LAST_MOD)
+    rest_json_module._SHARED_ETAG.clear()
+    rest_json_module._SHARED_LAST_MOD.clear()
+    seen: list[dict] = []
+    payload = {"items": [{"title": "A", "url": "https://example.test/a"}]}
+    responses = [
+        FakeResp(content=json.dumps(payload).encode(), json_data=payload,
+                 headers={"etag": '"v1"', "last-modified": "Wed, 01 Jan 2025 00:00:00 GMT"}),
+        FakeResp(status=304),
+    ]
+    monkeypatch.setattr(httpx, "AsyncClient", _recording_factory(responses, seen))
+    try:
+        url = "https://example.test/feed"
+        first = asyncio.run(RestJsonAdapter().fetch(url=url))
+        assert first.status == "ok"
+        second = asyncio.run(RestJsonAdapter().fetch(url=url))  # نمونهٔ تازه، مثل runner
+        assert second.status == "not_modified"
+        assert seen[0].get("If-None-Match") is None
+        assert seen[1].get("If-None-Match") == '"v1"'
+        assert seen[1].get("If-Modified-Since") == "Wed, 01 Jan 2025 00:00:00 GMT"
+    finally:
+        rest_json_module._SHARED_ETAG.clear()
+        rest_json_module._SHARED_ETAG.update(saved_etag)
+        rest_json_module._SHARED_LAST_MOD.clear()
+        rest_json_module._SHARED_LAST_MOD.update(saved_last_mod)
 
 
 def test_rest_json_timeout_controlled(monkeypatch):

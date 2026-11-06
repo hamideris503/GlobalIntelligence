@@ -18,7 +18,6 @@ from domains.news import source_verify
 from domains.news.fetchers import RSSFetcher
 from domains.news.source_verify import BlockedTarget, resolve_host_ips, safe_get
 from source_bot import runner as runner_module
-from source_bot import security
 from source_bot.adapters.csv import CsvAdapter
 from source_bot.adapters.html import CrawlError, HtmlAdapter
 from source_bot.adapters.rest_json import JsonResult, RestJsonAdapter
@@ -61,7 +60,7 @@ def test_connection_check_blocks_private_loopback_metadata_and_bad_scheme():
 
 def test_connection_check_blocks_hostname_that_resolves_private(monkeypatch):
     """hostname عمومی‌نما که DNS آن را به IP خصوصی می‌برد نباید مجاز شود."""
-    monkeypatch.setattr(security, "resolve_host_ips",
+    monkeypatch.setattr(source_verify, "resolve_host_ips",
                         lambda h: [PUBLIC_IP] if h == "public.test" else ["10.0.0.5"])
     assert connection_check("https://public.test/a").ok
     chk = connection_check("https://internal.test/a")
@@ -70,18 +69,18 @@ def test_connection_check_blocks_hostname_that_resolves_private(monkeypatch):
 
 def test_connection_check_multiple_ips_all_must_be_public(monkeypatch):
     """چند IP برای یک hostname: وجود یک IP خصوصی کل مقصد را مسدود می‌کند."""
-    monkeypatch.setattr(security, "resolve_host_ips",
+    monkeypatch.setattr(source_verify, "resolve_host_ips",
                         lambda h: [PUBLIC_IP, "192.168.1.10"])
     chk = connection_check("https://mixed.test/a")
     assert not chk.ok and "192.168.1.10" in chk.reason
 
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: [PUBLIC_IP, "::1"])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: [PUBLIC_IP, "::1"])
     assert not connection_check("https://mixed6.test/a").ok
 
 
 def test_connection_check_dns_failure_is_fail_closed(monkeypatch):
     """DNS بدون پاسخ یعنی عدم اتصال (نه «عمومی فرض کن»)."""
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: [])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: [])
     chk = connection_check("https://unresolvable.test/a")
     assert not chk.ok and chk.reason == "dns_unresolved"
 
@@ -93,7 +92,7 @@ def test_resolve_host_ips_literal_and_empty():
 
 def test_allow_origins_is_exact_origin_only_and_test_scoped(monkeypatch):
     """seam تست محلی: فقط origin دقیق؛ پورت/scheme/host متفاوت و userinfo نه."""
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: ["127.0.0.1"])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: ["127.0.0.1"])
     allowed = ("http://127.0.0.1:8080",)
     assert connection_check("http://127.0.0.1:8080/page", allow_origins=allowed).ok
     for bad in ("http://127.0.0.1:8081/page", "https://127.0.0.1:8080/page",
@@ -120,13 +119,13 @@ def test_middleware_rejects_private_target_before_connect():
 
 
 def test_middleware_allows_public_target(monkeypatch):
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: [PUBLIC_IP])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: [PUBLIC_IP])
     assert ConnectionPolicyMiddleware().process_request(
         _Req("https://public.test/p"), _Spider()) is None
 
 
 def test_middleware_reads_authorized_origins_from_spider(monkeypatch):
-    monkeypatch.setattr(security, "resolve_host_ips", lambda h: ["127.0.0.1"])
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda h: ["127.0.0.1"])
     spider = _Spider()
     spider.authorized_origins = ("http://127.0.0.1:8080",)
     mw = ConnectionPolicyMiddleware()

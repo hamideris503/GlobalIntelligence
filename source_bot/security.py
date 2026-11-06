@@ -10,7 +10,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from domains.news.source_verify import host_is_private, is_forbidden_ip, resolve_host_ips
+from domains.news import source_verify
+from domains.news.source_verify import host_is_private, is_forbidden_ip
 
 ALLOWED_SCHEMES = ("http", "https")
 BLOCKED_SUFFIXES = (".localhost", ".local", ".internal")
@@ -95,7 +96,7 @@ def connection_check(url: str | None, *, allow_origins: Iterable[str] = ()) -> U
         return check
     assert url
     host = (urlparse(url).hostname or "").lower()
-    ips = resolve_host_ips(host)
+    ips = source_verify.resolve_host_ips(host)
     if not ips:
         return UrlCheck(False, "dns_unresolved")
     for raw in ips:
@@ -130,7 +131,7 @@ def vetted_ip(ip: str | None, name: str, *, allow_hosts: Iterable[str] = ()) -> 
         raise DNSLookupError(f"no address resolved for {name}")
     if host_is_private(ip):
         raise DNSLookupError(f"blocked destination: non-public address for {name}")
-    ips = resolve_host_ips(name)
+    ips = source_verify.resolve_host_ips(name)
     if not ips or any(host_is_private(raw) for raw in ips):
         raise DNSLookupError(f"blocked destination: unsafe dns answer for {name}")
     return ip

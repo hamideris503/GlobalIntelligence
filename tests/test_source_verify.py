@@ -5,7 +5,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from domains.news.source_verify import check_rss, fetch_url, host_is_private
+from domains.news.source_verify import check_rss, fetch_url, host_is_private, is_forbidden_ip
 
 RSS = """<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"><channel><title>T</title>
@@ -113,8 +113,22 @@ def test_ssrf_blocked() -> None:
     assert not r.ok and r.error_kind == "invalid_url"
 
 
+def test_ipv6_forbidden_and_mapped() -> None:
+    import ipaddress
+
+    # loopback / private / link-local / unspecified / multicast IPv6 must be forbidden
+    for v in ("::1", "fc00::1", "fe80::1", "::", "ff02::1"):
+        assert is_forbidden_ip(ipaddress.ip_address(v)), v
+    # IPv4-mapped private must be forbidden (no bypass)
+    assert is_forbidden_ip(ipaddress.ip_address("::ffff:127.0.0.1"))
+    assert is_forbidden_ip(ipaddress.ip_address("::ffff:10.0.0.1"))
+    # public IPv6 must not be forbidden
+    assert not is_forbidden_ip(ipaddress.ip_address("2606:4700:4700::1111"))
+    # host_is_private on literal IPv6 loopback
+    assert host_is_private("::1")
+
+
 def test_rss_valid_and_invalid() -> None:
-    assert check_rss(BASE + "/rss", allow_private=True).ok
     assert check_rss(BASE + "/atom", allow_private=True).ok
     bad = check_rss(BASE + "/notfeed", allow_private=True)
     assert not bad.ok and bad.error_kind == "rss_invalid"

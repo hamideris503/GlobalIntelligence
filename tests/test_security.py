@@ -225,3 +225,19 @@ def test_production_hides_docs() -> None:
         os.environ.clear()
         os.environ.update(old)
         gs.cache_clear()
+
+
+def test_source_bot_security_uses_the_offline_resolver_patch(monkeypatch) -> None:
+    """The autouse offline resolver must reach source_bot.security (F-08).
+
+    ``source_bot.security`` used to bind ``resolve_host_ips`` by value, so the
+    conftest patch had no effect and ingest performed real DNS lookups. A patch
+    on the module attribute must be observed by the policy, i.e. an empty answer
+    yields fail-closed ``dns_unresolved`` instead of a fresh real lookup.
+    """
+    from domains.news import source_verify
+    from source_bot.security import connection_check
+
+    monkeypatch.setattr(source_verify, "resolve_host_ips", lambda host: [])
+    result = connection_check("https://example.test/feed.xml")
+    assert result.ok is False and result.reason == "dns_unresolved"

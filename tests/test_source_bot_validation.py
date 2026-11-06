@@ -101,7 +101,9 @@ def test_run_uses_injected_sqlite_session(client: TestClient, monkeypatch):
     monkeypatch.setattr(runner_module, "_fetch_plan", fake_fetch)
     res = client.post("/api/ingest/bot", json={"source_name": "v-src3"})
     assert res.status_code == 200, res.text
-    assert seen["driver"] == "sqlite"
+    # The lane decides the backend; assert the request used the test engine's
+    # dialect instead of hard-coding SQLite (F-07).
+    assert seen["driver"] == TestingSession.kw["bind"].url.drivername
     assert seen["same_db"] is True
 
 
