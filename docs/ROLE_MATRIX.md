@@ -110,6 +110,7 @@
 | POST | `/api/ingest/jobs` | admin |
 | GET | `/api/ingest/jobs/{job_id}` | viewer |
 | GET | `/api/ingest/documents` | viewer |
+| GET | `/api/ingest/stats` | viewer |
 
 ## `/dedup`
 

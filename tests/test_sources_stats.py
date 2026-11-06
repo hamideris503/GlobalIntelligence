@@ -49,6 +49,30 @@ def test_source_stats_counts_and_404(client: TestClient) -> None:
     assert client.get(f"/api/sources/{uuid.uuid4()}/stats").status_code == 404
 
 
+def test_source_stats_article_count_is_per_source_join(client: TestClient) -> None:
+    """article_count must count articles whose document belongs to *this* source.
+
+    Two sources with different document/article counts: each source's
+    article_count must match its own documents, proving the join is scoped.
+    """
+    a = _source("src-a")
+    b = _source("src-b")
+    s = TestingSession()
+    for src, n in ((a, 2), (b, 3)):
+        for i in range(n):
+            doc = Document(source_id=src.id, url=f"https://example.com/{src.name}/{i}", title="t")
+            s.add(doc)
+            s.flush()
+            s.add(Article(document_id=doc.id, title="a", classification_status="done"))
+    s.commit()
+    s.close()
+
+    sa = client.get(f"/api/sources/{a.id}/stats").json()
+    sb = client.get(f"/api/sources/{b.id}/stats").json()
+    assert sa["document_count"] == 2 and sa["article_count"] == 2
+    assert sb["document_count"] == 3 and sb["article_count"] == 3
+
+
 def test_source_list_pagination_envelope(client: TestClient) -> None:
     for i in range(3):
         _source(f"page-{i}")

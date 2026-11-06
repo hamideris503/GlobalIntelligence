@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from domains.news.ingestion import NewsIngestionPipeline
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.api.errors import ApiError
 from backend.api.schemas.ingestion import (
     BotRunRead,
     BotRunRequest,
@@ -17,12 +20,64 @@ from backend.api.schemas.ingestion import (
     IngestResultRead,
 )
 from backend.core.config import get_settings
+from backend.database.models.article import Article
 from backend.database.models.document import Document
 from backend.database.models.job import JobRun
 from backend.database.models.source import Source
 from backend.database.session import get_db
 
 router = APIRouter(prefix="/api/ingest", tags=["ingestion"])
+
+# Funnel windows and their stage definitions (each stage maps to a real column;
+# a stage that cannot be computed returns null, never a fabricated zero).
+_WINDOWS = {"24h": timedelta(hours=24), "7d": timedelta(days=7)}
+
+
+@router.get("/stats")
+def ingest_stats(
+    window: str = Query(default="24h"), db: Session = Depends(get_db)
+) -> dict[str, Any]:
+    """آمار قیف دریافت با پنجرهٔ `24h` یا `7d`.
+
+    مراحل: fetched (documents.retrieved_at)، normalized (content_hash)،
+    dedup (duplicate_status)، prioritized (priority_status)،
+    classified (articles.classification_status='done')،
+    analyzed (articles.event_id)، stored (articles.created_at).
+    """
+    if window not in _WINDOWS:
+        raise ApiError(
+            422, "VALIDATION_ERROR", "invalid window",
+            details={"fields": {"window": "must be 24h or 7d"}},
+        )
+    since = datetime.now(UTC) - _WINDOWS[window]
+    stages: dict[str, int | None] = {}
+    uncomputed: list[str] = []
+
+    def count(cond) -> int | None:  # noqa: ANN001
+        try:
+            return int(db.execute(select(func.count()).select_from(Document).where(*cond)).scalar_one() or 0)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def count_article(*cond) -> int | None:  # noqa: ANN001
+        try:
+            return int(db.execute(select(func.count()).select_from(Article).where(*cond)).scalar_one() or 0)
+        except Exception:  # noqa: BLE001
+            return None
+
+    stages["fetched"] = count([Document.retrieved_at >= since])
+    stages["normalized"] = count([Document.retrieved_at >= since, Document.content_hash.is_not(None)])
+    stages["dedup"] = count([Document.retrieved_at >= since, Document.duplicate_status.is_not(None)])
+    stages["prioritized"] = count([Document.retrieved_at >= since, Document.priority_status.is_not(None)])
+    stages["classified"] = count_article(Article.retrieved_at >= since, Article.classification_status == "done")
+    stages["analyzed"] = count_article(Article.retrieved_at >= since, Article.event_id.is_not(None))
+    stages["stored"] = count_article(Article.created_at >= since)
+
+    for name, value in stages.items():
+        if value is None:
+            uncomputed.append(name)
+
+    return {"window": window, "since": since.isoformat(), "stages": stages, "uncomputed": uncomputed}
 
 
 def _resolve_source(db: Session, source_id: str | None, source_name: str | None) -> Source:
