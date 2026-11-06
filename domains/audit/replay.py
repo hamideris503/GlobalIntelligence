@@ -110,8 +110,30 @@ def fingerprint(db: Session, engine: str) -> tuple[str, int]:
     return _digest(recs), len(recs)
 
 
+# مدل‌های دوره‌محور: replay باید «همان دوره‌ی موجود» را دوباره اجرا کند،
+# نه ماه تقویمی جاری؛ وگرنه هر بار ردیف یک دوره‌ی جدید می‌سازد و drift کاذب
+# گزارش می‌شود (نقص replay، نه drift واقعی).
+_PERIOD_MODELS: dict[str, type] = {
+    "risk": RiskAssessment,
+    "geopolitics": GeopoliticalAssessment,
+    "society": SocialAssessment,
+    "performance": ModelPerformance,
+}
+
+
+def latest_period(db: Session, engine: str) -> str | None:
+    """آخرین دوره‌ی ثبت‌شده برای موتور دوره‌محور؛ None اگر داده‌ای نیست."""
+    model = _PERIOD_MODELS.get(engine)
+    if model is None:
+        return None
+    return db.execute(
+        select(model.period).order_by(model.period.desc()).limit(1)
+    ).scalars().first()
+
+
 def rerun(db: Session, engine: str) -> None:
-    """اجرای دوباره‌ی موتور (همان ورودی، همان کد)."""
+    """اجرای دوباره‌ی موتور (همان ورودی، همان کد، همان دوره)."""
+    period = latest_period(db, engine)
     if engine == "macro":
         from domains.macro.analysis import MacroEngine
 
@@ -119,19 +141,19 @@ def rerun(db: Session, engine: str) -> None:
     elif engine == "risk":
         from domains.risk.analysis import RiskEngine
 
-        RiskEngine(db).analyze_all()
+        RiskEngine(db).analyze_all(period=period)
     elif engine == "geopolitics":
         from domains.geopolitics.analysis import GeopoliticalEngine
 
-        GeopoliticalEngine(db).analyze_all()
+        GeopoliticalEngine(db).analyze_all(period=period)
     elif engine == "society":
         from domains.society.analysis import SocialEngine
 
-        SocialEngine(db).analyze_all()
+        SocialEngine(db).analyze_all(period=period)
     elif engine == "performance":
         from domains.forecast.performance import PerformanceEngine
 
-        PerformanceEngine(db).record()
+        PerformanceEngine(db).record(period=period)
     else:
         raise ValueError(f"unsupported engine for replay: {engine}")
 
@@ -155,4 +177,11 @@ def replay(db: Session, engine: str) -> ReplayOutcome:
     return outcome
 
 
-__all__ = ["SUPPORTED_ENGINES", "ReplayOutcome", "fingerprint", "replay", "rerun"]
+__all__ = [
+    "SUPPORTED_ENGINES",
+    "ReplayOutcome",
+    "fingerprint",
+    "latest_period",
+    "replay",
+    "rerun",
+]
