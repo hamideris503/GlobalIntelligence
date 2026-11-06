@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import uuid
 
+from domains.alerts.delivery import deliver_alert, deliver_pending
 from domains.alerts.engine import VALID_OPERATORS, AlertEngine
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -180,3 +181,16 @@ def resolve_alert(alert_id: uuid.UUID, db: Session = Depends(get_db)) -> AlertRe
     if alert is None:
         raise HTTPException(status_code=404, detail="alert not found")
     return _to_alert(alert)
+
+
+@router.post('/deliver/pending')
+def deliver_pending_endpoint(dry_run: bool = True, db: Session = Depends(get_db)):
+    return deliver_pending(db, dry_run=dry_run)
+
+@router.post('/{alert_id}/deliver/{channel}')
+def deliver_one(alert_id: uuid.UUID, channel: str, dry_run: bool = True, db: Session = Depends(get_db)):
+    alert = db.get(Alert, alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail='alert not found')
+    d = deliver_alert(db, alert, channel, dry_run=dry_run)
+    return {'alert_id': str(alert.id), 'channel': channel, 'status': d.status, 'attempts': d.attempts, 'last_error': d.last_error}

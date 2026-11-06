@@ -10,11 +10,17 @@ from backend.database.models.ai_settings import (
 )
 from backend.database.models.ai_token_ledger import AITokenLedger
 from backend.database.models.alert import Alert, AlertRule
+from backend.database.models.alert_delivery import AlertDelivery
+from backend.database.models.archive_catalog import ArchiveArticle, ArchiveCatalog
 from backend.database.models.article import Article
 from backend.database.models.article_dispatch import ArticleDispatch
 from backend.database.models.audit_record import AuditRecord
 from backend.database.models.briefing import Briefing
 from backend.database.models.claim import Claim
+from backend.database.models.configuration import (
+    ConfigurationInstance,
+    ConfigurationRevision,
+)
 from backend.database.models.debate import DebateMessage, DebateRun
 from backend.database.models.document import Document
 from backend.database.models.entity import Entity, EntityRelationship
@@ -49,13 +55,18 @@ __all__ = [
     "AIProviderRow",
     "AITokenLedger",
     "Alert",
+    "AlertDelivery",
     "AlertRule",
     "AppSetting",
     "Article",
+    "ArchiveArticle",
+    "ArchiveCatalog",
     "ArticleDispatch",
     "AuditRecord",
     "Briefing",
     "Claim",
+    "ConfigurationInstance",
+    "ConfigurationRevision",
     "DebateMessage",
     "DebateRun",
     "Document",
