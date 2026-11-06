@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     # سقف خروجی per-task برای رزرو بودجه (نام task -> max_tokens)؛ خالی
     # یعنی بدون سقف task. از JSON محیط خوانده می‌شود.
     ai_task_max_tokens: dict[str, int] = {}
+    # --- Adaptive routing (F-15) ---
+    # اعمال خودکار زنجیره‌ی تطبیقی در startup. پیش‌فرض خاموش: بدون تنظیم
+    # صریح هیچ رفتار AI تغییر نمی‌کند.
+    adaptive_routing_enabled: bool = False
+    # فهرست taskهای نامزد (CSV)؛ فقط taskهایی که آمار ثبت‌شده دارند اعمال می‌شوند.
+    adaptive_routing_tasks: str = "classify_article,extract_relations"
 
     # --- Local screening (Kev/Laya؛ پیش‌فرض خاموش) ---
     # خروجی هر دو مدل روی POST /v1/systemone است؛ هیچ وابستگی Python لازم

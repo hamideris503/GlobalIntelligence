@@ -209,22 +209,22 @@ class HTTPProvider(BaseProvider):
         if status == 429:
             if _looks_like_daily_quota(text):
                 raise AIError("daily quota exhausted", kind=AIErrorKind.quota_exhausted,
-                              provider=self.name, retryable=False)
+                              provider=self.name, retryable=False, status_code=status)
             raise AIError("rate limited", kind=AIErrorKind.rate_limit,
                           provider=self.name, retryable=True,
-                          retry_after=_parse_retry_after(headers))
+                          retry_after=_parse_retry_after(headers), status_code=status)
         if status in (401, 403):
             raise AIError("auth failed", kind=AIErrorKind.auth,
-                          provider=self.name, retryable=False)
+                          provider=self.name, retryable=False, status_code=status)
         if status >= 500:
             raise AIError(f"provider error {status}",
                           kind=AIErrorKind.provider_error, provider=self.name,
-                          retryable=True)
+                          retryable=True, status_code=status)
         if status >= 400:
             # متن بدنه عمداً در خطا نمی‌آید (ممکن است محتوای بازتابی باشد).
             raise AIError(f"bad request {status}",
                           kind=AIErrorKind.bad_request, provider=self.name,
-                          retryable=False)
+                          retryable=False, status_code=status)
 
         try:
             data = json.loads(body)

@@ -70,7 +70,8 @@ def _chain_failure(failures: list[AIError]) -> AIError:
         return AIError(
             f"all providers failed [{kind.value}]: {summary}",
             kind=kind, provider=chosen.provider,
-            retryable=chosen.retryable, retry_after=chosen.retry_after)
+            retryable=chosen.retryable, retry_after=chosen.retry_after,
+            status_code=chosen.status_code)
     return AIError(f"all providers failed: {summary}",
                    kind=AIErrorKind.provider_error, retryable=False)
 
@@ -247,6 +248,14 @@ class AIGateway:
                     response.is_mock,
                     response.latency_ms or ((time.perf_counter() - started) * 1000),
                 )
+                self._record_run(
+                    task=request.task or request.role or "default",
+                    provider=response.provider,
+                    model=response.model,
+                    success=True,
+                    latency_ms=response.latency_ms,
+                    structured_ok=bool(request.json_schema),
+                )
                 return response
             except AIError as exc:
                 if exc.kind == AIErrorKind.budget:
@@ -257,6 +266,16 @@ class AIGateway:
                 logger.warning("provider %s failed (%s): %s", name, exc.kind, exc)
                 continue
 
+        if failures:
+            last = failures[-1]
+            self._record_run(
+                task=request.task or request.role or "default",
+                provider=last.provider or "unknown",
+                model=request.metadata.get("model") or "unknown",
+                success=False,
+                latency_ms=None,
+                structured_ok=bool(request.json_schema),
+            )
         raise _chain_failure(failures)
 
     async def structured_generate(
@@ -272,6 +291,43 @@ class AIGateway:
             metadata=request.metadata,
         )
         return await self.generate(req)
+
+    def _record_run(self, *, task: str, provider: str, model: str,
+                    success: bool, latency_ms: float | None,
+                    structured_ok: bool) -> None:
+        """Best-effort recording for AdaptiveRouter (F-15). Never breaks the response."""
+        from domains.ai_routing.router import AdaptiveRouter
+
+        from backend.ai import credentials_store as _store
+        from backend.core.mock_mode import effective_mock_mode
+
+        if effective_mock_mode():
+            return
+        if getattr(_store, "_factory", None) is None:
+            return  # no session factory (tests without DB) → skip
+        try:
+            from backend.database.session import get_session_factory
+
+            session = get_session_factory()()
+            try:
+                for _attempt in range(2):
+                    try:
+                        AdaptiveRouter(session).record(
+                            task=task, provider=provider, model=model,
+                            success=success, latency_ms=latency_ms,
+                            structured_ok=structured_ok,
+                        )
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        # IntegrityError under concurrency: re-select via record() again
+                        session.rollback()
+                        if _attempt == 1 or "IntegrityError" not in type(exc).__name__:
+                            raise
+            finally:
+                session.close()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("adaptive routing record failed (ignored): %s",
+                           type(exc).__name__)
 
     async def provider_health(self) -> list[ProviderHealth]:
         from backend.ai.providers.registry import available_providers

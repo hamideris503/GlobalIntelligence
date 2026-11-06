@@ -35,12 +35,14 @@ class AIError(Exception):
 
     def __init__(self, message: str, *, kind: AIErrorKind = AIErrorKind.unknown,
                  provider: str | None = None, retryable: bool = False,
-                 retry_after: float | None = None) -> None:
+                 retry_after: float | None = None,
+                 status_code: int | None = None) -> None:
         super().__init__(message)
         self.kind = kind
         self.provider = provider
         self.retryable = retryable
         self.retry_after = retry_after
+        self.status_code = status_code
 
 
 @dataclass
