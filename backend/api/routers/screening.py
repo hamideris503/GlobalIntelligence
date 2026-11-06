@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from backend.ai.local_screening import orchestrator as orch
 from backend.ai.local_screening import review
+from backend.api.pagination import page_params
 from backend.database.session import get_db
 
 router = APIRouter(prefix="/api/screening", tags=["screening"])
@@ -50,6 +51,7 @@ class ReviewItemRead(BaseModel):
 
 class ReviewPageRead(BaseModel):
     items: list[ReviewItemRead]
+    total: int
     page: int
     page_size: int
     has_more: bool
@@ -81,10 +83,11 @@ def review_queue(
     db: Session = Depends(get_db),
 ) -> ReviewPageRead:
     """Bounded page of the review queue (default) or of the other outcomes."""
+    params = page_params(page=page, page_size=page_size, max_size=review.MAX_PAGE_SIZE)
     return ReviewPageRead(**review.queue_page(
         db,
-        page=page,
-        page_size=page_size,
+        page=params.page,
+        page_size=params.page_size,
         review_required=review_required,
         p0_p1=p0_p1,
         acknowledged=acknowledged,

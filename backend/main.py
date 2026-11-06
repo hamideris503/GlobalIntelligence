@@ -13,9 +13,15 @@ from pathlib import Path
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.routing import Match, Mount
 
 from backend.ai.schemas.types import AIError
-from backend.api.errors import ai_error_handler
+from backend.api.errors import (
+    REQUEST_ID_HEADER,
+    RequestIDMiddleware,
+    ai_error_handler,
+    install_error_handlers,
+)
 from backend.api.routers import (
     ai,
     ai_routing,
@@ -65,12 +71,29 @@ from backend.api.routers import auth as auth_router
 from backend.api.routers import local_runtimes as local_runtimes_router
 from backend.api.routers import screening as screening_router
 from backend.api.routers import settings as settings_router
-from backend.auth.deps import require_user
+from backend.auth.deps import access_guard
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging, get_logger
 from backend.core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
 logger = get_logger(__name__)
+
+
+class _StaticUIMount(Mount):
+    """Mount استاتیک که `/api/*` را هرگز نمی‌بلعد.
+
+    وقتی StaticFiles روی `/` سوار باشد، درخواستی مثل `GET /api/ingest/all` (که
+    فقط POST دارد) به‌جای 405 به دنبال فایل می‌رود و 404 می‌شود، چون Mount
+    «تطابق کامل» دارد و تطابق جزئیِ روش (405) کنار گذاشته می‌شود. با رد کردن
+    `/api` از این mount، Starlette همان 404/405 درست را با پاکت خطا می‌دهد.
+    """
+
+    def matches(self, scope):  # noqa: ANN001, ANN201
+        if scope.get("type") == "http" and (
+            scope.get("path") == "/api" or str(scope.get("path", "")).startswith("/api/")
+        ):
+            return Match.NONE, {}
+        return super().matches(scope)
 
 
 @asynccontextmanager
@@ -101,6 +124,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         with _gsf_auth()() as _db:
             seed_admin_user(_db)
+        from backend.auth.maintenance import cleanup_auth_state
+
+        with _gsf_auth()() as _db:
+            removed = cleanup_auth_state(_db)
+        if any(removed.values()):
+            logger.info("auth cleanup | %s", removed)
     except Exception:  # noqa: BLE001 — بدون DB هم سرور باید بالا بیاید
         logger.warning("admin seed skipped (db or migration unavailable)")
     # Phase 2: Jobهای دریافت که وسط اجرا رها شده‌اند در startup علامت‌گذاری می‌شوند
@@ -188,16 +217,23 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # UI باید request_id و شمارش معکوس ۴۲۹ را از پاسخ بخواند
+        expose_headers=[REQUEST_ID_HEADER, "Retry-After"],
     )
+    # بیرونی‌ترین لایه: هر پاسخ (حتی 429/500) شناسه‌ی درخواست داشته باشد
+    app.add_middleware(RequestIDMiddleware)
 
-    # خطاهای ساختاریافته‌ی AI → وضعیت HTTP معنادار (بقیه‌ی exceptionها پیش‌فرض می‌مانند)
+    # قرارداد یکنواخت خطا (پاکت error + detail قدیمی + X-Request-ID)
+    install_error_handlers(app)
+    # خطاهای ساختاریافته‌ی AI → وضعیت HTTP معنادار
     app.add_exception_handler(AIError, ai_error_handler)
 
     # /health بدون احراز هویت (برای probe)، ورود/خروج هم عمومی است (خودش ورود است)
     app.include_router(health.router)
     app.include_router(auth_router.router)
-    # نشست کوکی (UI) یا X-API-Key (n8n/اسکریپت‌ها) — مرحله ۱ احراز هویت
-    protected = [Depends(require_user)]
+    # نشست کوکی (UI) یا X-API-Key (n8n/اسکریپت‌ها) — مرحله ۱ احراز هویت؛
+    # مرحله ۲: نقش بر اساس متد/مسیر (docs/ROLE_MATRIX.md)
+    protected = [Depends(access_guard)]
     app.include_router(jobs.router, dependencies=protected)
     app.include_router(ai.router, dependencies=protected)
     app.include_router(ai_routing.router, dependencies=protected)
@@ -247,7 +283,11 @@ def create_app() -> FastAPI:
     # Serve the single-file UI at "/" (registered after all API routes so it cannot shadow them).
     _static_dir = Path(__file__).resolve().parent / "static"
     if _static_dir.is_dir():
-        app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static-ui")
+        app.router.routes.append(
+            _StaticUIMount(
+                "/", app=StaticFiles(directory=str(_static_dir), html=True), name="static-ui"
+            )
+        )
     return app
 
 

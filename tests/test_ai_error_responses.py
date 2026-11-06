@@ -111,7 +111,12 @@ def test_response_never_echoes_the_raw_message() -> None:
         assert "provider body" not in text and "Traceback" not in text
         body = json.loads(text)
         assert body["detail"] in SAFE_MESSAGES.values()
-        assert set(body) <= {"detail", "kind", "retryable", "provider", "retry_after"}
+        assert set(body) <= {
+            "detail", "kind", "retryable", "provider", "retry_after",
+            "request_id", "error",
+        }
+        assert body["error"]["code"].startswith("AI_")
+        assert body["error"]["message"] == body["detail"]
         assert isinstance(body["detail"], str) and body["detail"]  # کلاینت چیزی برای نمایش دارد
 
 
@@ -121,7 +126,7 @@ def test_unknown_kind_attribute_falls_back_to_unknown() -> None:
     assert ai_error_response(exc).status_code == 500
 
 
-def test_only_aierror_is_handled() -> None:
-    """هندلر فقط برای AIError ثبت شده؛ خطاهای غیرمرتبط رفتار پیش‌فرض را دارند."""
+def test_only_aierror_is_handled_by_its_own_handler() -> None:
+    """AIError هندلر اختصاصی دارد؛ بقیه‌ی خطاها هندلرهای عمومی مرحله ۲."""
     assert app.exception_handlers[AIError] is ai_error_handler
-    assert Exception not in app.exception_handlers
+    assert Exception in app.exception_handlers  # پاکت ۵۰۰ مرحله ۲

@@ -201,8 +201,13 @@ def queue_page(
     ).all()
     has_more = len(rows) > page_size
     items = [_item(article, document) for article, document in rows[:page_size]]
+    total = int(
+        db.execute(select(func.count()).select_from(stmt.order_by(None).subquery()))
+        .scalar_one()
+    )
     return {
         "items": items,
+        "total": total,
         "page": page,
         "page_size": page_size,
         "has_more": has_more,

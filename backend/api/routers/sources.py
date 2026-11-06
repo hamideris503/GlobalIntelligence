@@ -10,6 +10,7 @@ from domains.news.source_registry import SourceRegistry
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from backend.api.pagination import MAX_PAGE_SIZE, page_params, page_response, sort_rows
 from backend.api.schemas.sources import (
     SourceCreate,
     SourceHealthUpdate,
@@ -20,6 +21,12 @@ from backend.database.models.source import Source
 from backend.database.session import get_db
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
+
+# sort allowlist (الگو برای بقیه‌ی فهرست‌ها: docs/API_PAGINATION.md)
+SORT_FIELDS = (
+    "name", "country", "category", "priority", "credibility_score",
+    "validation_status", "last_checked_at",
+)
 
 
 def _to_read(s: Source) -> SourceRead:
@@ -70,7 +77,7 @@ def _to_read(s: Source) -> SourceRead:
     )
 
 
-@router.get("", response_model=list[SourceRead])
+@router.get("", response_model=None)
 def list_sources(
     active: bool | None = None,
     country: str | None = None,
@@ -78,9 +85,17 @@ def list_sources(
     category: str | None = None,
     validation_status: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
+    offset: int | None = Query(default=None, ge=0),
+    page: int | None = Query(default=None, ge=1),
+    page_size: int | None = Query(default=None, ge=1, le=MAX_PAGE_SIZE),
+    sort: str | None = Query(default=None, max_length=64),
     db: Session = Depends(get_db),
-) -> list[SourceRead]:
+):
+    """فهرست منابع.
+
+    سازگاری: بدون `page`/`page_size`/`sort` همان لیست قدیمی با `limit`/`offset`
+    برمی‌گردد. با هرکدام از آن‌ها پاکت `{items,total,page,page_size,has_more}`.
+    """
     reg = SourceRegistry(db)
     rows = reg.list(
         active=active, country=country, source_type=source_type, limit=5000, offset=0
@@ -89,7 +104,18 @@ def list_sources(
         rows = [s for s in rows if (s.category or "") == category]
     if validation_status:
         rows = [s for s in rows if (s.validation_status or "") == validation_status]
-    return [_to_read(s) for s in rows[offset : offset + limit]]
+
+    if page is None and page_size is None and sort is None:
+        start = offset or 0
+        return [_to_read(s) for s in rows[start : start + limit]]
+
+    params = page_params(
+        page=page, page_size=page_size, offset=offset, sort=sort, sortable=SORT_FIELDS
+    )
+    rows = sort_rows(rows, params)
+    window = rows[params.offset : params.offset + params.page_size]
+    return page_response([_to_read(s) for s in window], len(rows), params)
+
 
 
 @router.post("", response_model=SourceRead, status_code=201)

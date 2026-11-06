@@ -14,15 +14,79 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
+from backend.api.errors import ApiError
 from backend.auth.sessions import CSRF_HEADER, SESSION_COOKIE, load_session, token_hash
 from backend.core.config import get_settings
 from backend.database.session import get_db
 
 ROLE_RANK: dict[str, int] = {"viewer": 1, "analyst": 2, "admin": 3}
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+# POSTهایی که «اجرای تحلیل/استخراج» هستند و analyst هم می‌تواند اجرا کند.
+ANALYST_WRITE_PATHS = frozenset({
+    "/api/ai/chat",
+    "/api/ai/generate",
+    "/api/alerts/evaluate",
+    "/api/audit/log",
+    "/api/audit/replay",
+    "/api/briefings/daily",
+    "/api/briefings/weekly",
+    "/api/claims/evidence",
+    "/api/claims/extract",
+    "/api/classify/run",
+    "/api/debate/run",
+    "/api/decisions/from-debate",
+    "/api/decisions/run",
+    "/api/dedup/run",
+    "/api/dispatch/run",
+    "/api/economic/fetch",
+    "/api/events/extract",
+    "/api/evaluation/run",
+    "/api/forecasts/run",
+    "/api/geopolitics/analyze",
+    "/api/graph/extract",
+    "/api/independence/run",
+    "/api/iran/transmission/analyze",
+    "/api/learning/run",
+    "/api/macro/analyze",
+    "/api/markets/fetch",
+    "/api/narratives/build",
+    "/api/outcomes/resolve",
+    "/api/performance/record",
+    "/api/research/graphrag",
+    "/api/risk/analyze",
+    "/api/scenarios/run",
+    "/api/screening/screen",
+    "/api/self-eval/run",
+    "/api/society/analyze",
+    "/api/tournaments/run",
+    "/api/world-state/build",
+})
+ANALYST_WRITE_PREFIXES = ("/api/screening/review",)
+# خواندن این بخش‌ها اطلاعات عملیاتی/اعتبارنامه است، نه داده‌ی تحلیلی.
+ADMIN_READ_PREFIXES = (
+    "/api/settings",
+    "/api/archive",
+    "/api/audit",
+    "/api/local-runtimes",
+    "/api/ops",
+)
+
+
+def _under(path: str, prefixes: tuple[str, ...]) -> bool:
+    return any(path == p or path.startswith(p + "/") for p in prefixes)
+
+
+def required_role(method: str, path: str) -> str:
+    """حداقل نقش لازم برای یک درخواست (منبع `docs/ROLE_MATRIX.md`)."""
+    if method in SAFE_METHODS:
+        return "admin" if _under(path, ADMIN_READ_PREFIXES) else "viewer"
+    if path in ANALYST_WRITE_PATHS or _under(path, ANALYST_WRITE_PREFIXES):
+        return "analyst"
+    return "admin"
 
 
 @dataclass(frozen=True)
@@ -52,24 +116,24 @@ def require_user(
             return CurrentUser(username="service", role="admin", via="api_key")
         if _dev_bypass_active():
             return CurrentUser(username="service", role="admin", via="api_key")
-        raise HTTPException(status_code=401, detail="invalid or missing API key")
+        raise ApiError(401, "INVALID_API_KEY", "invalid or missing API key")
 
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         if _dev_bypass_active():
             return CurrentUser(username="service", role="admin", via="api_key")
-        raise HTTPException(status_code=401, detail="authentication required")
+        raise ApiError(401, "AUTH_REQUIRED", "authentication required")
 
     loaded = load_session(db, token)
     if loaded is None:
-        raise HTTPException(status_code=401, detail="session expired or revoked")
+        raise ApiError(401, "AUTH_REQUIRED", "session expired or revoked")
     session, user = loaded
 
     if request.method not in SAFE_METHODS:
         if not x_csrf_token or not secrets.compare_digest(
             token_hash(x_csrf_token), session.csrf_hash
         ):
-            raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+            raise ApiError(403, "FORBIDDEN", "CSRF token missing or invalid")
 
     return CurrentUser(
         username=user.username, role=user.role, via="session", session_id=session.id
@@ -82,10 +146,36 @@ def require_role(*roles: str) -> Callable[..., CurrentUser]:
 
     def dependency(current: CurrentUser = Depends(require_user)) -> CurrentUser:
         if ROLE_RANK.get(current.role, 0) < minimum:
-            raise HTTPException(status_code=403, detail="insufficient role")
+            raise ApiError(
+                403,
+                "FORBIDDEN",
+                "insufficient role",
+                details={"required": next(
+                    (r for r, rank in ROLE_RANK.items() if rank == minimum), "admin")},
+            )
         return current
 
     return dependency
+
+
+def access_guard(
+    request: Request, current: CurrentUser = Depends(require_user)
+) -> CurrentUser:
+    """سیاست نقش سراسری بر اساس متد و مسیر (نگاشت در `docs/ROLE_MATRIX.md`)."""
+    needed = required_role(request.method, request.url.path)
+    if ROLE_RANK.get(current.role, 0) < ROLE_RANK[needed]:
+        raise ApiError(
+            403,
+            "FORBIDDEN",
+            "insufficient role",
+            details={
+                "required": needed,
+                "role": current.role,
+                "path": request.url.path,
+                "method": request.method,
+            },
+        )
+    return current
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
@@ -94,7 +184,7 @@ def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     expected = settings.api_key
     if not expected:
         if settings.app_env == "production":
-            raise HTTPException(status_code=500, detail="API_KEY not configured")
+            raise ApiError(500, "INTERNAL", "API_KEY not configured")
         return  # در development آزاد
     if not x_api_key or not secrets.compare_digest(x_api_key, expected):
-        raise HTTPException(status_code=401, detail="invalid or missing API key")
+        raise ApiError(401, "INVALID_API_KEY", "invalid or missing API key")

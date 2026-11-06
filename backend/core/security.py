@@ -83,9 +83,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in self.exempt_paths:
             return await call_next(request)
         if not self._allowed(self._client_key(request), time.monotonic()):
+            message = "rate limit exceeded; retry in a minute"
             return JSONResponse(
                 status_code=429,
-                content={"detail": "rate limit exceeded; retry in a minute"},
+                content={
+                    "detail": message,
+                    "error": {
+                        "code": "RATE_LIMITED",
+                        "message": message,
+                        "details": {},
+                        "request_id": str(getattr(request.state, "request_id", "")),
+                    },
+                },
+                headers={"Retry-After": "60"},
             )
         return await call_next(request)
 

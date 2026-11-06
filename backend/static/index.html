@@ -190,9 +190,18 @@ async function api(method, path, opts){
   if (ct.includes('json')){ try { data = await res.json(); } catch (e) { data = null; } }
   else { try { data = await res.text(); } catch (e) { data = null; } }
   if (!res.ok){
-    const msg = (data && (data.detail || data.message)) || res.statusText || 'error';
-    const e = new Error(String(msg)); e.status = res.status; e.data = data;
+    const body = (data && typeof data === 'object') ? data : null;
+    const env = body && body.error ? body.error : null;
+    const msg = (env && env.message) || (body && (body.detail || body.message)) || res.statusText || 'error';
+    const e = new Error(String(msg));
+    e.status = res.status; e.data = data;
+    e.code = env ? env.code : '';
+    e.details = env && env.details ? env.details : {};
+    e.requestId = (env && env.request_id) || res.headers.get('X-Request-ID') || '';
+    const ra = res.headers.get('Retry-After') || (body && body.retry_after) || 0;
+    e.retryAfter = parseInt(ra, 10) || 0;
     if (res.status === 401){ try { giOpenAuth(); } catch (_) {} }
+    try { toastError(e); } catch (_) {}
     throw e;
   }
   return data;
@@ -596,7 +605,30 @@ function attachChartTips(){
  });
  if(!content.dataset.giDelegation){content.dataset.giDelegation='1';let lastTarget=null;content.addEventListener('pointermove',e=>{const target=e.target.closest(selector);if(!target){if(lastTarget){hideGlobal();lastTarget=null}return}if(target.closest('.chart-wrap,.fan-wrap'))return;lastTarget=target;const d=describe(target);if(d)showGlobal(d.title,d.value,d.items,d.note,e)});content.addEventListener('pointerleave',()=>{lastTarget=null;hideGlobal()});content.addEventListener('focusin',e=>{const target=e.target.closest(selector);if(!target)return;const d=describe(target);if(d)showGlobal(d.title,d.value,d.items,d.note,{clientX:Math.min(window.innerWidth-20,window.innerWidth*.7),clientY:Math.min(window.innerHeight-20,window.innerHeight*.55)})});content.addEventListener('keydown',e=>{const node=e.target.closest('.graph-node[data-node]');if(node&&(e.key==='Enter'||e.key===' ')){e.preventDefault();node.click()}});content.addEventListener('focusout',hideGlobal)}
 }
-let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000)}
+let toastTimer,toastCountdownTimer;function toast(msg){const t=document.getElementById('toast');if(toastCountdownTimer){clearInterval(toastCountdownTimer);toastCountdownTimer=null}t.dataset.requestId='';t.style.pointerEvents='none';t.style.cursor='default';t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000)}
+function giErrorInfo(err){const d=err&&err.data,e=d&&d.error;return{code:(e&&e.code)||(err&&err.code)||'',details:(e&&e.details)||(err&&err.details)||{},requestId:(e&&e.request_id)||(err&&err.requestId)||''}}
+function giErrorText(err,seconds){const s=err?err.status:0,i=giErrorInfo(err),f=i.details.fields;
+ if(s===0)return 'ارتباط با سرور برقرار نشد؛ اتصال شبکه را بررسی کنید.';
+ if(s===401)return 'برای این کار باید وارد شوید.';
+ if(s===403){const r=i.details.required?(' (نقش لازم: '+giRoleLabel(i.details.required)+')'):'';return 'دسترسی ندارید'+r+'.';}
+ if(s===404)return 'مورد درخواستی یافت نشد.';
+ if(s===405)return 'این نوع درخواست برای این مسیر مجاز نیست.';
+ if(s===409)return 'این مورد از قبل وجود دارد یا وضعیتش تغییر کرده است.';
+ if(s===422)return 'داده‌های ارسالی معتبر نیست'+(f?(': '+Object.keys(f).join('، ')):'')+'.';
+ if(s===429)return 'تعداد درخواست‌ها زیاد است؛ '+(seconds||60)+' ثانیه دیگر تلاش کنید.';
+ if(s===503)return 'پایگاه داده در دسترس نیست؛ کمی بعد تلاش کنید.';
+ if(s>=500)return 'خطای داخلی سرور'+(i.code?(' ('+i.code+')'):'')+'.';
+ return (err&&err.message)||'خطای نامشخص';
+}
+function toastError(err){const t=document.getElementById('toast'),info=giErrorInfo(err);clearTimeout(toastTimer);if(toastCountdownTimer){clearInterval(toastCountdownTimer);toastCountdownTimer=null}
+ let left=(err&&err.status===429)?(err.retryAfter||60):0;
+ const paint=()=>{let m=giErrorText(err,left);if(info.requestId)m+=' · شناسه: '+info.requestId;t.textContent=m};
+ paint();t.classList.add('show');
+ t.style.pointerEvents=info.requestId?'auto':'none';t.style.cursor=info.requestId?'copy':'default';t.dataset.requestId=info.requestId;
+ if(left>0){toastCountdownTimer=setInterval(()=>{left-=1;if(left<=0){clearInterval(toastCountdownTimer);toastCountdownTimer=null;t.classList.remove('show');}else paint()},1000);}
+ else{toastTimer=setTimeout(()=>t.classList.remove('show'),info.requestId?6000:4000);}
+}
+document.getElementById('toast').addEventListener('click',function(){const id=this.dataset.requestId;if(!id)return;try{navigator.clipboard.writeText(id);toast('شناسهٔ درخواست کپی شد: '+id);}catch(e){toast('کپی نشد؛ شناسه: '+id);}});
 let drawerReturnFocus=null;let paletteReturnFocus=null;function openDrawer(title='ردیابی خروجی هوشمند'){drawerReturnFocus=document.activeElement;document.getElementById('drawer').setAttribute('aria-hidden','false');document.getElementById('drawerTitle').textContent=title;document.getElementById('drawerBody').innerHTML=`<div class="drawer-summary"><span class="sample">دادهٔ نمونه</span><h3>تحلیل ریسک زنجیرهٔ تأمین انرژی</h3><p>اطمینان ترکیبی نمونه: ۸۴٪ · کیفیت شواهد نمونه: ۰٫۸۴</p></div><div class="section-kicker">مسیر قابل ممیزی</div><div class="trace-step"><div class="trace-num">۱</div><div class="trace-copy"><strong>دریافت و نگه‌داری Raw</strong><span>۱۲ مشاهده از ۳ منبع مستقل فرضی؛ raw snapshot حفظ می‌شود.</span></div></div><div class="trace-step"><div class="trace-num">۲</div><div class="trace-copy"><strong>هویت و خوشه‌بندی</strong><span>۴ رویداد مرتبط؛ near-duplicate بدون حذف provenance.</span></div></div><div class="trace-step"><div class="trace-num">۳</div><div class="trace-copy"><strong>استخراج ادعا و شاهد</strong><span>۹ ادعا، ۱۷ شاهد؛ ۳ مورد نیازمند بازبینی.</span></div></div><div class="trace-step"><div class="trace-num">۴</div><div class="trace-copy"><strong>سنتز از AI Gateway</strong><span>۳ مسیر مدل نمونه؛ یک اختلاف مهم در زمان‌بندی.</span></div></div><div class="trace-step"><div class="trace-num">۵</div><div class="trace-copy"><strong>پیشنهاد و عدم قطعیت</strong><span>پایش تقویت‌شده؛ بدون اقدام خودکار یا تضمین نتیجه.</span></div></div><div class="alert-strip" style="margin-top:14px">این ردیابی دادهٔ ساختگی برای نمایش طراحی است؛ هیچ مدل واقعی فراخوانی نشده است.</div>`;document.getElementById('drawer').classList.add('open');document.getElementById('drawerBackdrop').classList.add('open');document.getElementById('drawer').focus()}
 function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('drawer').setAttribute('aria-hidden','true');document.getElementById('drawerBackdrop').classList.remove('open');if(drawerReturnFocus?.isConnected)drawerReturnFocus.focus();drawerReturnFocus=null}
 function showPalette(initial=''){const p=document.getElementById('palette');if(!p.classList.contains('open'))paletteReturnFocus=document.activeElement;p.classList.add('open');p.setAttribute('aria-hidden','false');const i=document.getElementById('paletteInput');i.value=initial||'';updatePalette();setTimeout(()=>i.focus(),20)} function hidePalette(){const p=document.getElementById('palette');p.classList.remove('open');p.setAttribute('aria-hidden','true');if(paletteReturnFocus?.isConnected)paletteReturnFocus.focus();paletteReturnFocus=null}
