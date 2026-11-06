@@ -96,6 +96,45 @@ def _merge_classification_meta(article, screening_decision: dict[str, Any]) -> N
 
 # --- handlers ----------------------------------------------------------------
 
+def _real_provider_available(db: Session) -> bool:
+    """Read-only check: is a real (non-mock) AI provider configured?
+
+    Checks the DB for enabled providers with enabled non-blocked models.
+    Does NOT issue any network request. Returns False if MOCK_MODE is
+    effectively true (mock would be used instead of a real provider).
+    """
+    from backend.core.mock_mode import effective_mock_mode
+    if effective_mock_mode():
+        return False
+    try:
+        from backend.database.models.ai_settings import AIModelRow, AIProviderRow
+        providers = db.execute(
+            select(AIProviderRow).where(AIProviderRow.enabled == True)  # noqa: E712
+        ).scalars().all()
+        for p in providers:
+            models = db.execute(
+                select(AIModelRow).where(
+                    AIModelRow.provider_id == p.id,
+                    AIModelRow.enabled == True,  # noqa: E712
+                )
+            ).scalars().all()
+            for m in models:
+                if m.free_status != "BLOCKED":
+                    return True
+    except Exception:  # noqa: BLE001 — a DB error means "not available"
+        pass
+    return False
+
+
+async def _no_provider_ai_screen(text: str) -> dict[str, Any]:
+    """AI Gateway screen that reports unavailability WITHOUT a network request.
+
+    Used when no real provider is configured, so the fallback is never
+    actually attempted (no retry churn, no fake decision).
+    """
+    return {"__error__": "no_real_provider", "is_mock": False}
+
+
 async def _handle_screening(db: Session, dispatch) -> HandlerResult:
     """Re-run screening for an article whose first attempt was unavailable."""
     from domains.news.classifier import _article_text, _doc_priority
@@ -110,7 +149,36 @@ async def _handle_screening(db: Session, dispatch) -> HandlerResult:
     if not text.strip():
         return HandlerResult("terminal", "article text is empty")
 
-    decision = await screen_with_db(db, text, level)
+    # Stage104: preserve prior screening result in history before overwriting.
+    # The original Kev prediction, probabilities, model identity, reason codes
+    # and any valid Laya/Gateway response survive retries unchanged.
+    try:
+        _meta = json.loads(article.classification_meta or "{}")
+    except (TypeError, ValueError):
+        _meta = {}
+    if isinstance(_meta, dict):
+        _old = _meta.get("local_screening")
+        if isinstance(_old, dict):
+            _history = _meta.get("screening_history")
+            if not isinstance(_history, list):
+                _history = []
+            # Idempotency: only append if different from the last entry.
+            if not _history or _history[-1] != _old:
+                _history.append(_old)
+            _meta["screening_history"] = _history
+            article.classification_meta = json.dumps(_meta, ensure_ascii=False)
+            db.flush()
+
+    # Stage104: provider-readiness gate. When no real provider is configured,
+    # pass a gated ai_screen that returns an error WITHOUT making a network
+    # request. This prevents repeated calls to a known-unavailable fallback.
+    # Kev still runs (real inference); only the Gateway fallback is gated.
+    if _real_provider_available(db):
+        ai_screen = None  # use real Gateway fallback
+    else:
+        ai_screen = _no_provider_ai_screen
+
+    decision = await screen_with_db(db, text, level, ai_screen=ai_screen)
     _merge_classification_meta(article, decision.as_dict())
     db.flush()
 
@@ -376,6 +444,44 @@ async def _handle_domain_geopolitics(db: Session, dispatch) -> HandlerResult:
             meta={"event_id": str(event.id), "actors": [],
                   "assessments_stored": 0, "assessments_refreshed": 0})
 
+    # Stage96 optimization: skip when all target actors' assessments are
+    # already up-to-date (same event_count as current events for that actor).
+    from datetime import UTC
+    from datetime import datetime as _dt
+
+    from domains.geopolitics.analysis import _parse_list as _pl
+    from domains.geopolitics.analysis import normalize_actor as _na
+
+    from backend.database.models.geopolitical_assessment import GeopoliticalAssessment
+    period = _dt.now(UTC).strftime("%Y-%m")
+    all_up = True
+    for actor in actors:
+        norm = _na(actor)
+        ec = 0
+        for e in db.execute(select(Event)).scalars().all():
+            for raw in _pl(e.actors):
+                if isinstance(raw, str) and _na(raw) == norm:
+                    ec += 1
+                    break
+        ex = None
+        for a in db.execute(
+            select(GeopoliticalAssessment).where(
+                GeopoliticalAssessment.period == period,
+            )
+        ).scalars().all():
+            if _na(a.actor) == norm:
+                ex = a
+                break
+        if ex is None or ex.event_count != ec:
+            all_up = False
+            break
+    if all_up:
+        return HandlerResult(
+            "completed", "already up to date; skipped recompute",
+            meta={"event_id": str(event.id), "actors": actors,
+                  "assessments_stored": 0, "assessments_refreshed": 0,
+                  "skipped_recompute": True})
+
     outcome = GeopoliticalEngine(db).analyze_all(actors=actors)
     if outcome.failed:
         return HandlerResult(
@@ -416,6 +522,54 @@ async def _handle_domain_society(db: Session, dispatch) -> HandlerResult:
         scopes.append(("country", signals["country"]))
     if not scopes:
         return HandlerResult("retryable", "no society scope signals")
+
+    # Stage96 optimization: skip when all target scopes' assessments are
+    # already up-to-date (same article_count as current articles for that
+    # scope). New articles still trigger a full recompute.
+    from datetime import UTC
+    from datetime import datetime as _dt
+
+    from backend.database.models.article import Article
+    from backend.database.models.social_assessment import SocialAssessment
+    period = _dt.now(UTC).strftime("%Y-%m")
+    all_up = True
+    for scope_type, scope in scopes:
+        from domains.society.analysis import _parse_topics
+        from sqlalchemy import func
+        if scope_type == "topic":
+            art_count = 0
+            for a in db.execute(
+                select(Article).where(Article.classification_status == "done")
+            ).scalars().all():
+                if scope in _parse_topics(a.topics):
+                    art_count += 1
+        else:
+            art_count = db.execute(
+                select(func.count()).select_from(Article).where(
+                    Article.classification_status == "done",
+                    Article.country == scope,
+                )
+            ).scalar_one()
+        existing = None
+        for a in db.execute(
+            select(SocialAssessment).where(
+                SocialAssessment.period == period,
+                SocialAssessment.scope_type == scope_type,
+                SocialAssessment.scope == scope,
+            )
+        ).scalars().all():
+            existing = a
+            break
+        if existing is None or existing.article_count != art_count:
+            all_up = False
+            break
+
+    if all_up:
+        return HandlerResult(
+            "completed", "already up to date; skipped recompute",
+            meta={"scopes": [list(s) for s in scopes],
+                  "assessments_stored": 0, "assessments_refreshed": 0,
+                  "skipped_recompute": True})
 
     outcome = SocialEngine(db).analyze_all(scopes=scopes)
     if outcome.failed:
@@ -523,8 +677,14 @@ async def run_once(
                 bucket["terminal"] = bucket.get("terminal", 0) + 1
             else:
                 service.mark_retryable(dispatch, result.detail or "retryable")
-                outcome.retryable += 1
-                bucket["retryable"] = bucket.get("retryable", 0) + 1
+                # mark_retryable promotes to terminal once attempts are
+                # exhausted; count what actually happened, not the handler hint.
+                if dispatch.status == "terminal":
+                    outcome.terminal += 1
+                    bucket["terminal"] = bucket.get("terminal", 0) + 1
+                else:
+                    outcome.retryable += 1
+                    bucket["retryable"] = bucket.get("retryable", 0) + 1
             db.commit()
     return outcome
 

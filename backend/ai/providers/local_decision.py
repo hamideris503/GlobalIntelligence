@@ -244,3 +244,6 @@ class LayaProvider(LocalDecisionProvider):
     name = "laya"
     _base_url_setting = "local_screening_laya_base_url"
     _model_setting = "local_screening_laya_model"
+
+    def _endpoint(self) -> str:
+        return f"{self.base_url}/predict"

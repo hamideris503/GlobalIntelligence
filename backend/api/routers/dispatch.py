@@ -79,6 +79,7 @@ class DispatchJobRead(BaseModel):
     review_required: bool
     review_reasons: list[str]
     review_acknowledged: bool
+    recovery_eligible: bool = False
 
 
 class DispatchJobPageRead(BaseModel):
@@ -125,13 +126,18 @@ def _version(stored: str) -> str:
 def _job(row: ArticleDispatch, article: Article, document: Document | None) -> DispatchJobRead:
     meta = review.parse_meta(article.classification_meta)
     state = review.review_state(meta, article.classification_status)
+    task = logical_task(row.task_name)
+    recovery_eligible = (
+        task == "screening"
+        and row.status == "terminal"
+    )
     return DispatchJobRead(
         dispatch_id=str(row.id),
         article_id=str(article.id),
         title=article.title or (document.title if document else None),
         article_url=(document.url or document.canonical_url) if document else None,
         priority=document.ingestion_priority if document else None,
-        task=logical_task(row.task_name),
+        task=task,
         task_version=_version(row.task_name),
         status=row.status,
         attempts=row.attempts,
@@ -145,6 +151,7 @@ def _job(row: ArticleDispatch, article: Article, document: Document | None) -> D
         review_required=state["review_required"],
         review_reasons=state["review_reasons"],
         review_acknowledged=state["review_acknowledged"],
+        recovery_eligible=recovery_eligible,
     )
 
 
@@ -233,6 +240,74 @@ def retry_dispatch(
         )
     db.refresh(row)
     article, document = _joined(db, row)
+    return _job(row, article, document)
+
+
+@router.post("/{dispatch_id}/recover", response_model=DispatchJobRead)
+def recover_terminal_screening(
+    dispatch_id: uuid.UUID, db: Session = Depends(get_db),
+) -> DispatchJobRead:
+    """Narrowly scoped recovery for terminal screening dispatches only.
+
+    Conditions (all must hold):
+    - task is ``screening``
+    - status is ``terminal``
+    - original article exists and has non-empty text
+    - a real AI provider is configured (prerequisite resolved)
+    - atomic and idempotent (concurrent requests cannot create duplicates)
+
+    Unrelated terminal tasks and terminal screening dispatches whose
+    prerequisite is still unavailable remain non-retryable.
+    """
+    row = db.get(ArticleDispatch, dispatch_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="dispatch not found")
+    task = logical_task(row.task_name)
+    if task != "screening":
+        raise HTTPException(
+            status_code=409,
+            detail=f"recovery only applies to screening tasks, not {task}",
+        )
+    if row.status != "terminal":
+        raise HTTPException(
+            status_code=409,
+            detail=f"dispatch is {row.status}; only terminal rows can be recovered",
+        )
+    article = db.get(Article, row.article_id)
+    if article is None:
+        raise HTTPException(status_code=404, detail="article not found")
+    from domains.news.classifier import _article_text
+    if not _article_text(article).strip():
+        raise HTTPException(
+            status_code=409,
+            detail="article has no usable text for screening",
+        )
+    # Provider-readiness gate (read-only, no network request).
+    from backend.ai.dispatch.runner import _real_provider_available
+    if not _real_provider_available(db):
+        raise HTTPException(
+            status_code=409,
+            detail="real AI provider not configured; recovery blocked",
+        )
+
+    # Atomic recovery: terminal -> pending, preserving attempts and history.
+    result = db.execute(
+        update(ArticleDispatch)
+        .where(
+            ArticleDispatch.id == dispatch_id,
+            ArticleDispatch.status == "terminal",
+            ArticleDispatch.task_name.like("screening@v%"),
+        )
+        .values(status="pending", next_retry_at=None)
+    )
+    db.commit()
+    if (result.rowcount or 0) != 1:
+        raise HTTPException(
+            status_code=409,
+            detail="dispatch changed concurrently; refresh before retrying",
+        )
+    db.refresh(row)
+    document = db.get(Document, article.document_id) if article.document_id else None
     return _job(row, article, document)
 
 

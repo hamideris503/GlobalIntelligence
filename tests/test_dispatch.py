@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -13,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from backend.ai.dispatch.runner import recover_at_startup, run_once
+from backend.ai.dispatch.runner import _HANDLERS, recover_at_startup, run_once
 from backend.ai.dispatch.service import (
     ANALYSIS_TASKS,
     ANALYSIS_VERSION,
@@ -124,29 +125,100 @@ def test_negative_decision_suppresses_analysis_dispatch() -> None:
 
 # --- claims / retries -------------------------------------------------------
 
+def _dialect() -> str:
+    return TestingSession.kw["bind"].dialect.name
+
+
 def test_claim_is_atomic() -> None:
+    """A claimed row cannot be claimed again; attempts increments exactly once.
+
+    Each session owns a real transaction that ends with commit, so the second
+    claim sees the committed ``running`` state instead of waiting on a lock held
+    by an uncommitted transaction (that self-deadlocked on PostgreSQL — F-02).
+    """
     db = TestingSession()
     try:
         art = _article(db)
-        svc = DispatchService(db)
-        row = svc.ensure_dispatch(art.id, "event_extraction")
+        row = DispatchService(db).ensure_dispatch(art.id, "event_extraction")
         db.commit()
+        row_id = row.id
     finally:
         db.close()
 
     first = TestingSession()
-    second = TestingSession()
     try:
-        row = first.get(ArticleDispatch, row_id := row.id)
-        other = second.get(ArticleDispatch, row_id)
-        assert DispatchService(first).claim(row) is True
-        assert DispatchService(second).claim(other) is False
+        claimed = first.get(ArticleDispatch, row_id)
+        assert DispatchService(first).claim(claimed) is True
         first.commit()
-        assert row.attempts == 1
-        assert row.status == "running"
     finally:
         first.close()
+
+    second = TestingSession()
+    try:
+        stale = second.get(ArticleDispatch, row_id)
+        assert DispatchService(second).claim(stale) is False
+        second.commit()
+    finally:
         second.close()
+
+    verify = TestingSession()
+    try:
+        final = verify.get(ArticleDispatch, row_id)
+        assert final.attempts == 1
+        assert final.status == "running"
+    finally:
+        verify.close()
+
+
+@pytest.mark.skipif(
+    _dialect() == "sqlite",
+    reason="needs two real row locks; SQLite shares one in-memory connection",
+)
+def test_claim_is_atomic_under_concurrency() -> None:
+    """Two workers race for one row: exactly one wins and neither blocks forever."""
+    db = TestingSession()
+    try:
+        art = _article(db)
+        row = DispatchService(db).ensure_dispatch(art.id, "event_extraction")
+        db.commit()
+        row_id = row.id
+    finally:
+        db.close()
+
+    barrier = threading.Barrier(2)
+    results: list[bool] = []
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        session = TestingSession()
+        try:
+            item = session.get(ArticleDispatch, row_id)
+            barrier.wait(timeout=10)
+            won = DispatchService(session).claim(item)
+            session.commit()
+            results.append(won)
+        except BaseException as exc:  # noqa: BLE001 - surfaced through assertions
+            errors.append(exc)
+        finally:
+            session.close()
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    assert not any(thread.is_alive() for thread in threads), "claim blocked past timeout"
+    assert errors == []
+    assert sorted(results) == [False, True]
+
+    verify = TestingSession()
+    try:
+        final = verify.get(ArticleDispatch, row_id)
+        assert final.attempts == 1
+        assert final.status == "running"
+    finally:
+        verify.close()
 
 
 def test_retry_backoff_and_terminal_after_bounded_attempts() -> None:
@@ -330,12 +402,14 @@ def test_runner_retries_when_event_not_ready_and_terminalizes_permanent_error() 
         row = DispatchService(db).get_dispatch(art.id, "event_extraction")
         assert row is not None and row.status == "retryable"
 
-        # missing article is permanent, not retried
-        ghost = DispatchService(db).ensure_dispatch(uuid.uuid4(), "event_extraction")
-        db.commit()
-        outcome = asyncio.run(run_once(db, limit=5, task="event_extraction"))
-        db.refresh(ghost)
-        assert ghost.status == "terminal"
+        # A dispatch whose article is gone is permanent, not retried. PostgreSQL
+        # enforces the FK, so such a row cannot be written (F-06); the handler
+        # contract is asserted directly.
+        ghost = ArticleDispatch(article_id=uuid.uuid4(),
+                                task_name=task_key("event_extraction"),
+                                status="pending")
+        result = asyncio.run(_HANDLERS["event_extraction"](db, ghost))
+        assert result.status == "terminal"
     finally:
         db.close()
 
@@ -735,12 +809,13 @@ def test_model_disabled_while_screening_is_queued_uses_gateway(monkeypatch) -> N
         db.commit()
 
         outcome = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert outcome.completed == 1
+        # With no real provider configured, the AI Gateway fallback is gated:
+        # the article stays pending (retryable), never a fake decision.
+        assert outcome.retryable == 1
         db.refresh(row)
-        assert row.status == "completed"
+        assert row.status == "retryable"
         meta = json.loads(db.get(Article, art.id).classification_meta)
-        assert meta["local_screening"]["route"] == "AI_GATEWAY"
-        assert _count(db, art.id, "event_extraction") == 1
+        assert meta["local_screening"]["decision"] is None
     finally:
         db.close()
 
