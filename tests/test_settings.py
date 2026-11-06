@@ -179,6 +179,39 @@ def test_no_secret_in_logs_or_outputs(client: TestClient, caplog) -> None:
     assert "QQQQ7777" not in caplog.text
 
 
+def test_provider_test_logs_exception_type(monkeypatch, caplog, client: TestClient) -> None:
+    """When a provider test fails, the exception type must be logged.
+
+    The sanitized response hides the real cause, so the log line is the only
+    place an operator can see what actually broke.
+    """
+    import logging
+
+    session = TestingSession()
+    try:
+        from backend.ai.credentials import encrypt_secret
+        from backend.database.models.ai_settings import AIProviderRow
+        row = AIProviderRow(name="diag-test", kind="gemini", enabled=True,
+                            api_key_encrypted=encrypt_secret("fake-key-1234"))
+        session.add(row)
+        session.commit()
+        pid = str(row.id)
+    finally:
+        session.close()
+
+    async def boom(*args, **kwargs):
+        raise ValueError("simulated failure")
+
+    monkeypatch.setattr("backend.ai.gateway.gateway.AIGateway.generate", boom)
+
+    with caplog.at_level(logging.WARNING):
+        res = client.post(f"/api/settings/providers/{pid}/test", json={})
+
+    assert res.status_code == 200 and res.json()["ok"] is False
+    assert any("ValueError" in r.message for r in caplog.records), \
+        f"exception type not logged: {[r.message for r in caplog.records]}"
+
+
 def test_key_rotate_and_list_masked(client: TestClient) -> None:
     session = TestingSession()
     try:
@@ -885,3 +918,17 @@ def test_discover_timeout_and_key_safety(client: TestClient, monkeypatch) -> Non
     res = client.get(f"/api/settings/providers/{pid}/models")
     assert res.status_code == 502
     assert FAKE_KEY not in res.text
+
+
+def test_provider_catalog_lists_supported_kinds(client: TestClient) -> None:
+    r = client.get('/api/settings/providers/catalog')
+    assert r.status_code == 200
+    data = r.json()
+    kinds = {e['kind'] for e in data}
+    assert 'groq' in kinds
+    assert 'mock' in kinds
+    for e in data:
+        assert 'required_fields' in e
+        assert 'free_policy_status' in e
+        assert 'configured' in e
+        assert isinstance(e['configured'], bool)

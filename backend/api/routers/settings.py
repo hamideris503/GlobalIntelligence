@@ -29,6 +29,7 @@ from backend.ai.credentials import (
     mask_secret,
     validate_base_url,
 )
+from backend.ai.provider_catalog import as_dicts as catalog_dicts
 from backend.api.errors import DEFAULT_MESSAGE, SAFE_MESSAGES
 from backend.api.schemas.settings import (
     AppSettingsUpdate,
@@ -49,6 +50,7 @@ from backend.api.schemas.settings import (
     ProviderUpdate,
     VoidRequest,
 )
+from backend.core.logging import get_logger
 from backend.database.models.ai_settings import (
     PROVIDER_KINDS,
     AgentAssignment,
@@ -56,6 +58,8 @@ from backend.database.models.ai_settings import (
     AIProviderRow,
 )
 from backend.database.session import get_db
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -148,6 +152,25 @@ def list_providers(db: Session = Depends(get_db)) -> list[ProviderRead]:
     for info in store.list_env_providers():
         if info["kind"] not in db_kinds:
             out.append(_to_env_read(info))
+    return out
+
+
+@router.get("/providers/catalog")
+def provider_catalog(db: Session = Depends(get_db)) -> list[dict]:
+    """Discovery aid: list supported provider kinds with credential/model guidance.
+
+    Never creates a provider or makes a network call. ``configured`` tells
+    whether at least one provider of that kind already exists (DB or .env).
+    """
+    rows = db.execute(select(AIProviderRow)).scalars().all()
+    db_kinds = {r.kind for r in rows}
+    env_kinds = {info["kind"] for info in store.list_env_providers()}
+    configured = db_kinds | env_kinds
+    out = []
+    for entry in catalog_dicts():
+        item = dict(entry)
+        item["configured"] = entry["kind"] in configured
+        out.append(item)
     return out
 
 
@@ -324,6 +347,12 @@ def test_provider(provider_id: str, payload: ProviderTestRequest,
             error=None if ok else "mock response (check MOCK_MODE)",
         )
     except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "provider test failed | provider=%s type=%s kind=%s status=%s",
+            label, type(exc).__name__,
+            getattr(exc, "kind", None),
+            getattr(exc, "status_code", None),
+        )
         simple = SAFE_MESSAGES.get(getattr(exc, "kind", None), DEFAULT_MESSAGE)
         try:
             if row is not None:
