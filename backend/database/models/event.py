@@ -15,6 +15,13 @@ class Event(UUIDMixin, TimestampMixin, PointInTimeMixin, Base):
     event_type: Mapped[str | None] = mapped_column(String(128), index=True)
     occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     location: Mapped[str | None] = mapped_column(String(255))
+    # مختصات ذخیره‌شده و منشأ آن؛ NULL یعنی «بدون موقعیت» (هیچ حدسی زده نمی‌شود).
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
+    country: Mapped[str | None] = mapped_column(String(8), index=True)
+    location_precision: Mapped[str | None] = mapped_column(String(16))
+    location_source: Mapped[str | None] = mapped_column(String(32))
+    location_confidence: Mapped[float | None] = mapped_column(Float)
 
     actors: Mapped[str | None] = mapped_column(Text)  # JSON list
     action: Mapped[str | None] = mapped_column(Text)

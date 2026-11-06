@@ -140,6 +140,15 @@
 | POST | `/api/events/extract` | analyst |
 | GET | `/api/events` | viewer |
 
+## `/geo`
+
+| متد | مسیر | حداقل نقش |
+| --- | --- | --- |
+| GET | `/api/geo/events` | viewer |
+
+`/api/geo/events` دادهٔ تحلیلی خواندنی است (GeoJSON)؛ با کوکی نشست same-origin
+کار می‌کند و `X-API-Key` هم مثل بقیهٔ مسیرها نقش `admin` می‌گیرد.
+
 ## `/claims`
 
 | متد | مسیر | حداقل نقش |

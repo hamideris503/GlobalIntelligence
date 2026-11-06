@@ -20,6 +20,18 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    # UI تک‌فایل و MapLibre محلی؛ کاشی/استایل OpenFreeMap مجاز است تا بعداً
+    # با تغییر همین مبدأ به self-host منتقل شود.
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob: https://tiles.openfreemap.org; "
+        "font-src 'self' data: https://tiles.openfreemap.org; "
+        "connect-src 'self' https://tiles.openfreemap.org; "
+        "worker-src 'self' blob:; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    ),
 }
 
 

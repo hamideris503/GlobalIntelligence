@@ -1,0 +1,1 @@
+"""Geospatial resolution helpers (minimal, deterministic)."""
