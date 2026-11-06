@@ -8,6 +8,7 @@ import uuid
 
 from domains.news.source_registry import SourceRegistry
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.api.pagination import MAX_PAGE_SIZE, page_params, page_response, sort_rows
@@ -17,6 +18,9 @@ from backend.api.schemas.sources import (
     SourceRead,
     SourceUpdate,
 )
+from backend.database.models.article import Article
+from backend.database.models.document import Document
+from backend.database.models.job import JobRun
 from backend.database.models.source import Source
 from backend.database.session import get_db
 
@@ -124,6 +128,56 @@ def create_source(payload: SourceCreate, db: Session = Depends(get_db)) -> Sourc
         raise HTTPException(status_code=409, detail="source with this name already exists")
     source = reg.create(**payload.model_dump())
     return _to_read(source)
+
+
+@router.get("/{source_id}/stats")
+def source_stats(source_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """آمار فقط‌خواندنی یک منبع (برای صفحهٔ منابع)."""
+    source = SourceRegistry(db).get(source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="source not found")
+    doc_count = int(db.execute(
+        select(func.count()).select_from(Document).where(Document.source_id == source_id)
+    ).scalar_one() or 0)
+    art_count = int(db.execute(
+        select(func.count()).select_from(Article)
+        .join(Document, Article.document_id == Document.id)
+        .where(Document.source_id == source_id)
+    ).scalar_one() or 0)
+    last_job = db.execute(
+        select(JobRun).where(JobRun.source == str(source.id)).order_by(JobRun.started_at.desc()).limit(1)
+    ).scalars().first()
+    return {
+        "source_id": str(source.id),
+        "name": source.name,
+        "active": source.active,
+        "validation_status": source.validation_status,
+        "last_success": source.last_success,
+        "last_error": source.last_error,
+        "last_checked_at": source.last_checked_at,
+        "document_count": doc_count,
+        "article_count": art_count,
+        "last_job": {
+            "job_name": last_job.job_name,
+            "status": last_job.status,
+            "started_at": last_job.started_at,
+        } if last_job else None,
+    }
+
+
+@router.get("/stats")
+def all_sources_stats(db: Session = Depends(get_db)) -> dict:
+    """آمار تجمیعی همهٔ منابع."""
+    total = int(db.execute(select(func.count()).select_from(Source)).scalar_one() or 0)
+    active = int(db.execute(select(func.count()).select_from(Source).where(Source.active.is_(True))).scalar_one() or 0)
+    total_docs = int(db.execute(select(func.count()).select_from(Document)).scalar_one() or 0)
+    total_arts = int(db.execute(select(func.count()).select_from(Article)).scalar_one() or 0)
+    return {
+        "sources_total": total,
+        "sources_active": active,
+        "documents_total": total_docs,
+        "articles_total": total_arts,
+    }
 
 
 @router.get("/{source_id}", response_model=SourceRead)

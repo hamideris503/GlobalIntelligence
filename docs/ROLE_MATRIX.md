@@ -82,6 +82,8 @@
 | POST | `/api/sources/{source_id}/health` | admin |
 | POST | `/api/sources/{source_id}/recheck` | admin |
 | GET | `/api/sources/export/all` | viewer |
+| GET | `/api/sources/{source_id}/stats` | viewer |
+| GET | `/api/sources/stats` | viewer |
 
 ## `/configuration`
 
