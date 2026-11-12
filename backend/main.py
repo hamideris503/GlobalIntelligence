@@ -34,6 +34,7 @@ from backend.api.routers import (
     claims,
     classify,
     configuration,
+    country_profile,
     dashboard,
     debate,
     decisions,
@@ -287,6 +288,7 @@ def create_app() -> FastAPI:
     app.include_router(decisions.router, dependencies=protected)
     app.include_router(learning.router, dependencies=protected)
     app.include_router(iran.router, dependencies=protected)
+    app.include_router(country_profile.router, dependencies=protected)
 
     # Serve the single-file UI at "/" (registered after all API routes so it cannot shadow them).
     _static_dir = Path(__file__).resolve().parent / "static"

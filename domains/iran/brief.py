@@ -21,10 +21,9 @@ from backend.database.models.event import Event
 from backend.database.models.market import MacroObservation
 from backend.database.models.recommendation import Recommendation
 from backend.database.models.world_state import WorldState
+from domains.country_profile.profile import CountryProfile
 from domains.iran.matching import (
-    is_iran_country,
-    is_iran_name,
-    is_iran_target,
+    get_active_profile,
     parse_str_list,
 )
 
@@ -33,6 +32,8 @@ logger = get_logger(__name__)
 
 @dataclass
 class IranBrief:
+    profile_code: str = ""
+    profile_version: str = ""
     events: list[dict] = field(default_factory=list)
     claims: list[dict] = field(default_factory=list)
     macro: list[dict] = field(default_factory=list)
@@ -41,6 +42,8 @@ class IranBrief:
 
     def as_dict(self) -> dict:
         return {
+            "profile_code": self.profile_code,
+            "profile_version": self.profile_version,
             "events": self.events,
             "claims": self.claims,
             "macro": self.macro,
@@ -55,22 +58,24 @@ class IranBrief:
         }
 
 
-def _event_matches(event: Event) -> bool:
+def _event_matches(event: Event, profile: CountryProfile | None = None) -> bool:
+    prof = profile or get_active_profile()
     for actor in parse_str_list(event.actors):
-        if is_iran_name(actor):
+        if prof.matches_name(actor):
             return True
     for article in event.articles[:10]:
-        if is_iran_country(article.country):
+        if prof.matches_country(article.country):
             return True
         for topic in parse_str_list(article.topics):
-            if is_iran_name(topic):
+            if prof.matches_name(topic):
                 return True
     return False
 
 
 class IranModeService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, profile: CountryProfile | None = None) -> None:
         self.db = db
+        self.profile = profile or get_active_profile()
 
     def iran_events(self, *, limit: int = 100) -> list[Event]:
         stmt = (
@@ -79,7 +84,7 @@ class IranModeService:
             .order_by(Event.created_at.desc())
             .limit(limit * 5)
         )
-        matched = [e for e in self.db.execute(stmt).scalars().all() if _event_matches(e)]
+        matched = [e for e in self.db.execute(stmt).scalars().all() if _event_matches(e, self.profile)]
         return matched[:limit]
 
     def brief(self, *, limit: int = 100) -> IranBrief:
@@ -108,7 +113,7 @@ class IranModeService:
         macro: list[dict] = []
         stmt = (
             select(MacroObservation)
-            .where(MacroObservation.country == "IRN")
+            .where(MacroObservation.country == self.profile.macro_country_code)
             .order_by(MacroObservation.indicator, MacroObservation.period.desc())
             .limit(limit)
         )
@@ -129,7 +134,7 @@ class IranModeService:
             .limit(limit * 2)
         )
         for r in self.db.execute(stmt).scalars().all():
-            if is_iran_target(r.asset):
+            if self.profile.matches_target(r.asset):
                 decisions.append(
                     {
                         "id": str(r.id),
@@ -155,6 +160,8 @@ class IranModeService:
             }
 
         brief = IranBrief(
+            profile_code=self.profile.code,
+            profile_version=self.profile.version,
             events=[
                 {
                     "id": str(e.id),

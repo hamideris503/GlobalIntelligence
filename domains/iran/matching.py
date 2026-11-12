@@ -1,59 +1,49 @@
-"""Matching — قواعد تطبیق ایران (Phase 33).
+"""Matching — قواعد تطبیق (Phase 33).
 
-یک رکورد «مرتبط با ایران» است اگر هر یک برقرار باشد (v1, مستند):
-- کد کشور: IR / IRN (/article.country، macro.country).
-- نام بازیگر/موجودیت/موضوع حاوی iran/iranian (case-insensitive).
-- هدف (target/asset) حاوی IRN یا Iran.
-- منبع با دامنه‌ی .ir یا نام حاوی iran.
-
-بدون AI؛ فقط تطبیق رشته‌ای قطعی.
+پس از Stage 99، منطق تطبیق به ``domains.country_profile`` منتقل شده است.
+این ماژول برای سازگاری با کد قبلی، پروفایل پایهٔ IR را استفاده می‌کند.
+رفتار ایران قبل/بعد یکسان است (تست مقایسه‌ای).
 """
+
 from __future__ import annotations
 
-import json
+from domains.country_profile.matching import (
+    parse_str_list,
+)
+from domains.country_profile.profile import CountryProfile
+from domains.country_profile.registry import IR_PROFILE
 
+# ثابت‌های قبلی (برای سازگاری)
 COUNTRY_CODES = frozenset({"IR", "IRN"})
 NAME_KEYWORDS = frozenset({"iran", "iranian"})
 
+# پروفایل فعال (پیش‌فرض IR)
+_active_profile: CountryProfile = IR_PROFILE
 
-def _norm(text: str) -> str:
-    return " ".join(text.strip().split()).casefold()
+
+def set_active_profile(profile: CountryProfile) -> None:
+    global _active_profile
+    _active_profile = profile
+
+
+def get_active_profile() -> CountryProfile:
+    return _active_profile
 
 
 def is_iran_country(code: str | None) -> bool:
-    return bool(code) and code.strip().upper() in COUNTRY_CODES
+    return _active_profile.matches_country(code)
 
 
 def is_iran_name(name: str | None) -> bool:
-    if not name:
-        return False
-    words = set(_norm(name).replace("-", " ").split())
-    return bool(words & NAME_KEYWORDS)
+    return _active_profile.matches_name(name)
 
 
 def is_iran_target(target: str | None) -> bool:
-    if not target:
-        return False
-    low = target.casefold()
-    return "irn" in low or "iran" in low
+    return _active_profile.matches_target(target)
 
 
 def is_iran_source(name: str | None, domain: str | None) -> bool:
-    if is_iran_name(name):
-        return True
-    if domain and domain.strip().casefold().endswith(".ir"):
-        return True
-    return False
-
-
-def parse_str_list(raw: str | None) -> list[str]:
-    if not raw:
-        return []
-    try:
-        out = json.loads(raw)
-        return [str(x) for x in out if isinstance(x, (str, int, float))]
-    except Exception:  # noqa: BLE001
-        return []
+    return _active_profile.matches_source(name, domain)
 
 
 __all__ = [
@@ -64,4 +54,6 @@ __all__ = [
     "is_iran_source",
     "is_iran_target",
     "parse_str_list",
+    "set_active_profile",
+    "get_active_profile",
 ]

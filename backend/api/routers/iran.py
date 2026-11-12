@@ -21,6 +21,8 @@ router = APIRouter(prefix="/api/iran", tags=["iran"])
 
 
 class IranBriefRead(BaseModel):
+    profile_code: str = ""
+    profile_version: str = ""
     events: list[dict]
     claims: list[dict]
     macro: list[dict]
