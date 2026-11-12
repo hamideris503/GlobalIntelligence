@@ -68,6 +68,11 @@ logs/
 # --- Tool output (regenerable) ---
 graphify-out/
 
+# --- Local Playwright browser binary (download once, never commit) ---
+chrome-win64/
+test-results/
+playwright-report/
+
 # --- Scratch / test outputs (untracked by design) ---
 pg*.txt
 pytest-*.txt

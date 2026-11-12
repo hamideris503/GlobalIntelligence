@@ -30,6 +30,7 @@ ANALYST_WRITE_PATHS = frozenset({
     "/api/ai/chat",
     "/api/ai/generate",
     "/api/alerts/evaluate",
+    "/api/analyses/request",
     "/api/audit/log",
     "/api/audit/replay",
     "/api/briefings/daily",
@@ -66,6 +67,8 @@ ANALYST_WRITE_PATHS = frozenset({
     "/api/world-state/build",
 })
 ANALYST_WRITE_PREFIXES = ("/api/screening/review",)
+# مسیرهای دارای suffix (مثل /api/decisions/{id}/review) هم نوشتن تحلیل‌گرند.
+ANALYST_WRITE_SUFFIXES = ("/review",)
 # خواندن این بخش‌ها اطلاعات عملیاتی/اعتبارنامه است، نه داده‌ی تحلیلی.
 ADMIN_READ_PREFIXES = (
     "/api/settings",
@@ -85,6 +88,8 @@ def required_role(method: str, path: str) -> str:
     if method in SAFE_METHODS:
         return "admin" if _under(path, ADMIN_READ_PREFIXES) else "viewer"
     if path in ANALYST_WRITE_PATHS or _under(path, ANALYST_WRITE_PREFIXES):
+        return "analyst"
+    if path.startswith("/api/decisions/") and path.endswith(ANALYST_WRITE_SUFFIXES):
         return "analyst"
     return "admin"
 

@@ -27,12 +27,14 @@ from backend.api.routers import (
     ai_routing,
     alerts,
     analogues,
+    analyses,
     archive,
     audit,
     briefings,
     claims,
     classify,
     configuration,
+    dashboard,
     debate,
     decisions,
     dedup,
@@ -278,6 +280,8 @@ def create_app() -> FastAPI:
     app.include_router(local_runtimes_router.router, dependencies=protected)
     app.include_router(screening_router.router, dependencies=protected)
     app.include_router(inbox.router, dependencies=protected)
+    app.include_router(analyses.router, dependencies=protected)
+    app.include_router(dashboard.router, dependencies=protected)
     app.include_router(research.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)
