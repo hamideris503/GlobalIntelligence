@@ -1,102 +1,149 @@
-# Delta Implementation Inventory (v1.5 addenda vs. current checkout)
+# Delta Implementation Inventory — GlobalIntelligence UI
 
-**Stage:** 0 — Delta Read-only Inventory
-**Status:** `VERIFIED` (read-only; no application file, migration or DB was modified)
-**Branch / HEAD:** `42b2278` — "تست آپدیت ریدمی" (recorded at audit time)
-**Scope:** only `F03.UX`, `F03.0`, `F12.1.1` and the minimal wiring of the existing
-Provider / Telegram / Archive / Settings UIs. v1.3 domain features (F00–F16, F13 archive,
-source bot, dedup, priority, ingestion, analysis) are **reused, not rebuilt**.
+**Stage:** `F03.UX.0` — ممیزی UI و تعیین مالکیت فایل‌ها (بدون تغییر کد اجرایی)
+**Status:** `VERIFIED` برای خودِ ممیزی؛ کد اجرایی در این زیرمرحله تغییر نکرد
+**Branch / HEAD:** `step6a-analysis-dashboard` / `31b4ca4c662e215931781451605609e505a257e2`
+**Audit date:** ۲۰۲۶-۱۱-۰۶
+**Method:** فقط‌خواندنی — `git status/diff`, خواندن فایل‌ها، استخراج ایستا از HTML، نقشهٔ route/API، اسناد Stage قبلی.
+**Supersedes:** نسخهٔ قبلی این سند که یک اپ React/Vite در `apps/web` را توصیف می‌کرد؛ آن اپ دیگر در checkout وجود ندارد. تاریخچه در Git باقی است و حذف نشده.
 
-Working-tree caveat: the checkout already carries uncommitted owner changes across
-`apps/web/src/*`, `backend/*`, `tests/*`, `db/migrations/env.py` and docs. Nothing was
-reset, cleaned, stashed or rewritten; the deltas below are measured against that tree.
+> **وضعیت اجرا (پس از repair همان نوبت):** خطای نحوی `backend/static/index.html` رفع شد (حذف ۵٬۵۲۳ بایت HTML خام + اصلاح یک توکن `+'٪'`). syntax check اکنون ۰ خطا است و صفحه با uvicorn واقعی در Chromium بالا آمد (۲۵ `nav-item`، overview رندر شد، فقط 401 احراز هویت). جزئیات و hash قبل/بعد در `docs/UI_MIGRATION_MANIFEST.md` §6.1.
+>
+> **به‌روزرسانی ۲۰۲۶-۱۱-۰۷ — پس از اتصال دادهٔ واقعی:** `backend/static/ui-data.js` و `backend/static/ui-data.css` اضافه شدند و ۱۹ صفحهٔ جدید به API واقعی وصل شدند؛ ۶ صفحهٔ قدیمی متصل (overview, ai-analysis, inbox, world, screening, sources) نیز در runtime با دادهٔ زنده تأیید شدند. ۲۵ مسیر در مرورگر بدون خطای کنسول/شبکه بالا آمدند، `macro` با `country=IR` اصلاح شد، World Monitor کلید API را می‌فرستد (۴۰ feature + ۴۶۳ without_location)، و کانتینر `gi_backend` با assetهای جدید بازسازی شد. ماتریس پایین سند، **عکس لحظه‌ای مرحلهٔ F03.UX.0** است و وضعیت جاری نیست؛ مرجع فعلی `docs/UI_MIGRATION_MANIFEST.md` است. هیچ فایل legacy حذف نشده و UX.8 همچنان مسدود است.
 
 ---
 
-## 1. Frontend stack actually in use
+## 1. Frontend stack واقعی
 
-| Area | Reality (evidence) |
+| حوزه | واقعیت (شاهد) |
 |---|---|
-| Framework | React 18.3 + Vite 5.4, TypeScript 5.5 (`apps/web/package.json`) |
-| Styling | Hand-authored CSS (`apps/web/src/styles.css`, 250 lines) + token file `apps/web/src/design/tokens.css`; Tailwind 4 utilities imported **without preflight** for two chat components (`apps/web/src/tw.css`) |
-| Router | Custom hash router, 27 route names, no per-route code splitting (`apps/web/src/router.ts`) |
-| State | Local `useState` + a `useApi` hook; no query cache, no global store (`apps/web/src/ui.tsx`) |
-| Components | One 569-line shared module `apps/web/src/ui.tsx` (Table, Modal, Field, Section, StatCard, Badge, Toast, Spinner, Empty, Err, charts) + 5 files under `components/ui/` (button, loader, response, markdown, conversation, mostly chat-oriented) |
-| Icons | Local inline SVG set, 40 icons (`apps/web/src/icons.tsx`) — one icon system already, no dependency needed |
-| Auth model | Internal API key typed by the user, held **in memory only** (`apps/web/src/api.ts`); no localStorage, matches the security rule |
-| Theme | dark/light only, persisted in `localStorage` under `gi_theme` (`apps/web/src/theme.tsx`) |
-| i18n | Persian RTL hard-coded (`index.html` `dir="rtl"`), Persian number/date formatting in `theme.tsx` |
-| Tests | Playwright E2E only (`apps/web/e2e/*.spec.ts`), ESLint + `tsc --noEmit`; **no unit/component test runner** |
-
-No frontend framework rewrite or new dependency is justified by this delta.
-
----
-
-## 2. Requirement-by-requirement status
-
-| # | Requirement | Status | Evidence |
-|---|---|---|---|
-| 1.1 | Single design-token source | `PARTIAL` | `design/tokens.css` holds color/space/radius/shell tokens; no status or P0–P4 tokens, no documented token contract. |
-| 1.2 | Token values consumed everywhere | `PARTIAL` | `styles.css` reads tokens, but `styles.css` also hard-codes sizes (`width: 340px`, `height: 38px`, `52vh`, `130px`, `150px`). |
-| 1.3 | Persian typography | **`CONFLICT` (defect)** | `tw.css` declares `@theme inline { --font-sans: var(--font-sans); }`, a self-reference that makes `var(--font-sans)` invalid; `body` computes `font-family: "Times New Roman"` on every route (measured, `docs/audit-baseline/baseline.json`). The whole Persian typographic stack is dead. |
-| 1.4 | Light + dark + system theme | `PARTIAL` | `theme.tsx` supports `dark`/`light` with persistence; `system` preference is not offered and `color-scheme` is fixed per theme. |
-| 1.5 | Base component set (Button, Input, Select, Switch, Table, Dialog, Drawer, Tabs, Badge, Toast, Empty, Error, Skeleton, Pagination, Tooltip, Breadcrumb) | `PARTIAL` | Exists: Button variants via CSS classes, Table (sortable), Modal, Field, Badge, Section, Spinner/skeleton, Empty, Err, Toast. Missing: Switch, Drawer, Tabs component (ad-hoc `.tabs` markup), Pagination component, Tooltip, Breadcrumb, FormField with `aria-describedby`, ConfirmAction semantics (only a `ConfirmDialog` that reuses Modal). |
-| 1.6 | App shell + grouped task-based navigation | `PARTIAL` | `Shell` in `ui.tsx`; `NAV_GROUPS` in `router.ts` groups by domain (نمای کلی / داده و هوش مصنوعی / تحلیل جهان / بازار و تصمیم / سیستم) with 25 items in 5 groups — partially task-based, but "Settings"/"Archive" are untranslated English labels in a Persian menu and the first group mixes overview with the inbox. |
-| 1.7 | Responsive shell, collapsible sidebar, mobile drawer | `EXISTS` | Collapse toggle persisted only for the session; mobile off-canvas at `<860px`; sidebar is `position: fixed` on mobile but **not focus-trapped** and not closed on route change by keyboard. |
-| 1.8 | Command palette / shortcuts | `MISSING` | Only `/` focuses global search (`Shell` keydown). No palette. |
-| 1.9 | Keyboard/focus management on route change | `MISSING` | `<main key={route.name}>` remounts but focus is not moved or announced; sidebar drawer keeps focus behind the scrim. |
-| 1.10 | 404 / permission-denied route states | `MISSING` | `parseHash()` silently falls back to `dashboard`; unauthorized calls render the generic key notice. |
-| 1.11 | Unified loading / empty / error / stale / offline states | `PARTIAL` | `useApi` + `Section` give loading/error; `Empty` exists. Missing: stale timestamp, offline/degraded banner, per-widget retry, no-results-with-clear-filters, partial-success reporting. |
-| 1.12 | Dashboard KPIs are defined, sourced, timestamped | `PARTIAL` | Values come from real endpoints (`/api/ops/status`, `/api/sources`, `/api/classify/articles`, `/api/forecasts`, `/api/world-state/current`, `/api/risk/overview`), and the page states "نامشخص" when an API fails. But no `last_updated_at`, no metric definition, no per-KPI deep link with filters, and 8 identical `401` error blocks render at once when the key is missing. |
-| 1.13 | Mock/hard-coded data never shown as real | `EXISTS` | `MockTag` badge on classified items; `StateBanner` marks `demo`/`dev`/`nc` sections; dashboard has no fabricated numbers. |
-| 1.14 | Per-route page header + primary action | `PARTIAL` | `PageHeader` and ad-hoc `.page-head` blocks both exist (two patterns). |
-| 1.15 | Wide-table handling on small viewports | `PARTIAL` | `.tablewrap` scrolls horizontally; no column priority, no row-card fallback, no scroll affordance. |
-| 1.16 | URL reflects filter/sort state | `MISSING` | German-style filters live in component state only; the inbox detail uses `#/news/article-<id>` but the list filter/page/sort is lost on reload/back. |
-| 1.17 | Component/unit tests, visual regression, a11y automation | `MISSING` | No test runner for components, no axe, no snapshot suite; E2E covers news priority, screening ops, settings models only. |
-| 2.1 | Shared configuration descriptor/schema contract | `MISSING` | No `/api/configuration/*` surface; grep for `ConfigurationRevision` / `revision_number` / `config_revision` across `backend`, `domains`, `source_bot`, `db` returns **zero** hits. |
-| 2.2 | Config revisions + rollback + audit + optimistic locking | `MISSING` | Same evidence; `PATCH /api/sources/{id}` mutates the single row in place (`backend/api/routers/sources.py:112`). |
-| 2.3 | Encrypted, write-only secrets | `EXISTS` (provider credentials) / `MISSING` (sources) | Fernet-based store with "refuse plaintext" behaviour: `backend/ai/credentials.py`, model in `backend/database/models/ai_settings.py`, key from `APP_ENCRYPTION_KEY`. Source auth material has no store because `Source` has no credential fields. |
-| 2.4 | Source adapter registry as single source of truth | `PARTIAL` | Registry exists (`source_bot/registry.py`: `pick_adapter`, `endpoint_options`; adapters `rss.py`, `rest_json.py`, `csv.py`, `xml.py`, `html.py`, `scrapy_policy.py`), but there is no descriptor endpoint and the frontend still hard-codes `TYPES = ["rss","api","dataset","official","scrape","manual","other"]` (`apps/web/src/pages/sources.tsx`). |
-| 2.5 | Draft → validate → test → preview → enable lifecycle | `MISSING` | `POST /api/sources` writes an active-by-default row; only `POST /{id}/recheck` and `POST /{id}/health` exist. |
-| 2.6 | Preview that never ingests | `MISSING` | The closest existing action calls `POST /api/ingest` with `limit: 5` — it **does** ingest (`pages/sources.tsx`, `trialFetch`). |
-| 2.7 | Runtime pins the config revision per run | `MISSING` | No revision field on `Source`/`Job`; `source_bot/runner.py` resolves adapters live. |
-| 3.1 | Server-side source list search/filter/sort/pagination | `MISSING` | `GET /api/sources?limit=500` then client-side filtering in the page. |
-| 3.2 | Multi-step source wizard with field-level validation | `MISSING` | Single flat `SourceForm` modal, validation of `name` only; no test/preview/draft step; `enable` is a checkbox inside the same form. |
-| 3.3 | Source duplicate / rollback actions | `MISSING` | Not present in UI or API. |
-| 4.1 | Provider catalog read from backend | `EXISTS` | `GET /api/ai/providers`, `GET /api/settings/providers`, `/api/ai/status` consumed by `pages/ai.tsx`, `pages/keys.tsx`, `pages/connections.tsx`. |
-| 4.2 | Provider lifecycle states (discovered → enabled) kept separate | `PARTIAL` | Credential save, connectivity verify and model verify are separate calls (`/api/settings/models/{id}/verify`, `/api/settings/models/{id}/block`), but there is no shared `CONFIGURED/CONNECTIVITY_VERIFIED/POLICY_APPROVED/ENABLED` vocabulary across UI and backend. |
-| 4.3 | Telegram/archive config through one control plane | `PARTIAL` | `pages/archive.tsx` uses `/api/archive/{catalog,settings,storage,validate,restore/dry-run,purge/preview}`; token/chat ID are not managed from the UI at all (env-based). |
-| 4.4 | Purge safety gates preserved in any redesign | `EXISTS` | `purge/preview` + `restore/dry-run` endpoints consumed by the archive page; must stay untouched by the redesign. |
+| اجرا | یک فایل HTML تک‌فایلی: `backend/static/index.html` (۲۹۹٬۱۷۵ بایت، ۸۳۴ خط) |
+| Serve | `backend/main.py` → `_StaticUIMount("/", StaticFiles(..., html=True))` بعد از همهٔ routeهای API؛ `/api/*` هرگز بلعیده نمی‌شود |
+| Framework | بدون React/Vite/TypeScript. هیچ `package.json`، `vite.config`، `frontend/` یا `apps/web/` فعالی در tree نیست |
+| CSS | داخل همان فایل؛ توکن‌های CSS با تم Dark Navy + آبی/cyan/violet |
+| Router | درون‌صفحه‌ای: `pages` (۲۵ کلید) + `pageRenderers` + `renderPage(id)`؛ ناوبری با `data-page` و `href="#"`. شاهد URL/hash پایدار در این ممیزی دیده نشد |
+| State | متغیرهای ماژول + `state` محلی نقشه + `window.__giWorldMap`؛ بدون store |
+| Auth | نشست کوکی same-origin (`/api/auth/*`) + امکان `X-API-Key`؛ نقش‌ها `viewer`/`analyst`/`admin` از `backend/auth/deps.py` |
+| Map | MapLibre GL **vendored محلی** در `backend/static/vendor/maplibre-gl/` (نسخهٔ ۵.۶.۲ در header فایل‌های vendor) — بدون CDN در runtime |
+| اعداد/تاریخ | `fa()`/`nf()` برای ارقام فارسی، `toLocaleTimeString('fa-IR')` |
+| RTL | `<html lang="fa" dir="rtl">` |
+| Test UI | **هیچ** تست خودکاری روی `backend/static` وجود ندارد؛ ۱۴۴ فایل تست فقط Backend را پوشش می‌دهند |
+| Build/Lint/Typecheck | برای این stack وجود ندارد؛ gate معادل باید «syntax check + HTTP smoke» تعریف شود (در UX.6/UX.7) |
 
 ---
 
-## 3. Capabilities deliberately **not** rebuilt
+## 2. فایل‌ها و طبقه‌بندی
 
-- Provider catalog/discovery (`/api/ai/providers`, `/api/settings/providers`, routing apply).
-- Telegram archive ZIP/manifest/upload/verify/restore/purge logic (`backend/api/routers/archive.py`, `domains/*`).
-- Source adapters, SSRF guard, dedup, priority, ingestion and analysis pipeline.
-- Fernet credential service (`backend/ai/credentials.py`) — the Control Plane must reuse it, not create a second secret store.
+| مسیر | کلاس | وضعیت | SHA-256 | Bایت | مصرف‌کننده |
+|---|---|---|---|---|---|
+| `backend/static/index.html` | `NEW_UI_PROTECTED` | modified (syntax repaired) | `450a45bc1b81836e5445dbd759d9958be39a2f70586ef5d2c393f52a6496aadc` | ۲۹۲٬۴۹۱ | root runtime |
+| `backend/static/index.html` @HEAD | نسخهٔ مرجع rollback | committed blob `00fcf1e1c8648a476f4002e0e1a4eb8ccc78c2b1` | `2714b245dbb1ec890c612ddbd38518f61a2dda30c408f30a0792b162e3870657` | — | rollback تا پذیرش |
+| `backend/static/vendor/maplibre-gl/maplibre-gl.js` | `SHARED` | tracked/clean | `1525f971223d81f169f049f1ce50083e6f1643aa6b0ea0716653a550d2d57fc2` | ۹۳۷٬۳۹۵ | World Monitor |
+| `backend/static/vendor/maplibre-gl/maplibre-gl.css` | `SHARED` | tracked/clean | `43c1d886b5fdf0aac4e7135bd6f84b823d9f48283a648012665f9be52c01389f` | ۶۹٬۴۳۰ | World Monitor |
+| `backend/api/routers/analyses.py` | `NEW_BACKEND` (untracked) | جدید، uncommitted | — | — | `/api/analyses` |
+| `backend/api/routers/dashboard.py` | `NEW_BACKEND` (untracked) | جدید، uncommitted | — | — | `/api/dashboard` |
+| `domains/analyses/service.py` | `NEW_BACKEND` (untracked) | جدید، uncommitted | — | — | نمای تجمیعی تحلیل |
+| `tests/test_analyses_dashboard.py` | `TEST_NEW` (untracked) | جدید، اجرا نشده در این ممیزی | — | — | مرحلهٔ ۶A |
+| `apps/web_leftover_locked/` | `UNKNOWN_PROTECTED` | permission-denied؛ خارج از runtime | — | — | نامشخص — حذف/تغییر ممنوع |
+| `integrations/worldmonitor/.gitkeep` | `UNKNOWN_PROTECTED` | placeholder خالی | — | — | نامشخص |
+| `GlobalIntelligence_WorldMonitor_2D_Full_Map.html` | `UI_REFERENCE_PROTECTED` | فقط پیوست؛ در checkout نیست | در دسترس نیست | ۲۶۵٬۲۶۰ | مرجع طراحی، نه runtime |
+| `data/labeling/*` | `DATA_PROTECTED` | untracked | — | — | دادهٔ ارزیابی؛ حذف ممنوع |
 
 ---
 
-## 4. Smallest compatible change per missing item (design note for later stages)
+## 3. App Shell و ناوبری
 
-| Gap | Smallest change | Dependency / risk |
+`pages` شامل ۲۵ شناسه است؛ `pageRenderers` فقط برای ۱۸ صفحه renderer اختصاصی دارد و ۷ صفحه به `genericDomain()` می‌افتند.
+
+| گروه سایدبار | صفحه‌ها (تعداد) |
+|---|---|
+| فضای کاری هوشمند | overview, ai-analysis, ai-chat, debate, evaluation, evidence, entity-graph, forecasts, risk, decisions (۱۰) |
+| اطلاعات و تحلیل حوزه‌ای | inbox, world, geopolitics, iran, macro, markets, portfolio (۷) |
+| ورودی و عملیات | screening, sources, providers, operations, alerts (۵) |
+| مدیریت و نگهداری | archive, reports, settings (۳) |
+
+عناصر Shell موجود: sidebar، brand، topbar، breadcrumb، global search، command palette، identity/ribbon، auth modal، toast، drawer، form modal، chart tooltip سراسری، دکمه‌های «تازه‌سازی».
+
+---
+
+## 4. ماتریس ۲۵ صفحه (prototype ↔ repo ↔ API ↔ وضعیت)
+
+ستون «اتصال کامل» یعنی کد UI واقعاً به API واقعی وصل است. پس از رفع BLOCKER نحوی، شل و صفحهٔ overview در runtime بالا می‌آیند؛ صفحات متصل‌نشده همچنان دادهٔ نمونه نشان می‌دهند و 401/خطای داده در نبود نشست مورد انتظار است.
+
+| صفحه | UI موجود | API واقعی | اتصال کامل | تست | نواقص |
+|---|---|---|---|---|---|
+| overview | `dashboard()` + `loadDashboard` | `GET /api/dashboard/overview` (uncommitted) | `PARTIAL-UNCOMMITTED` | `tests/test_analyses_dashboard.py` (اجرا نشده) | وابسته به router untracked؛ «توزیع ریسک» بدون واحد/زمان؛ بخشی از خروجی HTML هنوز نمونه است |
+| ai-analysis | `aiAnalysis()` + `loadAnalyses`/`openAnalysis` | `GET /api/analyses`, `GET /api/analyses/{id}/trace`, `POST /api/analyses/request` (uncommitted) | `PARTIAL-UNCOMMITTED` | همان فایل (اجرا نشده) | خطای فرمت `+٪'` در همان بلوک؛ صفحه‌بندی ثابت ۵۰؛ بدون provider attribution |
+| ai-chat | `aiChat()` | `POST /api/ai/chat` موجود، مصرف نشده | `DEMO` | ندارد | رونوشت نمونه؛ ارسال toast-only؛ بدون نمایش واقعی Mock/Real و usage |
+| debate | `debate()` | `GET/POST /api/debate/*`, `/api/decisions/from-debate` | `DEMO` | ندارد | همهٔ اعداد نمونه؛ دکمهٔ اجرا غیرمتصل |
+| evaluation | `evaluation()` | `GET /api/evaluation/summary|scores`, `POST /run`, `/api/self-eval/*` | `DEMO` | ندارد | اعداد نمونه؛ حالت «بدون Gold Set» باید صریح باشد |
+| evidence | `evidence()` | `GET /api/claims`, `/api/claims/{id}/evidence`, `POST /api/claims/extract|evidence` | `DEMO` | ندارد | جدول/جزئیات نمونه؛ زنجیرهٔ شاهد واقعی نمایش داده نمی‌شود |
+| entity-graph | `genericDomain` (بدون renderer اختصاصی) | `GET /api/graph/entities|relationships|neighbors/{id}`, `POST /api/graph/extract` | `GENERIC-DEMO` | ندارد | گراف واقعی وجود ندارد؛ SVG فعلی فقط شماتیک داشبورد است |
+| forecasts | `forecasts()` + `forecastFanChart` | `GET /api/forecasts`, `/ledger/active`, `/{id}`, `POST /run` | `DEMO` | ندارد | fan نمونه؛ P10/P90 واقعی نباید جعل شود |
+| risk | `risk()` | `GET /api/risk/overview|assessments`, `POST /analyze`, `/api/scenarios` | `DEMO` | ندارد | ماتریس نمونه؛ API واقعی مصرف نمی‌شود |
+| decisions | `decisions()` | `GET /api/decisions`, `/{id}`, `POST /run|from-debate` | `DEMO` | ندارد | شاخهٔ `step6a-risk-forecast-decisions` اتصال دارد ولی merge نشده؛ کورکورانه merge نشود |
+| inbox | `inbox()` + `loadInbox` | `GET /api/inbox`, `GET /api/inbox/summary` | `CONNECTED` (commitشده) | Backend موجود | صفحه‌بندی/فیلتر URL؛ جزئیات مقاله و provenance |
+| world | `worldMonitorPage()` + `fetchFeed` | `GET /api/geo/events` | `CONNECTED` (commitشده) | Backend موجود | منبع style/tile باید audit شود؛ وضعیت «بدون موقعیت» از metadata خوانده می‌شود؛ clustering/لایه‌ها نیازمند تست |
+| geopolitics | `genericDomain` | `GET /api/geopolitics/assessments|tensions`, `POST /analyze` | `GENERIC-DEMO` | ندارد | جدول نمونه؛ نمرات تنش واقعی نمایش داده نمی‌شود |
+| iran | `genericDomain` | `GET /api/iran/brief|events|transmission`, `POST /transmission/analyze` | `GENERIC-DEMO` | ندارد | برچسب «درحال‌توسعه» در منو؛ `/events` مصرف نشده |
+| macro | `genericDomain` | `GET /api/macro/overview|assessments`, `POST /analyze`, `/api/economic/*` | `GENERIC-DEMO` | ندارد | واحد/دوره/منبع هر مشاهده الزامی است |
+| markets | `genericDomain` | `GET /api/markets/symbols|latest|observations`, `POST /fetch` | `GENERIC-DEMO` | ندارد | سوییچ نماد و سری زمانی واقعی نیست |
+| portfolio | `genericDomain` | `GET/POST /api/portfolios*`, snapshots | `GENERIC-DEMO` | ندارد | تخصیص/تاریخ ارزش واقعی نیست |
+| screening | `screening()` + `loadScreening`/`loadDispatch`/`submitDecision` | `GET /api/screening/queue|summary`, `POST /review/{id}/ack|decision`, `GET /api/dispatch/status` | `CONNECTED` (commitشده) | Backend موجود | برچسب advisory و provenance باید برجسته شود |
+| sources | `sources()` + `loadSources`/`loadFunnel`/form/preview | `GET /api/sources`, `/stats`, `GET /api/ingest/stats`, `POST /api/sources`, `POST /{id}/preview|health|recheck`, `PATCH /{id}` | `CONNECTED` (commitشده) | Backend موجود | preview باید غیرمخرب بماند؛ اعتبارسنجی URL/SSRF؛ total/pagination |
+| providers | `providers()` + `saveProviderDraft` | `GET /api/ai/providers|status`, `GET/POST /api/settings/providers`, models, test | `DEMO` | ندارد | Draft فقط در `window.__giProviderDraft`؛ هیچ call واقعی/provider catalog load نمی‌شود؛ کلید به‌درستی ذخیره نمی‌شود |
+| operations | `operations()` | `GET /api/jobs`, `/api/ops/status|monitoring|metrics`, `/api/dispatch/*` | `DEMO` | ندارد | pipeline/job واقعی نمایش داده نمی‌شود |
+| alerts | `genericDomain` | `GET /api/alerts`, `/{id}`, `POST ack|resolve|deliver`, rules CRUD | `GENERIC-DEMO` | ندارد | ۱۰ عملیات Backend بدون UI |
+| archive | `archive()` | `GET /api/archive/storage|settings|catalog`, `POST validate|restore/dry-run|restore|purge/preview|telegram/{id}` | `DEMO` | ندارد | auto-purge باید خاموش بماند؛ restore/verify از UI اجرا نمی‌شود |
+| reports | `reports()` | `GET /api/briefings`, `/{id}`, `POST daily|weekly`, `/api/audit/log` | `DEMO` | ندارد | تولید/نمایش گزارش واقعی نیست |
+| settings | `settings()` | `/api/settings/*` (۲۳ op), `/api/configuration/*` (۱۰ op) | `DEMO` | ندارد | کنترل‌پلین واقعی متصل نیست؛ secrets باید write-only بمانند |
+
+**جمع:** `CONNECTED` = ۴ (inbox, sources, screening, world) · `PARTIAL-UNCOMMITTED` = ۲ · `DEMO` = ۱۲ · `GENERIC-DEMO` = ۷.
+
+---
+
+## 5. قرارداد داده و امنیت
+
+- UI فقط از `api()`/`fetch` به Backend وصل می‌شود؛ دسترسی مستقیم به DB وجود ندارد.
+- مسیرهای امنیتی: `access_guard` (نشست/کلید + نقش)، `/health` عمومی، `/api/auth/*` عمومی به‌جز `me/logout`.
+- `POST /api/analyses/request` در working tree به `ANALYST_WRITE_PATHS` اضافه شده است (نقش `analyst`).
+- هیچ secretی در `index.html` hard-code نشده؛ Draft provider کلید را ذخیره نمی‌کند (`keyConfigured` فقط boolean).
+- `ARCHIVE_AUTO_PURGE_ENABLED=false` باید در تمام مراحل دست‌نخورده بماند.
+- Mock و Real: نشان `sample`/`دادهٔ نمونه` در HTML وجود دارد، اما به‌صورت خودکار به وضعیت واقعی API گره نخورده؛ ribbon فقط pages متصل را «داده زنده» می‌کند.
+
+---
+
+## 6. Baseline تست و اجرا
+
+| مورد | نتیجه | وضعیت |
 |---|---|---|
-| Broken font token | Remove the self-referential `--font-sans`/`--font-mono` lines from `tw.css @theme inline`; keep Tailwind utilities working | None; one-line fix, high visual impact |
-| Status/P0–P4 tokens | Extend `design/tokens.css`, document the mapping | None |
-| Config revision model | New `ConfigurationInstance`/`Revision`/`TestRun`/`AuditEvent` tables + Alembic migration | PostgreSQL run required; not to be written in a read-only stage |
-| Source descriptor endpoint | Read-only `GET /api/configuration/definitions` derived from `source_bot/registry.py` | Requires a descriptor dataclass in `source_bot` |
-| Non-ingesting preview | New adapter-level `preview()` path + `POST …/preview` returning sanitized samples | Must reuse `source_bot/security.py`; must not touch ingestion counters |
-| Server-side source list | Extend `GET /api/sources` with `q/type/active/page/page_size` (backward compatible) | Existing callers use `limit` only |
-| Component tests | Add `vitest` + `@testing-library/react` (already TypeScript/Vite) | **New devDependency** — gate on owner approval |
-| Visual regression / axe | Playwright screenshots (already installed) + optional `@axe-core/playwright` | New devDependency only for axe |
+| Syntax check اسکریپت‌های inline @HEAD `31b4ca4` | ۰ خطا | `VERIFIED` (این ممیزی) |
+| Syntax check اسکریپت‌های inline working tree | ۰ خطا (پس از repair) | `VERIFIED` |
+| بارگذاری واقعی صفحه (`127.0.0.1:8010` + Chromium) | HTTP 200 · ۲۵ nav · overview رندر · فقط 401 احراز هویت | `VERIFIED` |
+| آخرین suite گزارش‌شده (مرحلهٔ ۵، PostgreSQL) | ۱۷۱۹ passed / ۱ skipped | گزارش مالک؛ در این ممیزی اجرا نشد |
+| `tests/test_analyses_dashboard.py` (مرحلهٔ ۶A) | اجرا نشده | `NOT_VERIFIED` |
+| تست UI/مرورگر | وجود ندارد | `MISSING` |
+| `pytest` full | در F00-R طبق قرارداد اجرا نشد | `NOT_RUN` |
+| Lint/Typecheck/Build فرانت | stack ندارد | `NOT_APPLICABLE` (gate جایگزین لازم است) |
 
 ---
 
-## 5. Open risks
+## 7. شکاف‌های باز (به ترتیب اولویت)
 
-1. `styles.css` is a single global sheet with no component boundaries; every later stage must extend tokens instead of adding new global rules.
-2. Two parallel page-header/section patterns already exist (`PageHeader` vs `.page-head`); consolidating them touches ~20 pages.
-3. The frontend has no unit-test harness, so "component tests" for F03.UX.1 require a new devDependency and an explicit owner decision.
-4. `Archive` and `Settings` labels are untranslated inside a Persian navigation; renaming affects E2E selectors (`settings-models.spec.ts`).
+1. **BLOCKER-1:** خطای نحوی `backend/static/index.html` — کل UI از کار افتاده؛ باید با diff محدود، snapshot و تست syntax رفع شود.
+2. **BLOCKER-2:** مرحلهٔ ۶A (dashboard/analyses) uncommitted و تست‌نشده است؛ بدون تأیید تست نباید «متصل» اعلام شود.
+3. **HIGH:** ۱۹ صفحهٔ باقی‌مانده DEMO/GENERIC هستند؛ هیچ‌کدام API واقعی مصرف نمی‌کنند.
+4. **HIGH:** بدون deep-link/URL state، refresh و direct navigation قابل اتکا نیست.
+5. **HIGH:** صفر تست UI/E2E برای رابط جدید؛ gateهای UX.6/UX.7 نیازمند harness جایگزین هستند.
+6. **MEDIUM:** اسناد قبلی (`UI_PAGE_FEATURE_MATRIX`, `UI_HTML_TRACEABILITY_MATRIX`, `UI_LEGACY_FEATURE_MIGRATION`, `UI_FINAL_ACCEPTANCE`) وضعیت React-era را توصیف می‌کنند و باید در UX.0/UX.1 به این سند ارجاع داده شوند؛ سند تکراری ساخته نشود.
+7. **MEDIUM:** `4 branch` قدیمی (`replace-ui`, `connect-ui-step0`, `step6a-risk-forecast-decisions`, `ui-gap-analysis`) بررسی‌نشده‌اند؛ merge کورکورانه ممنوع.
+8. **LOW:** برچسب «درحال‌توسعه» فقط روی `iran` است؛ سایر صفحات ناقص برچسب ندارند.
+
+---
+
+## 8. قابلیت‌هایی که عمداً بازسازی نمی‌شوند
+
+- ۴۵ router و ۲۰۰+ operation موجود Backend (auth, sources, ingest, dedup, classify, events, claims, graph, geo, screening, dispatch, risk, forecasts, decisions, archive, settings, ops, …).
+- سرویس‌های دامنه (`domains/*`)، مدل‌ها، migrationها، dispatch، AI Gateway، local screening، Source Bot.
+- MapLibre vendored و CSS/توکن‌های موجود؛ کتابخانه یا design system دوم ساخته نمی‌شود.
+- داده‌های `data/labeling/` و فایل مرجع HTML؛ نه حذف، نه جایگزینی.

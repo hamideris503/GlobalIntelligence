@@ -9,7 +9,9 @@
 | F03 | PARTIALLY_VERIFIED | docs/F03_PROVIDER_VERIFICATION.md (groq 403 شبکه/region) |
 | F03.0 | VERIFIED (کد/تست/SQL مهاجرت) | docs/F03_CONTROL_PLANE.md |
 | F12.1.1 | VERIFIED (کد/تست/بیلد) | docs/F12_1_1_DEDUP_CLUSTER_API.md |
-| F04 | PARTIAL (ارزیابی subset انجام شد) | docs/F04_KEV_REPORT.md, docs/F04_LAYA_REPORT.md, docs/F04_COMPARISON.md |
+| F04 | PARTIAL (full eval انجام شد) | docs/F04_2_KEV_FULL_REPORT.md, docs/F04_2_LAYA_FULL_REPORT.md, docs/F04_2_COMPARISON.md |
+| F04.1 | PARTIAL (tri-state engine) | docs/F04_1_SCREENING_RELIABILITY_REPORT.md |
+| F04.2 | PARTIAL (full eval + calibration) | docs/F04_2_THRESHOLD_CALIBRATION.md |
 | F04.1 | PARTIAL (tri-state engine پیاده‌سازی شد) | docs/F04_1_SCREENING_RELIABILITY_REPORT.md |
 | F05 | VERIFIED (کد/تست) | docs/F05_SOURCE_BOT_INGEST.md |
 | F06 | VERIFIED (کد/تست) | docs/F06_SECURITY.md |
