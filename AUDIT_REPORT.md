@@ -1,7 +1,8 @@
 # AUDIT_REPORT.md — Full Project Audit (Evidence-Based)
 
-> تاریخ ممیزی: 2026-10-09
+> تاریخ ممیزی: 2026-10-09 (آرشیو)
 > مبنا: repo در `main` (HEAD `7d7ed17`) + ۴ ممیز موازی + راستی‌آزمایی مستقل مجری
+> ⚠️ این گزارش متعلق به HEAD قدیمی است. وضعیت جاری: `TASKS.md`، `docs/FIXES_BACKLOG.md` (F-01..F-35) و `docs/ROADMAP_STAGE96_104.md`. HEAD فعلی `3d18c9e` روی `step6a-analysis-dashboard`.
 > اصل: هیچ ادعایی بدون شواهد (فایل:خط، خروجی دستور، رفتار زنده) پذیرفته نیست.
 
 ---
