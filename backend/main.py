@@ -64,6 +64,7 @@ from backend.api.routers import (
     performance,
     portfolios,
     research,
+    retention,
     risk,
     scenarios,
     selfeval,
@@ -284,6 +285,7 @@ def create_app() -> FastAPI:
     app.include_router(analyses.router, dependencies=protected)
     app.include_router(dashboard.router, dependencies=protected)
     app.include_router(research.router, dependencies=protected)
+    app.include_router(retention.router, dependencies=protected)
     app.include_router(risk.router, dependencies=protected)
     app.include_router(decisions.router, dependencies=protected)
     app.include_router(learning.router, dependencies=protected)
