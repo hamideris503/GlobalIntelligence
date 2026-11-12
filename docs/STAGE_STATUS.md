@@ -10,9 +10,8 @@
 | F03.0 | VERIFIED (کد/تست/SQL مهاجرت) | docs/F03_CONTROL_PLANE.md |
 | F12.1.1 | VERIFIED (کد/تست/بیلد) | docs/F12_1_1_DEDUP_CLUSTER_API.md |
 | F04 | PARTIAL (full eval انجام شد) | docs/F04_2_KEV_FULL_REPORT.md, docs/F04_2_LAYA_FULL_REPORT.md, docs/F04_2_COMPARISON.md |
-| F04.1 | PARTIAL (tri-state engine) | docs/F04_1_SCREENING_RELIABILITY_REPORT.md |
-| F04.2 | PARTIAL (full eval + calibration) | docs/F04_2_THRESHOLD_CALIBRATION.md |
 | F04.1 | PARTIAL (tri-state engine پیاده‌سازی شد) | docs/F04_1_SCREENING_RELIABILITY_REPORT.md |
+| F04.2 | PARTIAL (full eval + calibration) | docs/F04_2_THRESHOLD_CALIBRATION.md |
 | F05 | VERIFIED (کد/تست) | docs/F05_SOURCE_BOT_INGEST.md |
 | F06 | VERIFIED (کد/تست) | docs/F06_SECURITY.md |
 | F07 | VERIFIED (کد/تست) | docs/F07_DEDUP.md |
@@ -23,6 +22,8 @@
 | F12 | PARTIALLY_VERIFIED | docs/F12_UI_API_ALERTS.md (delivery غایب) |
 | F13 | PARTIALLY_VERIFIED | docs/F13_RETENTION_ARCHIVE.md (restore/disk monitoring غایب) |
 | F14 | PARTIALLY_VERIFIED | docs/F14_JOB_RUN_RACE.md, docs/F14_ETAG.md, docs/F27_IPV6.md, docs/F22_FRONTEND_LINT.md, docs/F34_E2E_CI.md, docs/F17_RESUME.md, docs/F28_DOCS_SYNC.md, docs/F15_ADAPTIVE_ROUTER.md, docs/F23_RATE_LIMIT.md, docs/F33_UNTRACKED.md, docs/F18_NPLUS1.md, docs/F19_HEAVY_ENDPOINTS.md, docs/F24_THRESHOLDS.md |
+| F03.UX.7 | **ACCEPTED** (۲۰۲۶-۱۱-۱۱) — مرجع واحد | docs/qa/UX7_ACCEPTANCE_20261107.md (سند UX.7 تنها منبع حقیقت است؛ این جدول وضعیت مستقل تعریف نمی‌کند) |
+| F03.UX.8 | **CLOSED / ACCEPTED** (۲۰۲۶-۱۱-۱۲) | docs/qa/STEP_6A_43_LEGACY_UI_RETIREMENT_FORMALIZATION.md (تأیید مالک + فهرست exact + هش‌ها) |
 | F15 | NOT_STARTED | پذیرش نهایی (backup/restore/soak) — نیاز به F13/F14 |
 | F16 | NOT_STARTED | پیش‌بینی/کالیبراسیون بلندمدت — پیوسته |
 
@@ -90,6 +91,28 @@
   process), N+1 and heavy endpoints verified. Still open: Text→JSONB (F-20), multi-process rate limit (F-23).
 - Not run this session (not claimed as passing): Playwright E2E, live provider, SMTP live send,
   remote CI on Python 3.12.
+
+## Update 2026-11-12 (stage 6A closeout + dispatch stall root cause)
+
+- **Full suite (SQLite, Python 3.14):** `1768 passed / 1 skipped / 0 failed` in 420.57 s (re-run 2026-11-12), after the two
+  new dispatch tests (previous run: 1766 passed / 1 skipped, 423.58 s);
+  `ruff check backend domains tests` → `All checks passed!`.
+- **PostgreSQL lane:** last measured **1735 passed / 0 failed** (2026-11-06, Python 3.14, 1501.89 s,
+  head `b7e1c2d3f4a5`) and the same count on the CI-pinned Python 3.12 container (2026-11-07,
+  1019.61 s). Current head is `c8f2d3e4a5b6`; the PG lane was **not** re-run after stage 6A.
+- **Dispatch stall (root cause fixed):** every one of the 711 live `article_dispatches` rows was
+  `terminal` with `max attempts reached: screening unavailable` and **zero** were `completed`. Cause:
+  an unavailable screening prerequisite (no local runtime, no real provider) was counted as a
+  transient article failure. Now the screening handler returns `blocked`; `mark_blocked` parks the
+  row as `pending` with a growing backoff (900 s → 6 h), refunds the claim attempt and keeps the
+  reason in `last_error` (`screening_unavailable:`). `DispatchService.status_summary()["blocked"]`
+  and the Operations dispatch panel surface it. Bulk revive:
+  `POST /api/dispatch/recover-screening` (admin, 409 unless a real provider is configured).
+- **Live evidence after rebuild:** `gi_backend` recreated from a fresh image; the dispatch loop
+  parked 59–76 screening rows with `attempts = 0` and produced **no new terminal rows**; `terminal`
+  stayed at 711. The 409 gate was verified against the live container.
+- **Not done:** no real provider configured (so screening stays blocked by design), `evidence` and
+  `entity`/`relationships` remain 0, PG lane and remote CI not re-run, Playwright specs still not in CI.
 
 ## Update 2026-11-04 (ادامه — E2E و رفع دو باگ UI)
 

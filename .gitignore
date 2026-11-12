@@ -73,6 +73,9 @@ chrome-win64/
 test-results/
 playwright-report/
 
+# --- Local UI screenshots (regenerable evidence, not source) ---
+screenshots/
+
 # --- Scratch / test outputs (untracked by design) ---
 pg*.txt
 pytest-*.txt

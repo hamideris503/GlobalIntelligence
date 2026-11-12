@@ -177,3 +177,7 @@
 - Documentation updated
 - No known critical error
 - User can reproduce result
+
+## Correction — CI facts (2026-11-12)
+
+The Phase 15 notes above are outdated: the current `.github/workflows/ci.yml` has **3 jobs** (`backend`, `backend-sqlite`, `docker`), **no `frontend` job**, and lint runs as `ruff check backend domains tests scripts source_bot` (including `source_bot/`). A lightweight `Legacy UI guard` step was also added (`python scripts/check_legacy_ui_backup.py --live-only`); the hash check of the retired UI backup runs on the host, not on CI runners. Remote GitHub Actions execution is still **NOT_VERIFIED**.

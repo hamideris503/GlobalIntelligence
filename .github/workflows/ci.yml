@@ -39,6 +39,8 @@ jobs:
           pip install -r backend/requirements-dev.txt
       - name: Lint (ruff)
         run: ruff check backend domains tests scripts source_bot
+      - name: Legacy UI guard (F03.UX.8 — retired files must stay absent)
+        run: python scripts/check_legacy_ui_backup.py --live-only
       - name: Run migrations (up/down)
         run: |
           alembic upgrade head

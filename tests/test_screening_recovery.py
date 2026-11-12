@@ -199,7 +199,10 @@ def test_no_provider_produces_pending_not_negative(monkeypatch) -> None:
         db.commit()
 
         outcome = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert outcome.retryable == 1
+        # Parked, not failed: a missing provider is a blocked prerequisite and
+        # must not spend the bounded retry budget.
+        assert outcome.blocked == 1
+        assert outcome.retryable == 0
         db.refresh(art)
         meta = json.loads(art.classification_meta)
         assert meta["local_screening"]["decision"] is None
@@ -211,7 +214,11 @@ def test_no_provider_produces_pending_not_negative(monkeypatch) -> None:
 # --- 7. Repeated claims don't cause retry churn -----------------------------
 
 def test_no_retry_churn_with_unavailable_provider(monkeypatch) -> None:
-    """Bounded retry: 3 attempts then terminal, no infinite loop."""
+    """Unavailable screening must not churn the bounded retry budget.
+
+    Previously: 3 attempts then ``terminal`` — which is how the live database
+    reached 711/711 terminal rows. Now each run parks the row instead.
+    """
     monkeypatch.setattr(
         "backend.ai.dispatch.runner._real_provider_available", lambda db: False
     )
@@ -228,21 +235,25 @@ def test_no_retry_churn_with_unavailable_provider(monkeypatch) -> None:
 
         # Attempt 1
         o1 = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert o1.retryable == 1
+        assert o1.blocked == 1
+        assert o1.terminal == 0
         # Attempt 2
         _row = DispatchService(db).get_dispatch(art.id, "screening")
         _row.next_retry_at = None
         db.commit()
         o2 = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert o2.retryable == 1
-        # Attempt 3 → terminal
+        assert o2.blocked == 1
+        # Attempt 3 and beyond: still no terminal row and no consumed budget.
         row = DispatchService(db).get_dispatch(art.id, "screening")
         row.next_retry_at = None
         db.commit()
         o3 = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert o3.terminal == 1
+        assert o3.terminal == 0
+        assert o3.blocked == 1
         row = DispatchService(db).get_dispatch(art.id, "screening")
-        assert row.status == "terminal"
+        assert row.status == "pending"
+        assert row.attempts == 0
+        assert (row.last_error or "").startswith("screening_unavailable:")
     finally:
         db.close()
 
@@ -267,7 +278,8 @@ def test_pending_becomes_eligible_when_provider_available(monkeypatch) -> None:
         db.commit()
 
         o1 = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert o1.retryable == 1
+        assert o1.blocked == 1
+        assert o1.terminal == 0
 
         # Now provider becomes available
         monkeypatch.setattr(
@@ -429,7 +441,8 @@ def test_provider_failure_produces_pending_not_negative(monkeypatch) -> None:
         db.commit()
 
         outcome = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert outcome.retryable == 1
+        assert outcome.blocked == 1
+        assert outcome.retryable == 0
         db.refresh(art)
         meta = json.loads(art.classification_meta)
         assert meta["local_screening"]["decision"] is None  # pending, not False

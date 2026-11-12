@@ -2,26 +2,29 @@
 
 **Status:** `ACCEPTED` (re-verified 2026-11-11 on r3 image, port 8000, primary DB)
 **Previous status:** `ACCEPTANCE_WITHHELD` (2026-11-07) — superseded by the verification below
+**SINGLE SOURCE OF TRUTH:** این سند تنها مرجع وضعیت `F03.UX.7` است. `docs/UI_MIGRATION_MANIFEST.md` و `docs/STAGE_STATUS.md` نباید وضعیت مستقل تعریف کنند و باید به همین سند ارجاع دهند. (رفع تناقض: ۲۰۲۶-۱۱-۱۲)
 **Scope:** بازبینی ۲۵ مسیر رابط جدید `GlobalIntelligence`، سناریوهای پذیرش UX.7، و جمع‌آوری اختلاف‌های باقی‌مانده.
 **Environment:** `uvicorn` روی `127.0.0.1:8010` (SQLite تست، `API_KEY=test`) + کانتینر `gi_backend` روی `127.0.0.1:8000` (healthy، image `e1cb5c747cee…`).
 **Method:** Chromium واقعی، `X-API-Key` معتبر، دکمه‌ها/فرم‌ها/APIهای read-only، بررسی viewport ۳۹۰px و ۱۴۴۰px، بدون write مخرب.
 
-> این سند «ثبت پذیرش» است، نه PASS صوری. پذیرش به دلیل چهار شکاف اصلی در سناریوهای الزامی UX.7 **نگه داشته شده** است.
+> این سند «ثبت پذیرش» است، نه PASS صوری. در بازبینی ۲۰۲۶-۱۱-۰۷ پذیرش به دلیل چهار شکاف P0 **نگه داشته شد**؛ هر چهار شکاف در ۲۰۲۶-۱۱-۱۱ در کد فعلی پیاده‌سازی و تأیید شدند (بخش‌های ۵ و ۸).
 
 ---
 
 ## 1. تصمیم
 
-`F03.UX.7` در وضعیت `ACCEPTANCE_WITHHELD` ثبت می‌شود.
+`F03.UX.7` در وضعیت **`ACCEPTED`** ثبت می‌شود (تصمیم نهایی ۲۰۲۶-۱۱-۱۱؛ تجدید بازبینی روی image `candidate-step6a42-r3-20261111` و پورت ۸۰۰۰ با دیتابیس اصلی).
 
-دلیل: چهار سناریوی الزامی roadmap در UI فعلی قابل انجام نیستند:
+مبنای پذیرش — چهار شکاف P0 در ۲۰۲۶-۱۱-۱۱ بسته شدند:
 
-1. باز کردن provenance مقاله از Inbox.
-2. مدیریت Provider (credential/test/enable) از UI.
-3. تشخیص job ناموفق و اقدام بعدی از Operations.
-4. verify/restore آرشیو از UI.
+1. **Inbox provenance** → `loadInboxDetail`: زنجیرهٔ منبع→سند→مقاله→رویداد + دلایل اولویت/غربالگری + dispatch + شواهد.
+2. **Provider control plane** → `providersPage`: کاتالوگ، credential write-only، تست اتصال، فعال/غیرفعال، import-from-env، discover.
+3. **Operations timeline** → `operationsPage`: `ops_status`، `/api/jobs`، dispatch (retryable/terminal/blocked) و detail.
+4. **Archive verify/restore** → `archivePage`: storage، catalog، verify، restore dry-run، purge-preview (auto-purge خاموش).
 
-تا رفع این‌ها، `F03.UX.8` (حذف legacy) نباید باز شود.
+موارد P1/P2 (منبع `sources` E2E، visual regression، Core Web Vitals، مسیر نوشتن Reports/Settings) **پذیرش را مسدود نمی‌کنند** اما باز هستند (بخش‌های ۴ و ۵).
+
+`F03.UX.8` (حذف legacy) در ۲۰۲۶-۱۱-۱۲ با تأیید مالک **بسته شد** — مرجع رسمی: `docs/qa/STEP_6A_43_LEGACY_UI_RETIREMENT_FORMALIZATION.md`. تناقض قبلی دربارهٔ وجود تأیید مالک با همین سند رفع شد؛ محدودیت باقی‌مانده این است که فایل‌ها untracked بودند و بازگشت از طریق Git وجود ندارد.
 
 ---
 
@@ -55,7 +58,7 @@
 | ۲۴ | `reports` | live | ساخت Daily/Weekly | **PASS** | reportsPage: generate Daily/Weekly + list briefings + detail — verified 2026-11-11 |
 | ۲۵ | `settings` | live | app settings control plane | **PASS** | settingsPage: loadSettings control plane (app settings) — verified 2026-11-11 |
 
-**جمع:** PASS = ۱۸ · PARTIAL = ۳ · FAIL = ۴.
+**جمع (۲۵ ردیف):** PASS = ۲۴ · PARTIAL = ۱ (`sources`: فعال‌سازی/validate یک منبع جدید E2E نشده) · FAIL = ۰.
 
 ---
 
@@ -77,7 +80,7 @@
 | معیار | نتیجه |
 |---|---|
 | ممیزی کامل و انتقال صفحات کلیدی به الگوی مشترک | **PARTIAL** — ۱۹ صفحه renderer جدید؛ ۶ صفحهٔ قدیمی متصل اما با markup قدیمی |
-| ناوبری درست و نبود صفحهٔ orphan/دکمهٔ بی‌عمل | **FAIL** — مسیرهای اصلی هستند، اما سناریوهای ۱/۳/۴/۵ دکمه/جریان لازم را ندارند |
+| ناوبری درست و نبود صفحهٔ orphan/دکمهٔ بی‌عمل | **PASS** — ۲۵ مسیر فعال؛ جریان‌های مورد نیاز سناریوهای ۱/۳/۴/۵ (provenance، Provider، Operations، Archive) در ۲۰۲۶-۱۱-۱۱ پیاده‌سازی و تأیید شدند (بخش ۸) |
 | نبود mock/hard-coded به‌جای دادهٔ واقعی | **PASS** — در ۲۵ مسیر فعال، داده/empty state واقعی دیده شد؛ متن نمونه فقط در کدهای dormant باقی است |
 | viewportهای هدف بدون overflow | **PASS (manual)** — ۳۹۰px و ۱۴۴۰px بررسی شد |
 | keyboard و نبود مانع بحرانی WCAG | **PARTIAL** — focus-visible و ariaهای پایه اصلاح شد؛ axe/screen-reader review انجام نشد |
@@ -133,9 +136,9 @@
 
 ## 7. گام بعدی
 
-1. چهار P0 را در یک substage مستقل پیاده‌سازی/تست کن.
-2. این سند را با شواهد جدید به‌روزرسانی کن و دوباره ۲۵ مسیر را review کن.
-3. فقط پس از رسیدن به `ACCEPTED`، `F03.UX.8` را با فهرست exact + SHA-256 + تأیید مالک باز کن.
+1. ✅ چهار P0 پیاده‌سازی و تأیید شد (۲۰۲۶-۱۱-۱۱) → وضعیت `ACCEPTED`.
+2. P1 باز: فعال‌سازی E2E یک منبع جدید (senario ۲)، visual regression baseline، Lighthouse/LCP.
+3. ✅ `F03.UX.8` در ۲۰۲۶-۱۱-۱۲ با ثبت رسمی تأیید مالک بسته شد (`docs/qa/STEP_6A_43_LEGACY_UI_RETIREMENT_FORMALIZATION.md`).
 
 **No commit, no push, no legacy deletion in this review.**
 

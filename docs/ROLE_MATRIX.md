@@ -381,6 +381,7 @@
 | GET | `/api/dispatch/jobs` | viewer |
 | POST | `/api/dispatch/{dispatch_id}/retry` | admin |
 | POST | `/api/dispatch/{dispatch_id}/recover` | admin |
+| POST | `/api/dispatch/recover-screening` | admin |
 | POST | `/api/dispatch/run` | analyst |
 | GET | `/api/dispatch/articles/{article_id}` | viewer |
 
@@ -464,6 +465,9 @@
 - خواندن `/api/settings/*`, `/api/archive/*`, `/api/audit/*`, `/api/local-runtimes/*`, `/api/ops/*`
   → `admin` چون اعتبارنامه/مسیرهای عملیاتی را افشا می‌کنند، نه داده‌ی تحلیلی.
 - `/api/dispatch/{id}/retry|recover` و `POST /api/jobs/trigger` → `admin` (عملیات زیرساختی).
+- `POST /api/dispatch/recover-screening` → `admin`: بازیابی انبوه ردیف‌های `screening` که به‌دلیل
+  در دسترس نبودن زیرساخت متوقف شده‌اند؛ چون یک provider واقعی را پیش‌فرض می‌گیرد و بر صدها ردیف
+  اثر می‌گذارد، نه analyst. بدون provider واقعی با **409** رد می‌شود و هیچ ردیفی را تغییر نمی‌دهد.
 - `POST /api/portfolios` و ویرایش‌های آن → `admin` (نوشتن؛ اگر بعداً «سبد شخصی» لازم شد،
   باید مالکیت ردیفی اضافه شود، نه نقش پایین‌تر).
 

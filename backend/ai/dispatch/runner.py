@@ -47,7 +47,10 @@ from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-HandlerStatus = Literal["completed", "retryable", "terminal"]
+# ``blocked`` is not a failure: the task's prerequisite (screening runtime or
+# provider) is unavailable, so the row is parked in ``pending`` without spending
+# its bounded retries. See DispatchService.mark_blocked.
+HandlerStatus = Literal["completed", "retryable", "terminal", "blocked"]
 
 
 @dataclass
@@ -63,6 +66,7 @@ class DispatchOutcome:
     completed: int = 0
     retryable: int = 0
     terminal: int = 0
+    blocked: int = 0
     tasks: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -71,6 +75,7 @@ class DispatchOutcome:
             "completed": self.completed,
             "retryable": self.retryable,
             "terminal": self.terminal,
+            "blocked": self.blocked,
             "tasks": self.tasks,
         }
 
@@ -184,8 +189,11 @@ async def _handle_screening(db: Session, dispatch) -> HandlerResult:
 
     if decision.relevant is None:
         reasons = ",".join(decision.reason_codes[-3:]) or "unknown"
+        # No screening runtime/provider is a *blocked* prerequisite, not an
+        # article failure: parking keeps the row claimable forever instead of
+        # letting three attempts end it in ``terminal``.
         return HandlerResult(
-            "retryable", f"screening unavailable: {reasons}",
+            "blocked", f"screening unavailable: {reasons}",
             meta={"screening_route": decision.route})
     if decision.relevant is True:
         DispatchService(db).enqueue_after_screening(article.id, decision)
@@ -675,6 +683,10 @@ async def run_once(
                 service.mark_terminal(dispatch, result.detail or "terminal")
                 outcome.terminal += 1
                 bucket["terminal"] = bucket.get("terminal", 0) + 1
+            elif result.status == "blocked":
+                service.mark_blocked(dispatch, result.detail or "blocked")
+                outcome.blocked += 1
+                bucket["blocked"] = bucket.get("blocked", 0) + 1
             else:
                 service.mark_retryable(dispatch, result.detail or "retryable")
                 # mark_retryable promotes to terminal once attempts are

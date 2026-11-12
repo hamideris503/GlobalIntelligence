@@ -9,14 +9,15 @@
 ## وضعیت پروژه
 
 **فازهای 0 تا 52: DONE** — آخرین فاز (Advanced Research) شامل GraphRAG-lite است؛ Bayesian/causal با دلیل مستند به تعویق افتاد.
-**مرحلهٔ جاری: Stage 96 — تثبیت نسخه، PostgreSQL و CI**
-**تغییرهای بزرگ اخیر (Stage 88–95)** روی شاخهٔ `stage95-pg-ci-verification` هستند و هنوز به `main` ادغام نشده‌اند: غربالگری مشورتی Kev/Laya، صف تحویل (dispatch) بادوام، مسیریابی دامنه‌ای، سیاست AI رایگان و اجرای local runtime.
+**کار جاری: مرحلهٔ ۶A (رابط تک‌فایلی + analyses/dashboard)** روی شاخهٔ `step6a-analysis-dashboard`؛ `main` محلی روی `31b4ca4` است؛ این شاخه ۴ commit جلوتر از آن و ۵ commit جلوتر از `origin/main` (`f502daf`) است و همهٔ commitهایش push شده‌اند.
+**نکتهٔ ساختار:** رابط کاربری همان `backend/static/index.html` تک‌فایلی است؛ اپ React/Vite در `apps/web` دیگر در این checkout وجود ندارد و `ui-data.js`/`ui-data.css` حذف شده‌اند.
 
-| سنجه | وضعیت واقعی (۲۸ اکتبر ۲۰۲۶) |
+| سنجه | وضعیت واقعی (۱۲ نوامبر ۲۰۲۶) |
 |---|---|
-| مجموعهٔ تست روی SQLite | ۱۴۸۰ passed / ۰ failed |
-| مجموعهٔ تست روی PostgreSQL 16 | نیازمند اصلاح: یک deadlock + ۱۰ شکست (کار Stage 96) |
-| CI روی شاخه | فقط زیرمجموعهٔ کوچکی از تست‌ها را اجرا می‌کند |
+| مجموعهٔ تست روی SQLite | **۱۷۶۸ passed / ۱ skipped / ۰ failed** (Python 3.14، ۴۲۰٫۵۷s — بازاجرا در ۲۰۲۶-۱۱-۱۲) |
+| مجموعهٔ تست روی PostgreSQL 16 | **۱۷۶۹ passed / ۰ failed** (۲۰۲۶-۱۱-۱۲، Python 3.14، ۱۱۲۶٫۶۸s، HEAD `aa5e000`)؛ پیشتر ۱۷۳۵ passed در ۲۰۲۶-۱۱-۰۶ (HEAD `31b4ca4`) و کانتینر Python 3.12 (۲۰۲۶-۱۱-۰۷) |
+| CI | فقط ۳ job: `backend`، `backend-sqlite`، `docker` — job فرانت‌اند و E2E وجود ندارد؛ اجرای remote هنوز تأیید نشده |
+| جریان داده | provider واقعی AI تنظیم نشده → غربالگری «مسدود» می‌ماند (بدون عدد جعلی)؛ `evidence`/`entity` فعلاً صفر |
 | آمادگی production | نه — جزئیات در [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) |
 
 - مسیر کامل مراحل ۹۶ تا ۱۰۴: [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md)

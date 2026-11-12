@@ -149,6 +149,10 @@ class Settings(BaseSettings):
     dispatch_poll_seconds: int = 20
     dispatch_batch_limit: int = 20
     dispatch_max_attempts: int = 3
+    # A row parked because its prerequisite is unavailable (no screening
+    # runtime / no provider) waits instead of failing; the delay doubles per
+    # blocked cycle up to 6h so a configured provider is picked up promptly.
+    dispatch_blocked_backoff_seconds: int = 900
     dispatch_lease_seconds: int = 900
 
     # --- Data collection ---

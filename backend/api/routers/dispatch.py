@@ -49,7 +49,15 @@ class DispatchRunRead(BaseModel):
     completed: int
     retryable: int
     terminal: int
+    # Rows parked because their prerequisite (screening) is unavailable.
+    blocked: int = 0
     tasks: dict[str, dict[str, int]]
+
+
+class ScreeningRecoveryRead(BaseModel):
+    matched: int
+    requeued: int
+    remaining: int
 
 
 class ArticleDispatchRead(BaseModel):
@@ -199,6 +207,30 @@ def dispatch_jobs(
         page_size=page_size,
         has_more=has_more,
     )
+
+
+@router.post("/recover-screening", response_model=ScreeningRecoveryRead)
+def recover_all_screening(
+    limit: int = Query(default=200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+) -> ScreeningRecoveryRead:
+    """Bulk re-open of screening rows blocked by an unavailable prerequisite.
+
+    Same gate as the single-row recovery: without a real AI provider the rows
+    would only be parked again, so nothing is touched and the response is 409.
+    Bounded by ``limit`` (oldest first) and idempotent — re-running it after the
+    rows completed matches nothing.
+    """
+    from backend.ai.dispatch.runner import _real_provider_available
+
+    if not _real_provider_available(db):
+        raise HTTPException(
+            status_code=409,
+            detail="real AI provider not configured; bulk screening recovery blocked",
+        )
+    result = DispatchService(db).requeue_screening(limit=limit)
+    db.commit()
+    return ScreeningRecoveryRead(**result)
 
 
 @router.post("/{dispatch_id}/retry", response_model=DispatchJobRead)

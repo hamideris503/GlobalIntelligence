@@ -161,6 +161,8 @@ Both backups verified before deletion.
 
 Do NOT start F03.UX.7 or F03.UX.8. Do NOT perform additional legacy deletion. Do NOT modify primary database.
 
+> **Superseded (2026-11-12):** this constraint applied to the 6A.13 run. `F03.UX.7` was accepted on 2026-11-11 and `F03.UX.8` was formally closed on 2026-11-12 — see `docs/qa/UX7_ACCEPTANCE_20261107.md` and `docs/qa/STEP_6A_43_LEGACY_UI_RETIREMENT_FORMALIZATION.md`. The "no additional legacy deletion" rule still stands (`LEGACY_UI_ALLOWLIST` stays empty).
+
 ---
 
 **skipped:** Docker image build (network failure), error state testing, responsive regression, keyboard navigation testing.  

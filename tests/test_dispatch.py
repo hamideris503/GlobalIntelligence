@@ -810,17 +810,19 @@ def test_model_disabled_while_screening_is_queued_uses_gateway(monkeypatch) -> N
 
         outcome = asyncio.run(run_once(db, limit=5, task="screening"))
         # With no real provider configured, the AI Gateway fallback is gated:
-        # the article stays pending (retryable), never a fake decision.
-        assert outcome.retryable == 1
+        # the article is parked as ``blocked``, never a fake decision and never
+        # a terminal row that the operator would read as processed.
+        assert outcome.blocked == 1
+        assert outcome.retryable == 0
         db.refresh(row)
-        assert row.status == "retryable"
+        assert row.status == "pending"
         meta = json.loads(db.get(Article, art.id).classification_meta)
         assert meta["local_screening"]["decision"] is None
     finally:
         db.close()
 
 
-def test_gateway_failure_keeps_screening_retryable(monkeypatch) -> None:
+def test_gateway_failure_parks_screening_without_terminal(monkeypatch) -> None:
     from backend.ai.credentials_store import set_app_setting
 
     monkeypatch.setattr(
@@ -837,10 +839,164 @@ def test_gateway_failure_keeps_screening_retryable(monkeypatch) -> None:
         db.commit()
 
         outcome = asyncio.run(run_once(db, limit=5, task="screening"))
-        assert outcome.retryable == 1
+        assert outcome.blocked == 1
         db.refresh(row)
-        assert row.status == "retryable"
+        assert row.status == "pending"
+        assert row.attempts == 0
         assert row.next_retry_at is not None
         assert _count(db, art.id, "event_extraction") == 0  # never "irrelevant"
     finally:
         db.close()
+
+
+# --- blocked prerequisite: screening unavailable ----------------------------
+
+def test_unavailable_screening_parks_row_without_burning_attempts(monkeypatch) -> None:
+    """Regression for the live stall (711/711 terminal, 0 completed).
+
+    A missing screening prerequisite used to count as a transient article
+    failure: three attempts, then ``terminal`` with
+    "max attempts reached: screening unavailable". The row must instead stay
+    ``pending`` with its retry budget intact, and keep the reason visible.
+    """
+    from backend.core.config import get_settings
+
+    async def fake_screen(db, text, priority=None, **kwargs):  # noqa: ANN001, ANN202
+        return orch.ScreeningDecision(route="LOCAL", relevant=None,
+                                      reason_codes=["LOCAL_RUNTIME_UNAVAILABLE"])
+
+    monkeypatch.setattr(orch, "screen_with_db", fake_screen)
+    db = TestingSession()
+    try:
+        art = _article(db)
+        row = DispatchService(db).ensure_dispatch(art.id, "screening")
+        db.commit()
+
+        cycles = int(get_settings().dispatch_max_attempts) + 2
+        for _ in range(cycles):
+            outcome = asyncio.run(run_once(db, limit=5, task="screening"))
+            assert outcome.terminal == 0
+            assert outcome.blocked == 1
+            db.refresh(row)
+            assert row.status == "pending"
+            # The real backoff is deliberate; make the row due again for the test.
+            row.next_retry_at = datetime.now(UTC) - timedelta(seconds=1)
+            db.commit()
+
+        db.refresh(row)
+        assert row.attempts == 0                      # budget refunded every cycle
+        assert row.status == "pending"                # never terminal
+        assert (row.last_error or "").startswith("screening_unavailable:")
+        meta = json.loads(row.meta or "{}")
+        assert meta["blocked_cycles"] == cycles
+        assert meta["blocked_reason"]
+        summary = DispatchService(db).status_summary()
+        assert summary["blocked"] == 1
+        assert _count(db, art.id, "event_extraction") == 0
+    finally:
+        db.close()
+
+
+def test_parked_screening_completes_once_prerequisite_resolves(monkeypatch) -> None:
+    """A parked row is not lost work: it finishes when screening comes back."""
+    async def unavailable(db, text, priority=None, **kwargs):  # noqa: ANN001, ANN202
+        return orch.ScreeningDecision(route="LOCAL", relevant=None,
+                                      reason_codes=["LOCAL_RUNTIME_UNAVAILABLE"])
+
+    monkeypatch.setattr(orch, "screen_with_db", unavailable)
+    db = TestingSession()
+    try:
+        art = _article(db)
+        row = DispatchService(db).ensure_dispatch(art.id, "screening")
+        db.commit()
+        asyncio.run(run_once(db, limit=5, task="screening"))
+        db.refresh(row)
+        assert row.status == "pending"
+
+        async def available(db, text, priority=None, **kwargs):  # noqa: ANN001, ANN202
+            return orch.ScreeningDecision(route="KEV", relevant=True,
+                                          reason_codes=["KEV_RELEVANT"])
+
+        monkeypatch.setattr(orch, "screen_with_db", available)
+        row.next_retry_at = None
+        db.commit()
+
+        outcome = asyncio.run(run_once(db, limit=5, task="screening"))
+        assert outcome.completed == 1
+        assert outcome.blocked == 0
+        db.refresh(row)
+        assert row.status == "completed"
+        assert _count(db, art.id, "event_extraction") == 1
+    finally:
+        db.close()
+
+
+# --- bulk recovery of screening rows ----------------------------------------
+
+def _screening_row(db, art, *, status: str, last_error: str, attempts: int = 3):
+    row = DispatchService(db).ensure_dispatch(art.id, "screening")
+    row.status = status
+    row.last_error = last_error
+    row.attempts = attempts
+    db.commit()
+    return row
+
+
+def test_bulk_requeue_reopens_only_unavailable_screening_rows() -> None:
+    """The 711-row stall is recoverable, and only for that exact cause."""
+    db = TestingSession()
+    try:
+        parked = _article(db)
+        dead = _article(db)
+        other = _article(db)
+        r1 = _screening_row(db, parked, status="pending", attempts=0,
+                            last_error="screening_unavailable: LOCAL_RUNTIME_UNAVAILABLE")
+        r2 = _screening_row(db, dead, status="terminal",
+                            last_error="max attempts reached: screening unavailable: LOCAL")
+        r3 = _screening_row(db, other, status="terminal",
+                            last_error="article text is empty")
+
+        result = DispatchService(db).requeue_screening(limit=50)
+        assert result["matched"] == 2 and result["requeued"] == 2
+        db.commit()
+
+        for row in (r1, r2):
+            db.refresh(row)
+            assert row.status == "pending"
+            assert row.attempts == 0
+            assert row.last_error is None
+            assert row.next_retry_at is None
+            assert json.loads(row.meta or "{}")["blocked_cycles"] == 0
+
+        db.refresh(r3)  # unrelated terminal failure is never re-opened
+        assert r3.status == "terminal"
+        assert r3.last_error == "article text is empty"
+
+        # Idempotent: nothing left matching the unavailable-prerequisite cause.
+        assert DispatchService(db).requeue_screening(limit=50)["matched"] == 0
+    finally:
+        db.close()
+
+
+def test_bulk_recovery_endpoint_requires_real_provider(client, monkeypatch) -> None:
+    from backend.ai.dispatch import runner as runner_module
+
+    db = TestingSession()
+    try:
+        art = _article(db)
+        _screening_row(db, art, status="terminal",
+                       last_error="max attempts reached: screening unavailable: LOCAL")
+    finally:
+        db.close()
+
+    blocked = client.post("/api/dispatch/recover-screening")
+    assert blocked.status_code == 409
+    assert "provider" in blocked.json()["detail"]
+
+    monkeypatch.setattr(runner_module, "_real_provider_available", lambda db: True)
+    ok = client.post("/api/dispatch/recover-screening")
+    assert ok.status_code == 200
+    body = ok.json()
+    assert set(body) == {"matched", "requeued", "remaining"}
+    assert body["requeued"] >= 1
+    assert body["remaining"] == 0

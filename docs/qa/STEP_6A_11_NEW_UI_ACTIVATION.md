@@ -220,3 +220,6 @@ Do NOT start F03.UX.7 or F03.UX.8. Do NOT perform UI cutover. Do NOT delete lega
 
 **skipped:** Error state runtime testing, responsive regression, keyboard navigation testing.  
 **risk user must know:** The Python test server has been stopped. All integration code and security fixes are preserved in the working tree. Test database `gi_test_6a11b` has been dropped. Primary database `globalintelligence` was never modified. The working tree is exactly `654aa36` + 2-line security fix. No files were modified during this step. Legacy files `ui-data.js` and `ui-data.css` are marked `UNKNOWN_PROTECTED` — not deleted. Docker image rebuild required for the integrated UI to be served by Docker.
+## Update — 2026-11-12 (status superseded)
+
+The `F03.UX.8 = NOT_STARTED` row and the "Do NOT start F03.UX.7 or F03.UX.8" scope above describe the state **at the time of this run**. Since then: `F03.UX.7` was accepted on 2026-11-11 (`docs/qa/UX7_ACCEPTANCE_20261107.md`), the legacy files were deleted in STEP 6A.13, and `F03.UX.8` was formally closed on 2026-11-12 (`docs/qa/STEP_6A_43_LEGACY_UI_RETIREMENT_FORMALIZATION.md`). The rule that no further legacy deletion happens without owner approval still holds.

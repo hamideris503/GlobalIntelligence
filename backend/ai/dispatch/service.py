@@ -23,7 +23,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -272,6 +272,91 @@ class DispatchService:
         dispatch.next_retry_at = utcnow() + timedelta(seconds=delay)
         self.db.flush()
 
+    def mark_blocked(self, dispatch: ArticleDispatch, error: str) -> None:
+        """Park a row whose prerequisite is *unavailable*, keeping its retries.
+
+        A missing screening prerequisite (no local runtime, no configured
+        provider) is an infrastructure condition, not a failure of the article.
+        Treating it as transient burned ``dispatch_max_attempts`` and ended in
+        ``terminal`` — the live database reached 711/711 terminal rows this way
+        and no article ever finished analysis. Instead the row returns to
+        ``pending`` with a growing backoff, the claim's attempt increment is
+        refunded, and ``last_error`` keeps the reason visible (``blocked`` in
+        ``status_summary``) so the state reads as "waiting", never as success.
+        """
+        dispatch.attempts = max(0, int(dispatch.attempts or 0) - 1)
+        try:
+            meta = json.loads(dispatch.meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        cycles = int(meta.get("blocked_cycles") or 0) if isinstance(meta, dict) else 0
+        cycles += 1
+        base = max(60, int(self.settings.dispatch_blocked_backoff_seconds))
+        delay = min(base * (2 ** (cycles - 1)), 6 * 3600)
+        detail = _sanitize(error).removeprefix("screening unavailable: ")
+        dispatch.last_error = _sanitize(f"screening_unavailable: {detail}")
+        dispatch.status = "pending"
+        dispatch.next_retry_at = utcnow() + timedelta(seconds=delay)
+        dispatch.meta = _merge_meta(
+            dispatch.meta, {"blocked_cycles": cycles, "blocked_reason": detail[:200]})
+        self.db.flush()
+
+    def requeue_screening(self, *, limit: int = 200) -> dict[str, int]:
+        """Re-open screening rows stopped by an unavailable prerequisite.
+
+        Covers both shapes of the stall: ``terminal`` rows whose error was
+        "max attempts reached: screening unavailable" (the old behaviour) and
+        ``pending`` rows parked by :meth:`mark_blocked`. Only those rows are
+        touched — an unrelated terminal failure (empty text, missing article)
+        stays terminal, because re-running it would just fail again.
+
+        The caller is responsible for verifying that a real provider exists;
+        without one these rows would be parked again immediately.
+        """
+        stmt = (
+            select(ArticleDispatch)
+            .where(
+                ArticleDispatch.task_name.like("screening@v%"),
+                or_(
+                    and_(
+                        ArticleDispatch.status == "terminal",
+                        ArticleDispatch.last_error.like("%screening unavailable%"),
+                    ),
+                    and_(
+                        ArticleDispatch.status == "pending",
+                        ArticleDispatch.last_error.like("screening_unavailable:%"),
+                    ),
+                ),
+            )
+            .order_by(ArticleDispatch.updated_at.asc())
+            .limit(max(1, int(limit)))
+        )
+        rows = list(self.db.execute(stmt).scalars().all())
+        for row in rows:
+            row.status = "pending"
+            row.next_retry_at = None
+            row.attempts = 0
+            row.last_error = None
+            row.meta = _merge_meta(row.meta, {"blocked_cycles": 0})
+        self.db.flush()
+        remaining = int(self.db.execute(
+            select(func.count()).select_from(ArticleDispatch).where(
+                ArticleDispatch.task_name.like("screening@v%"),
+                ArticleDispatch.status.in_(("terminal", "pending")),
+                or_(
+                    ArticleDispatch.last_error.like("%screening unavailable%"),
+                    ArticleDispatch.last_error.like("screening_unavailable:%"),
+                ),
+            )
+        ).scalar_one())
+        if rows:
+            logger.info("screening dispatches requeued | n=%s", len(rows))
+        return {
+            "matched": len(rows),
+            "requeued": len(rows),
+            "remaining": remaining,
+        }
+
     def mark_terminal(self, dispatch: ArticleDispatch, error: str) -> None:
         dispatch.status = "terminal"
         dispatch.last_error = _sanitize(error)
@@ -423,9 +508,19 @@ class DispatchService:
             .order_by(ArticleDispatch.updated_at.desc())
             .limit(10)
         ).scalars().all())
+        # Rows parked because screening is unavailable are ``pending``; without
+        # this count they look like ordinary queue depth and the blocker is
+        # invisible in the operations view.
+        blocked = int(self.db.execute(
+            select(func.count()).select_from(ArticleDispatch).where(
+                ArticleDispatch.status == "pending",
+                ArticleDispatch.last_error.like("screening_unavailable:%"),
+            )
+        ).scalar_one())
         return {
             "analysis_version": ANALYSIS_VERSION,
             "tasks": counts,
+            "blocked": blocked,
             "recent_failures": [
                 {
                     "article_id": str(row.article_id),
