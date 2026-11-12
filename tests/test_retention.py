@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from unittest.mock import patch
 
 from domains.retention import RetentionService, disk_status

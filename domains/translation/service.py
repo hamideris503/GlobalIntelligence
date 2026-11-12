@@ -10,9 +10,8 @@
 from __future__ import annotations
 
 import hashlib
-import json
-from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol
+from dataclasses import dataclass
+from typing import Any, Protocol
 
 
 class TranslatorBackend(Protocol):

@@ -5,6 +5,6 @@ cache بر پایهٔ hash متن اصلی + زبان مبدأ/مقصد + نسخ
 خطای ترجمه، دریافت خبر و تحلیل اصلی را متوقف نکند.
 """
 
-from domains.translation.service import TranslationService, TranslationResult
+from domains.translation.service import TranslationResult, TranslationService
 
 __all__ = ["TranslationService", "TranslationResult"]
