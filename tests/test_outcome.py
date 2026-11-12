@@ -171,9 +171,11 @@ def test_outcomes_api(client: TestClient) -> None:
     assert pend.status_code == 200
     assert len(pend.json()) == 1
 
-    res = client.post("/api/outcomes/resolve")
+    # Explicit write mode (default is now dry-run for safety)
+    res = client.post("/api/outcomes/resolve?dry_run=false")
     assert res.status_code == 200
     assert res.json()["resolved"] == 1
+    assert res.json()["dry_run"] is False
 
     lst = client.get("/api/outcomes?target=macro:inflation:USA")
     assert lst.status_code == 200

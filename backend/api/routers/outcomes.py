@@ -23,6 +23,16 @@ class ResolveOutcomeRead(BaseModel):
     skipped: int
     failed: int
     errors: list[str]
+    dry_run: bool = False
+    forecasts_inspected: int = 0
+    not_matured: int = 0
+    no_outcome_source: int = 0
+    unsupported_target: int = 0
+    invalid_target: int = 0
+    candidate_matches: int = 0
+    ambiguous_matches: int = 0
+    unit_mismatches: int = 0
+    preview: list[dict] = []
 
 
 class OutcomeRead(BaseModel):
@@ -56,10 +66,15 @@ def _to_outcome(fc: Forecast, oc: ForecastOutcome) -> OutcomeRead:
 
 @router.post("/resolve", response_model=ResolveOutcomeRead)
 def resolve_outcomes(
-    target: str | None = None, db: Session = Depends(get_db)
+    target: str | None = None,
+    dry_run: bool = Query(default=True, description="Dry-run: preview only, no DB writes"),
+    db: Session = Depends(get_db),
 ) -> ResolveOutcomeRead:
-    """تطبیق نتایج واقعی به پیش‌بینی‌های سررسیده (idempotent)."""
-    outcome = OutcomeEngine(db).resolve_all(target=target)
+    """تطبیق نتایج واقعی به پیش‌بینی‌های سررسیده (idempotent).
+
+    Default: dry_run=True (no writes). Set dry_run=False to execute.
+    """
+    outcome = OutcomeEngine(db).resolve_all(target=target, dry_run=dry_run)
     return ResolveOutcomeRead(**outcome.as_dict())
 
 

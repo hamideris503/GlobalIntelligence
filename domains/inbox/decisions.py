@@ -30,22 +30,23 @@ class ReviewActionInvalid(ValueError):
 
 def record_decision(
     db: Session,
-    article_id: uuid.UUID,
+    entity_id: uuid.UUID,
     *,
     action: str,
     actor: str,
     actor_user_id: uuid.UUID | None = None,
     note: str | None = None,
+    entity_type: str = "article",
 ) -> dict[str, Any]:
     if action not in REVIEW_ACTIONS:
         raise ReviewActionInvalid(action)
-    article = db.get(Article, article_id)
-    if article is None:
-        raise ReviewEntityNotFound(str(article_id))
+    entity = db.get(Article, entity_id) if entity_type == "article" else None
+    if entity_type == "article" and entity is None:
+        raise ReviewEntityNotFound(str(entity_id))
 
     row = HumanReview(
-        entity_type="article",
-        entity_id=article_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
         action=action,
         actor=actor[:128],
         actor_user_id=actor_user_id,
@@ -55,9 +56,9 @@ def record_decision(
     db.flush()
 
     # ack keeps the legacy marker for existing consumers; others are additive only.
-    if action == "ack":
+    if action == "ack" and entity_type == "article":
         try:
-            screening_review.acknowledge(db, article_id, note=note)
+            screening_review.acknowledge(db, entity_id, note=note)
         except (screening_review.ReviewNotFound, screening_review.ReviewConflict):
             pass
 
@@ -74,10 +75,12 @@ def record_decision(
     }
 
 
-def history(db: Session, article_id: uuid.UUID) -> list[dict[str, Any]]:
+def history(
+    db: Session, entity_id: uuid.UUID, *, entity_type: str = "article"
+) -> list[dict[str, Any]]:
     rows = db.execute(
         select(HumanReview)
-        .where(HumanReview.entity_type == "article", HumanReview.entity_id == article_id)
+        .where(HumanReview.entity_type == entity_type, HumanReview.entity_id == entity_id)
         .order_by(HumanReview.created_at.desc())
     ).scalars().all()
     return [

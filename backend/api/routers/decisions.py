@@ -7,13 +7,17 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from domains.decision.engine import DecisionEngine
+from domains.inbox import decisions as human_decisions
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.auth.deps import CurrentUser, require_user
+from backend.database.models.claim import Claim
 from backend.database.models.recommendation import Recommendation
 from backend.database.session import get_db
 
@@ -43,9 +47,44 @@ class DecisionRead(BaseModel):
     invalidation: str | None
     model: str | None
     rank: int | None
+    evidence_support: dict | None = None
 
 
-def _to_decision(r: Recommendation) -> DecisionRead:
+def _evidence_support(db: Session, r: Recommendation) -> dict:
+    """پشتیبانی شواهد، محاسبه‌شده از claims مرتبط (for/against/sources).
+
+    جست‌وجو روی متن claim/موضوع بر اساس نام دارایی است؛ اگر چیزی پیدا نشود
+    صفرها برمی‌گردد (نه عدد جعلی).
+    """
+    needle = f"%{r.asset}%"
+    total = 0
+    supporting = 0
+    refuting = 0
+    sources: set[str] = set()
+    try:
+        rows = db.execute(
+            select(Claim).where(Claim.subject.ilike(needle) | Claim.object.ilike(needle)).limit(500)
+        ).scalars().all()
+        for c in rows:
+            total += 1
+            status = (c.verification_status or "").lower()
+            if status in ("supported", "corroborated", "verified"):
+                supporting += 1
+            elif status in ("refuted", "contradicted"):
+                refuting += 1
+            if c.source_id is not None:
+                sources.add(str(c.source_id))
+    except Exception:  # noqa: BLE001
+        return {"for": 0, "against": 0, "independent_sources": 0, "claims_total": 0}
+    return {
+        "for": supporting,
+        "against": refuting,
+        "independent_sources": len(sources),
+        "claims_total": total,
+    }
+
+
+def _to_decision(r: Recommendation, support: dict | None = None) -> DecisionRead:
     return DecisionRead(
         id=str(r.id),
         asset=r.asset,
@@ -61,6 +100,7 @@ def _to_decision(r: Recommendation) -> DecisionRead:
         invalidation=r.invalidation,
         model=r.model,
         rank=r.rank,
+        evidence_support=support,
     )
 
 
@@ -106,7 +146,7 @@ def list_decisions(
     )
     if asset:
         stmt = stmt.where(Recommendation.asset == asset)
-    return [_to_decision(r) for r in db.execute(stmt).scalars().all()]
+    return [_to_decision(r, _evidence_support(db, r)) for r in db.execute(stmt).scalars().all()]
 
 
 @router.get("/{decision_id}", response_model=DecisionRead)
@@ -116,4 +156,42 @@ def get_decision(
     decision = db.get(Recommendation, decision_id)
     if decision is None:
         raise HTTPException(status_code=404, detail="decision not found")
-    return _to_decision(decision)
+    return _to_decision(decision, _evidence_support(db, decision))
+
+
+class DecisionReviewRequest(BaseModel):
+    decision: Literal["approve", "reject", "request_evidence", "ack"]
+    note: str | None = Field(default=None, max_length=human_decisions.MAX_NOTE)
+
+
+@router.post("/{decision_id}/review")
+def review_decision(
+    decision_id: uuid.UUID,
+    req: DecisionReviewRequest,
+    current: CurrentUser = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """ثبت تصمیم انسانی روی یک تصمیم (تحلیل‌گر به بالا).
+
+    در `human_reviews` با `entity_type="recommendation"` ذخیره می‌شود و هرگز
+    رکورد تصمیم ماشین را بازنویسی نمی‌کند.
+    """
+    if db.get(Recommendation, decision_id) is None:
+        raise HTTPException(status_code=404, detail="decision not found")
+    try:
+        entry = human_decisions.record_decision(
+            db, decision_id, action=req.decision, actor=current.username,
+            actor_user_id=current.session_id, note=req.note,
+            entity_type="recommendation",
+        )
+    except human_decisions.ReviewActionInvalid as exc:
+        raise HTTPException(status_code=422, detail=f"invalid decision: {exc}") from None
+    return {"decision": entry, "history": human_decisions.history(db, decision_id, entity_type="recommendation")}
+
+
+@router.get("/{decision_id}/reviews")
+def decision_reviews(decision_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """تاریخچهٔ تصمیم‌های انسانی این تصمیم."""
+    if db.get(Recommendation, decision_id) is None:
+        raise HTTPException(status_code=404, detail="decision not found")
+    return {"items": human_decisions.history(db, decision_id, entity_type="recommendation")}

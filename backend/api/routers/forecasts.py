@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime
 
@@ -45,6 +46,87 @@ class ForecastRead(BaseModel):
     status: str
     data_version: str | None
     valid_from: str | None
+
+
+@router.get("/outlook")
+def forecasts_outlook(
+    target: str = Query(...),
+    horizon: str = Query(default="short"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """نمای پیش‌بینی برای یک هدف/افق.
+
+    `series` از forecastهای فعال همان هدف ساخته می‌شود (p50=expected_value،
+    low/high=بازه). `scenarios` از scenarioهای forecast؛ احتمال فقط وقتی
+    می‌آید که ذخیره شده باشد وگرنه `null`. `calibration` از evaluation summary.
+    اگر داده کافی نباشد، سری/سناریو خالی و calibration null می‌ماند.
+    """
+    stmt = (
+        select(Forecast)
+        .where(Forecast.target == target, Forecast.status == "active")
+        .order_by(Forecast.valid_from.nullslast(), Forecast.created_at.desc())
+    )
+    rows = list(db.execute(stmt).scalars().all())
+    if horizon:
+        rows = [r for r in rows if (r.horizon or "") == horizon] or rows
+
+    series: list[dict] = []
+    scenarios: list[dict] = []
+    method = None
+    data_version = None
+    for r in rows:
+        if r.scenario:
+            scenarios.append({
+                "name": r.scenario,
+                "probability": r.probability,
+                "drivers": (json.loads(r.assumptions or "[]") if _is_json(r.assumptions) else None),
+            })
+        else:
+            series.append({
+                "date": (r.target_date or r.valid_from).isoformat() if (r.target_date or r.valid_from) else None,
+                "p50": r.expected_value,
+                "low": r.interval_low,
+                "high": r.interval_high,
+            })
+        method = method or r.model
+        data_version = data_version or r.data_version
+
+    calibration: dict | None = None
+    try:
+        from domains.evaluation.engine import EvaluationEngine
+
+        summary = EvaluationEngine(db).summary(target=target)
+        calibration = {
+            "n": summary.get("n"),
+            "mae": summary.get("mae"),
+            "mean_brier": summary.get("mean_brier"),
+            "buckets": summary.get("calibration") or [],
+        }
+        if not calibration["n"]:
+            calibration = None
+    except Exception:  # noqa: BLE001
+        calibration = None
+
+    return {
+        "target": target,
+        "horizon": horizon,
+        "series": series,
+        "scenarios": scenarios,
+        "calibration": calibration,
+        "method": method,
+        "data_version": data_version,
+        "probabilities_are_normalized": False,
+    }
+
+
+def _is_json(value: str | None) -> bool:
+    if not value:
+        return False
+    try:
+        json.loads(value)
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 def _to_forecast(f: Forecast) -> ForecastRead:
@@ -118,7 +200,6 @@ def get_forecast(
     if forecast is None:
         raise HTTPException(status_code=404, detail="forecast not found")
     return _to_forecast(forecast)
-
 
 @router.post("/{forecast_id}/supersede", response_model=ForecastRead)
 def supersede_forecast(

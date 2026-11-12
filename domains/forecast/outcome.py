@@ -35,14 +35,37 @@ class ResolveOutcome:
     skipped: int = 0
     failed: int = 0
     errors: list[str] = field(default_factory=list)
+    # Dry-run preview fields
+    dry_run: bool = False
+    forecasts_inspected: int = 0
+    not_matured: int = 0
+    no_outcome_source: int = 0
+    unsupported_target: int = 0
+    invalid_target: int = 0
+    candidate_matches: int = 0
+    ambiguous_matches: int = 0
+    unit_mismatches: int = 0
+    preview: list[dict] = field(default_factory=list)
 
     def as_dict(self) -> dict:
-        return {
+        d = {
             "resolved": self.resolved,
             "skipped": self.skipped,
             "failed": self.failed,
             "errors": self.errors,
+            "dry_run": self.dry_run,
+            "forecasts_inspected": self.forecasts_inspected,
+            "not_matured": self.not_matured,
+            "no_outcome_source": self.no_outcome_source,
+            "unsupported_target": self.unsupported_target,
+            "invalid_target": self.invalid_target,
+            "candidate_matches": self.candidate_matches,
+            "ambiguous_matches": self.ambiguous_matches,
+            "unit_mismatches": self.unit_mismatches,
         }
+        if self.dry_run:
+            d["preview"] = self.preview
+        return d
 
 
 def period_start(period: str | None) -> datetime | None:
@@ -138,8 +161,22 @@ class OutcomeEngine:
                 out.append(fc)
         return out
 
-    def resolve_all(self, *, target: str | None = None) -> ResolveOutcome:
-        outcome = ResolveOutcome()
+    def resolve_all(self, *, target: str | None = None, dry_run: bool = False) -> ResolveOutcome:
+        outcome = ResolveOutcome(dry_run=dry_run)
+        # Inspect ALL forecasts (not just pending) for dry-run preview
+        all_stmt = select(Forecast)
+        if target:
+            all_stmt = all_stmt.where(Forecast.target == target)
+        all_forecasts = list(self.db.execute(all_stmt).scalars().all())
+        outcome.forecasts_inspected = len(all_forecasts)
+
+        # Count not-matured forecasts
+        now = datetime.now(UTC)
+        for fc in all_forecasts:
+            td = _aware(fc.target_date)
+            if td is None or td > now:
+                outcome.not_matured += 1
+
         for fc in self.pending():
             if target and fc.target != target:
                 continue
@@ -155,7 +192,27 @@ class OutcomeEngine:
                 else:
                     actual = self._market_actual(key, td)
                 if actual is None:
+                    outcome.no_outcome_source += 1
                     outcome.skipped += 1
+                    if dry_run:
+                        outcome.preview.append({
+                            "forecast_id": str(fc.id),
+                            "target": fc.target,
+                            "target_date": fc.target_date.isoformat() if fc.target_date else None,
+                            "status": "no_outcome_source",
+                            "matched_value": None,
+                        })
+                    continue
+                outcome.candidate_matches += 1
+                if dry_run:
+                    outcome.preview.append({
+                        "forecast_id": str(fc.id),
+                        "target": fc.target,
+                        "target_date": fc.target_date.isoformat() if fc.target_date else None,
+                        "status": "would_resolve",
+                        "matched_value": actual,
+                    })
+                    outcome.resolved += 1
                     continue
                 # Step 3: پرچم جهت برای پیش‌بینی‌های احتمالاتی بازار (قطعی).
                 actual_bool = None
@@ -178,10 +235,16 @@ class OutcomeEngine:
                 fc.status = "resolved"
                 self.db.flush()
                 outcome.resolved += 1
+            except ValueError as exc:  # noqa: BLE001
+                outcome.invalid_target += 1
+                outcome.skipped += 1
+                outcome.errors.append(f"invalid_target: {exc}")
+                logger.warning("outcome resolve skipped (invalid target) | fc=%s err=%s", fc.id, exc)
             except Exception as exc:  # noqa: BLE001
                 outcome.failed += 1
                 outcome.errors.append(f"{type(exc).__name__}: {exc}")
                 logger.warning("outcome resolve failed | fc=%s err=%s", fc.id, exc)
-        self.db.commit()
+        if not dry_run:
+            self.db.commit()
         logger.info("outcome resolve done | %s", outcome.as_dict())
         return outcome

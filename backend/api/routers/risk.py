@@ -35,13 +35,16 @@ class RiskAssessmentRead(BaseModel):
     period: str
     score: float | None
     level: str | None
+    probability: float | None = None
+    impact: float | None = None
+    evidence_count: int | None = None
     drivers: list[str]
     method: str | None
     confidence: float | None
     observed_at: str | None
 
 
-def _to_assessment(a: RiskAssessment) -> RiskAssessmentRead:
+def _to_assessment(a: RiskAssessment, evidence_count: int | None = None) -> RiskAssessmentRead:
     try:
         drivers = json.loads(a.drivers or "[]")
     except Exception:  # noqa: BLE001
@@ -52,6 +55,9 @@ def _to_assessment(a: RiskAssessment) -> RiskAssessmentRead:
         period=a.period,
         score=a.score,
         level=a.level,
+        probability=a.probability,
+        impact=a.impact,
+        evidence_count=evidence_count,
         drivers=drivers if isinstance(drivers, list) else [],
         method=a.method,
         confidence=a.confidence,
@@ -102,3 +108,44 @@ def overview(db: Session = Depends(get_db)) -> list[RiskAssessmentRead]:
         out.append(_to_assessment(a))
     out.sort(key=lambda r: (r.score is None, -(r.score or 0.0)))
     return out
+
+
+@router.get("/matrix")
+def risk_matrix(
+    period: str | None = None, db: Session = Depends(get_db)
+) -> dict:
+    """ماتریس ۵×۵ احتمال × شدت.
+
+    فقط ردیف‌هایی که هم `probability` و هم `impact` دارند شمرده می‌شوند؛ بقیه
+    در `without_probability_impact` می‌آیند. بدون این دو مقدار هیچ سلولی جعل
+    نمی‌شود.
+    """
+    stmt = select(RiskAssessment).order_by(RiskAssessment.category)
+    if period:
+        stmt = stmt.where(RiskAssessment.period == period)
+    rows = db.execute(stmt).scalars().all()
+
+    cells = [[0] * 5 for _ in range(5)]  # cells[impact-1][probability-1]
+    without: list[str] = []
+    with_pi: list[dict] = []
+    for r in rows:
+        if r.probability is None or r.impact is None:
+            without.append(r.category)
+            continue
+        pi = min(4, max(0, int(r.probability * 5)))
+        im = min(4, max(0, int(r.impact * 5)))
+        cells[im][pi] += 1
+        with_pi.append({
+            "category": r.category,
+            "probability": r.probability,
+            "impact": r.impact,
+            "score": r.score,
+        })
+    return {
+        "period": period,
+        "cells": cells,
+        "items": with_pi,
+        "without_probability_impact": without,
+        "with_probability_impact": len(with_pi),
+        "total": len(rows),
+    }

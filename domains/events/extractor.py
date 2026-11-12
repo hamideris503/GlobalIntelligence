@@ -24,6 +24,7 @@ from backend.core.logging import get_logger
 from backend.core.mock_mode import effective_mock_mode
 from backend.database.models.article import Article
 from backend.database.models.event import Event
+from domains.events.actor_extraction import extract_actors_deterministic, resolve_actor_to_entity
 from domains.events.prompts import EVENT_SCHEMA, EXTRACT_EVENT
 from domains.events.type_rules import ONTOLOGY_TYPES, classify_event_type
 from domains.geo.gazetteer import geocode_text
@@ -223,6 +224,8 @@ class EventExtractor:
         conf_value = geo["location_confidence"] if resolved else None
         location_reason = geo["location_reason"]
 
+        event_metadata = {"actor_resolution": {}}
+
         event = Event(
             event_type=event_type_value,
             occurred_at=_parse_dt(data.get("occurred_at"))
@@ -234,7 +237,7 @@ class EventExtractor:
             location_precision=precision_value,
             location_source=source_value,
             location_confidence=conf_value,
-            actors=json.dumps(data.get("actors") or [], ensure_ascii=False),
+            actors=json.dumps(_resolve_actors(self.db, data.get("actors"), joined, event_metadata), ensure_ascii=False),
             action=data.get("action") or (articles[0].title or None),
             expected=data.get("expected"),
             actual=data.get("actual"),
@@ -270,6 +273,7 @@ class EventExtractor:
             "validation_issues": data.get("validation_issues", []),
             "ai_vs_rules": data.get("ai_vs_rules"),
             "review_flags": data.get("review_flags", []),
+            "actor_resolution": event_metadata.get("actor_resolution", {}),
         }, ensure_ascii=False)
         return event
 
@@ -354,3 +358,56 @@ def _safe_json(text: str) -> dict | None:
             except Exception:  # noqa: BLE001
                 return None
         return None
+
+def _resolve_actors(db, ai_actors, text, metadata):
+    """Resolve actors from AI output or deterministic fallback.
+
+    SAFETY (STEP 6A.38):
+    - AI-extracted actors: resolve to existing entities or CREATE new ones
+      (AI path is trusted, uses allow_create=True).
+    - Deterministic-extracted actors: resolve to EXISTING entities only.
+      Unresolved candidates are NOT added to trusted actors.
+    - Returns list of trusted actor name strings.
+    - Unresolved candidates are tracked in metadata['actor_resolution'].
+    """
+    ai_list = ai_actors if isinstance(ai_actors, list) and ai_actors else None
+
+    if ai_list:
+        # AI path: trusted — resolve or create canonical entities
+        resolved = []
+        unresolved = []
+        for actor in ai_list:
+            if not isinstance(actor, str) or not actor.strip():
+                continue
+            entity = resolve_actor_to_entity(db, actor, allow_create=True)
+            if entity is not None:
+                resolved.append(actor.strip())
+            else:
+                unresolved.append(actor.strip())
+        metadata["actor_resolution"] = {
+            "source": "ai",
+            "candidates": ai_list,
+            "resolved": resolved,
+            "unresolved": unresolved,
+        }
+        return resolved
+
+    # Deterministic fallback: candidate extraction + safe resolution
+    candidates = extract_actors_deterministic(text)
+    resolved = []
+    unresolved = []
+    for actor in candidates:
+        entity = resolve_actor_to_entity(db, actor, allow_create=False)
+        if entity is not None:
+            resolved.append(actor)
+        else:
+            unresolved.append(actor)
+
+    metadata["actor_resolution"] = {
+        "source": "deterministic",
+        "candidates": candidates,
+        "resolved": resolved,
+        "unresolved": unresolved,
+        "shadow_mode": True,
+    }
+    return resolved

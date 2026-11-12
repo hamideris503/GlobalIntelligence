@@ -27,5 +27,10 @@ class RiskAssessment(UUIDMixin, TimestampMixin, Base):
 
     method: Mapped[str | None] = mapped_column(String(64))
     confidence: Mapped[float | None] = mapped_column(Float)
+    # مرحلهٔ ۶الف: احتمال و شدت اثر (nullable، در [0, 1]).
+    # موتور فعلی این دو را تولید نمی‌کند؛ تا زمانی که منبع واقعی نباشد null می‌ماند
+    # و در ماتریس ۵×۵ نمی‌آید (شمارندهٔ «بدون احتمال/شدت»).
+    probability: Mapped[float | None] = mapped_column(Float)
+    impact: Mapped[float | None] = mapped_column(Float)
 
     observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
