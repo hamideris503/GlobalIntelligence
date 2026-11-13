@@ -30,12 +30,11 @@ def upgrade() -> None:
         sa.Column("last_error", sa.Text(), nullable=True),
         sa.Column("delivered_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("idempotency_key", sa.String(length=128), nullable=True),
+        sa.UniqueConstraint("alert_id", "channel", name="uq_alert_delivery_channel"),
     )
     op.create_index("ix_alert_deliveries_alert_id", "alert_deliveries", ["alert_id"])
-    op.create_unique_constraint("uq_alert_delivery_channel", "alert_deliveries", ["alert_id", "channel"])
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_alert_delivery_channel", "alert_deliveries", type_="unique")
     op.drop_index("ix_alert_deliveries_alert_id", table_name="alert_deliveries")
     op.drop_table("alert_deliveries")

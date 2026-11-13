@@ -18,6 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    is_sqlite = op.get_context().dialect.name == "sqlite"
     # --- articles: فیلدهای طبقه‌بندی ---
     op.add_column("articles", sa.Column("country", sa.String(length=2), nullable=True))
     op.add_column(
@@ -47,12 +48,18 @@ def upgrade() -> None:
 
     # --- documents: raw_payload + قید یکتایی + FK RESTRICT ---
     op.add_column("documents", sa.Column("raw_payload", sa.Text(), nullable=True))
-    op.create_unique_constraint(
-        "uq_document_source_url_content", "documents", ["source_id", "hash", "content_hash"]
-    )
-    # حذف هر FK موجود روی documents.source_id بدون نیاز به نام
-    op.execute(
-        """
+    unique_name = "uq_document_source_url_content"
+    unique_columns = ["source_id", "hash", "content_hash"]
+    if is_sqlite:
+        # SQLite cannot ALTER a table to add a named UNIQUE constraint;
+        # a unique index provides the same guarantee and is batch-free.
+        op.create_index(unique_name, "documents", unique_columns, unique=True)
+    else:
+        op.create_unique_constraint(unique_name, "documents", unique_columns)
+    if not is_sqlite:
+        # حذف هر FK موجود روی documents.source_id بدون نیاز به نام
+        op.execute(
+            """
         DO $$
         DECLARE cname text;
         BEGIN
@@ -67,15 +74,15 @@ def upgrade() -> None:
             END LOOP;
         END $$;
         """
-    )
-    op.create_foreign_key(
-        "documents_source_id_fkey",
-        "documents",
-        "sources",
-        ["source_id"],
-        ["id"],
-        ondelete="RESTRICT",
-    )
+        )
+        op.create_foreign_key(
+            "documents_source_id_fkey",
+            "documents",
+            "sources",
+            ["source_id"],
+            ["id"],
+            ondelete="RESTRICT",
+        )
 
     # --- sources: feed_url + endpoint_config ---
     op.add_column("sources", sa.Column("feed_url", sa.Text(), nullable=True))
@@ -83,19 +90,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    is_sqlite = op.get_context().dialect.name == "sqlite"
     op.drop_column("sources", "endpoint_config")
     op.drop_column("sources", "feed_url")
 
-    op.drop_constraint("documents_source_id_fkey", "documents", type_="foreignkey")
-    op.create_foreign_key(
-        "documents_source_id_fkey",
-        "documents",
-        "sources",
-        ["source_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.drop_constraint("uq_document_source_url_content", "documents", type_="unique")
+    if is_sqlite:
+        op.drop_index("uq_document_source_url_content", table_name="documents")
+    else:
+        op.drop_constraint("documents_source_id_fkey", "documents", type_="foreignkey")
+        op.create_foreign_key(
+            "documents_source_id_fkey",
+            "documents",
+            "sources",
+            ["source_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        op.drop_constraint("uq_document_source_url_content", "documents", type_="unique")
     op.drop_column("documents", "raw_payload")
 
     op.drop_index(op.f("ix_articles_country"), table_name="articles")

@@ -24,11 +24,16 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    is_sqlite = op.get_context().dialect.name == "sqlite"
     # 1) agent_assignments.agent: unique index per model (was constraint
     #    uq_agent_assignment_agent + separate plain index from phase56).
-    op.drop_constraint(
-        "uq_agent_assignment_agent", "agent_assignments", type_="unique"
-    )
+    if is_sqlite:
+        with op.batch_alter_table("agent_assignments") as batch:
+            batch.drop_constraint("uq_agent_assignment_agent", type_="unique")
+    else:
+        op.drop_constraint(
+            "uq_agent_assignment_agent", "agent_assignments", type_="unique"
+        )
     op.drop_index("ix_agent_assignments_agent", table_name="agent_assignments")
     op.create_index(
         "ix_agent_assignments_agent",
@@ -82,6 +87,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    is_sqlite = op.get_context().dialect.name == "sqlite"
     op.drop_index(
         "ix_social_assessments_scope_type", table_name="social_assessments"
     )
@@ -118,6 +124,12 @@ def downgrade() -> None:
     op.create_index(
         "ix_agent_assignments_agent", "agent_assignments", ["agent"]
     )
-    op.create_unique_constraint(
-        "uq_agent_assignment_agent", "agent_assignments", ["agent"]
-    )
+    if is_sqlite:
+        with op.batch_alter_table("agent_assignments") as batch:
+            batch.create_unique_constraint(
+                "uq_agent_assignment_agent", ["agent"]
+            )
+    else:
+        op.create_unique_constraint(
+            "uq_agent_assignment_agent", "agent_assignments", ["agent"]
+        )

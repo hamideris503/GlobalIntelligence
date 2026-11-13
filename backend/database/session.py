@@ -22,17 +22,17 @@ def get_engine() -> Engine:
     if _engine is None:
         settings = get_settings()
         url = settings.database_url
-        kwargs: dict[str, object] = {
-            "pool_pre_ping": True,
-            "pool_size": settings.db_pool_size,
-            "max_overflow": settings.db_max_overflow,
-            "future": True,
-        }
-        # PostgreSQL: the DBAPI connect() can hang indefinitely when the
-        # server is unreachable or slow (observed in Stage97.1). Add a
-        # bounded driver-level timeout for PostgreSQL only; SQLite is unaffected.
-        if url.startswith("postgresql"):
-            kwargs["connect_args"] = {"connect_timeout": 10}
+        if url.startswith("sqlite"):
+            kwargs: dict[str, object] = {"future": True}
+        else:
+            kwargs = {
+                "pool_pre_ping": True,
+                "pool_size": settings.db_pool_size,
+                "max_overflow": settings.db_max_overflow,
+                "future": True,
+            }
+            if url.startswith("postgresql"):
+                kwargs["connect_args"] = {"connect_timeout": 10}
         _engine = create_engine(url, **kwargs)
     return _engine
 

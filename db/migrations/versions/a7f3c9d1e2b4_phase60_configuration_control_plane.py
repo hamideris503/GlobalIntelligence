@@ -29,11 +29,9 @@ def upgrade() -> None:
         sa.Column("slug", sa.String(length=128), nullable=False),
         sa.Column("latest_revision", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("active_revision", sa.Integer(), nullable=True),
+        sa.UniqueConstraint("kind", "slug", name="uq_configuration_instance_kind_slug"),
     )
     op.create_index("ix_configuration_instances_kind", "configuration_instances", ["kind"])
-    op.create_unique_constraint(
-        "uq_configuration_instance_kind_slug", "configuration_instances", ["kind", "slug"]
-    )
 
     op.create_table(
         "configuration_revisions",
@@ -56,27 +54,19 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["instance_id"], ["configuration_instances.id"], ondelete="CASCADE"
         ),
+        sa.UniqueConstraint(
+            "instance_id", "revision_number", name="uq_configuration_revision_number"
+        ),
     )
     op.create_index(
         "ix_configuration_revisions_instance_id", "configuration_revisions", ["instance_id"]
     )
-    op.create_unique_constraint(
-        "uq_configuration_revision_number",
-        "configuration_revisions",
-        ["instance_id", "revision_number"],
-    )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "uq_configuration_revision_number", "configuration_revisions", type_="unique"
-    )
     op.drop_index(
         "ix_configuration_revisions_instance_id", table_name="configuration_revisions"
     )
     op.drop_table("configuration_revisions")
-    op.drop_constraint(
-        "uq_configuration_instance_kind_slug", "configuration_instances", type_="unique"
-    )
     op.drop_index("ix_configuration_instances_kind", table_name="configuration_instances")
     op.drop_table("configuration_instances")
