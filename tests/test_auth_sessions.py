@@ -60,7 +60,8 @@ def test_login_creates_session_and_me(client: TestClient, keyed) -> None:
     res = _login(client)
     assert res.status_code == 200
     body = res.json()
-    assert body["user"] == {"username": "alice", "role": "analyst", "via": "session"}
+    # حساب بدون ایمیل نیازی به تأیید ایمیل ندارد و نباید در UI قفل شود.
+    assert body["user"] == {"username": "alice", "role": "analyst", "via": "session", "email": None, "email_verified": True}
     assert "api_key" not in body
 
     cookies = res.headers.get_list("set-cookie")
@@ -100,6 +101,17 @@ def test_login_wrong_password_and_unknown_user(client: TestClient, keyed) -> Non
 def test_inactive_user_cannot_login(client: TestClient, keyed) -> None:
     _make_user(active=False)
     assert _login(client).status_code == 401
+
+
+def test_admin_without_email_is_verified_for_login_and_me(client: TestClient, keyed) -> None:
+    """ادمین seed/CLI بدون ایمیل نباید به صفحهٔ Verify فرستاده شود."""
+    _make_user(username="noemailadmin", role="admin")
+    res = _login(client, username="noemailadmin")
+    assert res.status_code == 200
+    assert res.json()["user"]["email_verified"] is True
+    me = client.get("/api/auth/me")
+    assert me.status_code == 200
+    assert me.json()["email_verified"] is True
 
 
 def test_logout_revokes_session_and_clears_cookie(client: TestClient, keyed) -> None:
@@ -174,9 +186,9 @@ def test_role_guard_rejects_low_roles(client: TestClient, keyed) -> None:
 
 
 def test_api_key_compat_without_session(client: TestClient, keyed) -> None:
+    # API Key یک قرارداد integration است، نه هویت حساب کاربری.
     me = client.get("/api/auth/me", headers={"X-API-Key": API_KEY})
-    assert me.status_code == 200
-    assert me.json() == {"username": "service", "role": "admin", "via": "api_key"}
+    assert me.status_code == 401
     # یک endpoint محافظت‌شده‌ی معمولی هم باید با کلید کار کند.
     assert client.get("/api/audit/records", headers={"X-API-Key": API_KEY}).status_code == 200
     assert client.get("/api/audit/records").status_code == 401
@@ -185,11 +197,15 @@ def test_api_key_compat_without_session(client: TestClient, keyed) -> None:
     ).status_code == 401
 
 
-def test_dev_bypass_when_api_key_unset(client: TestClient) -> None:
-    # conftest: API_KEY="" و APP_ENV=development → رفتار قبلی حفظ می‌شود.
+def test_dev_bypass_when_api_key_unset(monkeypatch, client: TestClient) -> None:
+    # Dev bypass is now disabled unless GI_ALLOW_DEV_AUTH_BYPASS=1 is explicitly set.
+    # In normal runs, an unset API_KEY must never authenticate an anonymous user.
+    monkeypatch.delenv("GI_ALLOW_DEV_AUTH_BYPASS", raising=False)
+    from backend.core.config import get_settings
+    get_settings.cache_clear()
     res = client.get("/api/auth/me")
-    assert res.status_code == 200
-    assert res.json()["via"] == "api_key"
+    assert res.status_code == 401
+    get_settings.cache_clear()
 
 
 def test_login_rate_limit_returns_429(client: TestClient, keyed) -> None:

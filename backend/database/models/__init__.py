@@ -47,7 +47,7 @@ from backend.database.models.source import Source
 from backend.database.models.source_dependency import SourceDependency
 from backend.database.models.tournament import Tournament
 from backend.database.models.transmission_assessment import TransmissionAssessment
-from backend.database.models.user import LoginAttempt, User, UserSession
+from backend.database.models.user import AuthToken, LoginAttempt, User, UserSession
 from backend.database.models.world_state import WorldState
 
 __all__ = [
@@ -64,6 +64,7 @@ __all__ = [
     "ArchiveCatalog",
     "ArticleDispatch",
     "AuditRecord",
+    "AuthToken",
     "Briefing",
     "Claim",
     "ConfigurationInstance",

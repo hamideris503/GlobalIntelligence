@@ -9,20 +9,22 @@
 """
 from __future__ import annotations
 
+import os
 import secrets
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, Request, Response
 from sqlalchemy.orm import Session
 
 from backend.api.errors import ApiError
 from backend.auth.sessions import CSRF_HEADER, SESSION_COOKIE, load_session, token_hash
 from backend.core.config import get_settings
+from backend.database.models.user import User
 from backend.database.session import get_db
 
-ROLE_RANK: dict[str, int] = {"viewer": 1, "analyst": 2, "admin": 3}
+ROLE_RANK: dict[str, int] = {"viewer": 1, "analyst": 2, "admin": 3, "service": 3}
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 # POSTهایی که «اجرای تحلیل/استخراج» هستند و analyst هم می‌تواند اجرا کند.
@@ -100,15 +102,36 @@ class CurrentUser:
     role: str
     via: str  # session | api_key
     session_id: uuid.UUID | None = None
+    email_verified: bool = True
 
 
 def _dev_bypass_active() -> bool:
+    # فقط در تست‌ها و با تنظیم صریح محیط، bypass فعال است.
+    # در اجرای عادی، API_KEY خالی هرگز هویت admin تولید نمی‌کند.
+    if os.environ.get("GI_ALLOW_DEV_AUTH_BYPASS") != "1":
+        return False
     settings = get_settings()
     return not settings.api_key and settings.app_env != "production"
 
 
+def is_email_verified(user: User) -> bool:
+    """حساب بدون ایمیل نیازی به تأیید ایمیل ندارد.
+
+    همین تعریف باید در Login/me و access_guard مشترک باشد تا ادمین seed/CLI
+    بدون ایمیل در UI به‌عنوان «تأییدنشده» قفل نشود.
+    """
+    return bool(user.email_verified) or not bool(user.email)
+
+
+def _is_https_request(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    return request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
+
+
 def require_user(
     request: Request,
+    response: Response,
     x_api_key: str | None = Header(default=None),
     x_csrf_token: str | None = Header(default=None, alias=CSRF_HEADER),
     db: Session = Depends(get_db),
@@ -118,21 +141,39 @@ def require_user(
 
     if x_api_key:
         if settings.api_key and secrets.compare_digest(x_api_key, settings.api_key):
-            return CurrentUser(username="service", role="admin", via="api_key")
+            return CurrentUser(username="service", role="service", via="api_key")
         if _dev_bypass_active():
-            return CurrentUser(username="service", role="admin", via="api_key")
+            return CurrentUser(username="service", role="service", via="api_key")
         raise ApiError(401, "INVALID_API_KEY", "invalid or missing API key")
 
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         if _dev_bypass_active():
-            return CurrentUser(username="service", role="admin", via="api_key")
+            return CurrentUser(username="service", role="service", via="api_key")
         raise ApiError(401, "AUTH_REQUIRED", "authentication required")
 
     loaded = load_session(db, token)
     if loaded is None:
         raise ApiError(401, "AUTH_REQUIRED", "session expired or revoked")
-    session, user = loaded
+    session, user, refreshed = loaded
+
+    # تمدید کوکی پایدار در صورت تمدید نشست.
+    if refreshed:
+        try:
+            max_age = 30 * 24 * 60 * 60 if user.role != "admin" else 365 * 24 * 60 * 60
+            # response ممکن است توسط FastAPI تزریق شده باشد.
+            if response is not None:
+                response.set_cookie(
+                    SESSION_COOKIE,
+                    token,
+                    max_age=max_age,
+                    httponly=True,
+                    samesite="lax",
+                    secure=_is_https_request(request),
+                    path="/",
+                )
+        except Exception:
+            pass
 
     if request.method not in SAFE_METHODS:
         if not x_csrf_token or not secrets.compare_digest(
@@ -141,8 +182,19 @@ def require_user(
             raise ApiError(403, "FORBIDDEN", "CSRF token missing or invalid")
 
     return CurrentUser(
-        username=user.username, role=user.role, via="session", session_id=session.id
+        username=user.username,
+        role=user.role,
+        via="session",
+        session_id=session.id,
+        email_verified=is_email_verified(user),
     )
+
+
+def require_session_user(current: CurrentUser = Depends(require_user)) -> CurrentUser:
+    """حساب کاربری واقعی از کوکی نشست؛ API Key هویت حساب نمی‌سازد."""
+    if current.via != "session":
+        raise ApiError(401, "AUTH_REQUIRED", "session required")
+    return current
 
 
 def require_role(*roles: str) -> Callable[..., CurrentUser]:
@@ -167,7 +219,15 @@ def access_guard(
     request: Request, current: CurrentUser = Depends(require_user)
 ) -> CurrentUser:
     """سیاست نقش سراسری بر اساس متد و مسیر (نگاشت در `docs/ROLE_MATRIX.md`)."""
-    needed = required_role(request.method, request.url.path)
+    path = request.url.path
+    if current.via == "session" and not current.email_verified and not path.startswith("/api/auth/"):
+        raise ApiError(
+            403,
+            "EMAIL_NOT_VERIFIED",
+            "email verification required",
+            details={"path": path},
+        )
+    needed = required_role(request.method, path)
     if ROLE_RANK.get(current.role, 0) < ROLE_RANK[needed]:
         raise ApiError(
             403,

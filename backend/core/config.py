@@ -130,6 +130,16 @@ class Settings(BaseSettings):
     # --- Sessions (مرحله ۱ احراز هویت؛ کوکی HttpOnly) ---
     session_ttl_minutes: int = 720
 
+    # --- Email delivery (ثبت‌نام/بازیابی حساب) ---
+    app_base_url: str = "http://localhost:8000"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None
+    smtp_use_tls: bool = True
+    email_sink_enabled: bool = False
+
     # --- Debate Engine (Step 3) ---
     debate_max_tokens_per_run: int = 60000
     debate_daily_budget_usd: float = 5.0

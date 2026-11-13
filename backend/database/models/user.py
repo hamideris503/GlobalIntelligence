@@ -21,9 +21,14 @@ class User(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "users"
 
     username: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    # ایمیل اختیاری برای کاربران legacy (seed)؛ برای ثبت‌نام جدید الزامی است.
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(16), default="viewer", nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class UserSession(UUIDMixin, TimestampMixin, Base):
@@ -34,11 +39,28 @@ class UserSession(UUIDMixin, TimestampMixin, Base):
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     csrf_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # برای مدیر می‌تواند NULL باشد (بدون انقضای خودکار).
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ip: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(255))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AuthToken(UUIDMixin, TimestampMixin, Base):
+    """توکن‌های یک‌بارمصرف برای تأیید ایمیل و بازیابی رمز عبور."""
+
+    __tablename__ = "auth_tokens"
+    __table_args__ = (Index("ix_auth_tokens_user_purpose", "user_id", "purpose"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    purpose: Mapped[str] = mapped_column(String(32), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64))
 
 
 class LoginAttempt(UUIDMixin, Base):

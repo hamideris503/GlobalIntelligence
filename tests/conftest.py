@@ -42,6 +42,7 @@ atexit.register(_cleanup_own_temproot)
 # قبل از import تنظیمات، محیط تست را امن و بدون کلید تنظیم کن
 os.environ.setdefault("APP_ENV", "development")
 os.environ["API_KEY"] = ""  # env var بر .env اولویت دارد → بدون احراز هویت در تست
+os.environ["GI_ALLOW_DEV_AUTH_BYPASS"] = "1"
 os.environ["MOCK_MODE"] = "true"
 
 from backend.core.config import get_settings  # noqa: E402
