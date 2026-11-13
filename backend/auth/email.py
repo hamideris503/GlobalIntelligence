@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 
@@ -60,7 +61,8 @@ def send_email(to: str, subject: str, body: str) -> None:
     try:
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
             if settings.smtp_use_tls:
-                server.starttls()
+                # گواهی سرور باید معتبر باشد، وگرنه STARTTLS در برابر MITM بی‌اثر است.
+                server.starttls(context=ssl.create_default_context())
             if settings.smtp_username and settings.smtp_password:
                 server.login(settings.smtp_username, settings.smtp_password)
             server.send_message(msg)

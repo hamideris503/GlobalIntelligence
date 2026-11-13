@@ -19,7 +19,14 @@ from fastapi import Depends, Header, Request, Response
 from sqlalchemy.orm import Session
 
 from backend.api.errors import ApiError
-from backend.auth.sessions import CSRF_HEADER, SESSION_COOKIE, load_session, token_hash
+from backend.auth.sessions import (
+    ADMIN_SESSION_DAYS,
+    CSRF_HEADER,
+    NORMAL_SESSION_DAYS,
+    SESSION_COOKIE,
+    load_session,
+    token_hash,
+)
 from backend.core.config import get_settings
 from backend.database.models.user import User
 from backend.database.session import get_db
@@ -160,7 +167,8 @@ def require_user(
     # تمدید کوکی پایدار در صورت تمدید نشست.
     if refreshed:
         try:
-            max_age = 30 * 24 * 60 * 60 if user.role != "admin" else 365 * 24 * 60 * 60
+            days = NORMAL_SESSION_DAYS if user.role != "admin" else ADMIN_SESSION_DAYS
+            max_age = days * 24 * 60 * 60
             # response ممکن است توسط FastAPI تزریق شده باشد.
             if response is not None:
                 response.set_cookie(

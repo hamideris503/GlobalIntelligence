@@ -127,3 +127,35 @@
   بلااستفاده، حذف dependency مرده در `analysis.tsx`). `tsc` ۰ خطا، build موفق (۳۴۲ kB).
 - باقی‌مانده: ۷ هشدار `react-refresh` در `ui.tsx` (نیازمند split بزرگ‌تر)، E2E روی PostgreSQL،
   و موارد وابسته به credential/انسان.
+
+## Update 2026-11-13 (F03.UX.AUTH - SMTP live delivery VERIFIED)
+
+- **SMTP زنده تأیید شد:** حساب Gmail با App Password، `smtp.gmail.com:587` + STARTTLS.
+  ارسال از `backend.auth.email.send_email` با نتیجهٔ `SENT OK` و پیام در **Inbox** تحویل شد (spam نشد).
+  تاریخ اجرا ۲۰۲۶-۱۱-۱۳؛ مقصد: صندوق خود مالک.
+- **پیش‌نیاز کد که هم‌زمان اصلاح شد:** `starttls()` بدون SSL context بود و گواهی سرور را
+  اعتبارسنجی نمی‌کرد؛ اکنون `ssl.create_default_context()` می‌گیرد
+  (`backend/auth/email.py`، تست `tests/test_auth_email.py`).
+- **پیکربندی:** `SMTP_HOST/PORT/USERNAME/PASSWORD/FROM/USE_TLS` و `APP_BASE_URL` در `.env`
+  (خارج از git)؛ `.env.example` هم این کلیدها را فهرست می‌کند.
+- **زنجیرهٔ کامل verify با ایمیل واقعی تأیید شد:** ثبت‌نام روی سرور Docker → ایمیل در Inbox →
+  استخراج توکن از همان ایمیل → `GET /api/auth/verify-email` پاسخ **200 {"ok":true}**.
+  پس «تحویل SMTP» و «لینک واقعی در ایمیل واقعی» هر دو VERIFIED هستند.
+- **محدودیت تحویل (Spam):** ارسال از `sireweqs@gmail.com` به `hamideris504@gmail.com` تحویل شد
+  ولی در **Spam** نشست (با `in:anywhere from:sireweqs@gmail.com` پیدا شد؛ هیچ bounce برنگشت).
+  علت کد/SMTP نیست، بلکه اعتبار فرستندهٔ Gmail شخصی است. برای کاربران واقعی فرستندهٔ تراکنشی
+  با دامنه + SPF/DKIM/DMARC (Brevo/Resend/Mailgun) لازم است.
+- ادعای «SMTP live send remains BLOCKED without SMTP_* credentials» (۲۰۲۶-۱۱-۰۳) با این شاهد
+  منقضی شده است؛ متن تاریخی دست‌نخورده می‌ماند.
+
+## Update 2026-11-13 (F03.UX.AUTH - 6 roadmap gates covered by tests)
+
+- فایل جدید `tests/test_auth_roadmap_gates.py` شش قرارداد را قفل می‌کند:
+  1. بازیابی رمز کامل (forgot → توکن از sink → reset → ورود با رمز جدید → رد توکن مصرف‌شده)
+  2. تغییر رمز، همهٔ نشست‌های دیگر را سمت سرور باطل می‌کند (نه فقط پاک‌کردن کوکی)
+  3. نشست ادمین `expires_at IS NULL` است، بعد از ۳۱ روز بی‌فعالیتی معتبر می‌ماند و کوکی ۳۶۵ روزه تمدید می‌شود
+  4. نشست عادی: تمدید در روز ۷، معتبر در روز ۳۶، انقضا در مرز ۳۰ روز بی‌فعالیتی، و باقی‌ماندن رکورد `User`
+  5. توکن تأیید ایمیل منقضی → ۴۰۰ و کاربر تأییدنشده می‌ماند
+  6. SMTP تنظیم‌نشده → `EMAIL_DELIVERY_NOT_CONFIGURED` بدون افشای توکن در پاسخ
+- اجرا: `pytest tests -q` → **1813 passed / 1 skipped / 0 failed** (442.98 s، Python 3.14، SQLite)؛ `ruff` پاک.
+- **هنوز اجرا نشده:** lane واقعی PostgreSQL 16، و سه spec Playwright در `tests/e2e/` (در CI نیستند).

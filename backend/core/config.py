@@ -9,6 +9,7 @@ import os
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -128,15 +129,15 @@ class Settings(BaseSettings):
     admin_password: str = ""
 
     # --- Sessions (مرحله ۱ احراز هویت؛ کوکی HttpOnly) ---
-    session_ttl_minutes: int = 720
+    # عمر نشست در backend/auth/sessions.py ثابت است (NORMAL_SESSION_DAYS/ADMIN_SESSION_DAYS).
 
     # --- Auth rate limits (DB-backed rolling window) ---
-    auth_register_max_attempts: int = 5
-    auth_register_window_seconds: int = 3600
-    auth_forgot_password_max_attempts: int = 5
-    auth_forgot_password_window_seconds: int = 3600
-    auth_resend_verification_max_attempts: int = 3
-    auth_resend_verification_window_seconds: int = 3600
+    auth_register_max_attempts: int = Field(default=5, ge=1)
+    auth_register_window_seconds: int = Field(default=3600, ge=1)
+    auth_forgot_password_max_attempts: int = Field(default=5, ge=1)
+    auth_forgot_password_window_seconds: int = Field(default=3600, ge=1)
+    auth_resend_verification_max_attempts: int = Field(default=3, ge=1)
+    auth_resend_verification_window_seconds: int = Field(default=3600, ge=1)
 
     # --- Email delivery (ثبت‌نام/بازیابی حساب) ---
     app_base_url: str = "http://localhost:8000"

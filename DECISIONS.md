@@ -895,3 +895,21 @@ UI کلید خام را در مرورگر نگه می‌داشت و audit بدو
 **Consequences:** هر درخواست UI یک کوئری نشست دارد؛ dev با `API_KEY` خالی همچنان
 بدون احراز هویت کار می‌کند تا تست‌ها/اجرای لوکال نشکنند. ادمین اولیه فقط با env
 ساخته می‌شود؛ بدون آن، UI تا زمانی که کاربری ساخته نشود قابل ورود نیست.
+
+---
+
+## ADR-STEP1AUTH-2 — حذف `POST /api/auth/login` و بستن مسیر «کلید API به‌جای ورود»
+**Date:** 2026-11-13
+**Context:** جملهٔ «`/api/auth/login` برای n8n/اسکریپت‌ها می‌ماند» در ADR-STEP1AUTH با واقعیت
+کد نمی‌خواند: هیچ workflow در `integrations/n8n/workflows/` این مسیر را صدا نمی‌زند و همه
+مستقیماً هدر `X-API-Key` را از `$env.BACKEND_API_KEY` می‌فرستند؛ UI هم از `/api/auth/session`
+استفاده می‌کند. endpoint فعلی در ازای `ADMIN_USERNAME`/`ADMIN_PASSWORD` همان `API_KEY` سرور را
+در JSON برمی‌گرداند و هیچ نشست/CSRF/actor واقعی نمی‌سازد.
+**Decision:** endpoint و مدل `LoginResponse` حذف شدند. کلید API فقط از هدر `X-API-Key`
+خوانده می‌شود (نقش admin، actor="service")؛ ورود کاربر فقط با `/api/auth/session`.
+**Alternatives:** نگه‌داشتن endpoint بدون بازگرداندن کلید (رد شد: مسیر مرده و سطح حمله
+بی‌مصرف)؛ نگه‌داشتن با هشدار (رد شد: ریسک افشای کلید با فعال‌سازی بوت‌استرپ ادمین).
+**Consequences:** هر integration خارجی باید `X-API-Key` بفرستد؛ فراخوانی `/api/auth/login`
+اکنون 404 می‌دهد. تست `test_settings::test_login_ok_and_fail` حذف شد. ادمین اولیه همچنان از
+دو مسیر ساخته می‌شود: `python -m backend.cli create-admin` (مسیر پیشنهادی) یا seeding خودکار
+از `ADMIN_USERNAME`/`ADMIN_PASSWORD` برای بوت‌استرپ خودکار.

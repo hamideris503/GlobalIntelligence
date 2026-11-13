@@ -4,10 +4,12 @@ os.environ.setdefault("GI_EMAIL_SINK", "1")
 
 import re
 
+import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from backend.auth.email import clear_sink, get_sink_messages
-from backend.core.config import get_settings
+from backend.core.config import Settings, get_settings
 from tests.conftest import app
 
 
@@ -240,3 +242,25 @@ def test_auth_rate_limits_are_env_configurable(monkeypatch) -> None:
     assert settings.auth_forgot_password_window_seconds == 600
     assert settings.auth_resend_verification_max_attempts == 2
     assert settings.auth_resend_verification_window_seconds == 900
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "auth_register_max_attempts",
+        "auth_register_window_seconds",
+        "auth_forgot_password_max_attempts",
+        "auth_forgot_password_window_seconds",
+        "auth_resend_verification_max_attempts",
+        "auth_resend_verification_window_seconds",
+    ],
+)
+def test_auth_rate_limit_settings_reject_non_positive(field: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field: 0})
+
+
+def test_legacy_api_key_login_endpoint_is_removed(client: TestClient) -> None:
+    """ADR-STEP1AUTH-2: کلید API فقط از هدر خوانده می‌شود، نه از مسیر ورود."""
+    r = client.post("/api/auth/login", json={"username": "admin", "password": "admin"})
+    assert r.status_code == 404

@@ -17,6 +17,7 @@ from backend.auth.email import EmailDeliveryFailed, EmailDeliveryNotConfigured, 
 from backend.auth.passwords import dummy_verify, hash_password, verify_password
 from backend.auth.sessions import (
     CSRF_COOKIE,
+    NORMAL_SESSION_DAYS,
     SESSION_COOKIE,
     create_session,
     login_retry_after,
@@ -98,11 +99,6 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
-class LoginResponse(BaseModel):
-    ok: bool
-    api_key: str = ""
-
-
 class UserRead(BaseModel):
     username: str
     role: str
@@ -138,7 +134,7 @@ def _is_https(request: Request) -> bool:
 
 
 def _set_session_cookies(response: Response, request: Request, token: str, csrf: str) -> None:
-    max_age = 30 * 24 * 60 * 60
+    max_age = NORMAL_SESSION_DAYS * 24 * 60 * 60
     secure = _is_https(request)
     response.set_cookie(SESSION_COOKIE, token, max_age=max_age, httponly=True, samesite="lax", secure=secure, path="/")
     response.set_cookie(CSRF_COOKIE, csrf, max_age=max_age, httponly=False, samesite="lax", secure=secure, path="/")
@@ -510,15 +506,3 @@ def me(current: CurrentUser = Depends(require_session_user), db: Session = Depen
     email = getattr(user, "email", None) if user else None
     verified = is_email_verified(user) if user else (current.via == "api_key")
     return UserRead(username=current.username, role=current.role, via=current.via, email=email, email_verified=verified)
-
-
-@router.post("/login", response_model=LoginResponse, deprecated=True)
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
-    _check_rate_limit(db, request, payload.username)
-    settings = get_settings()
-    user_ok = secrets.compare_digest(payload.username, settings.admin_username or "")
-    pass_ok = secrets.compare_digest(payload.password, settings.admin_password or "")
-    if not (user_ok and pass_ok):
-        record_failed_login(db, ip=_client_ip(request), username=payload.username)
-        raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
-    return LoginResponse(ok=True, api_key=settings.api_key or "")

@@ -412,25 +412,6 @@ def test_void_endpoints(client: TestClient) -> None:
         session.close()
 
 
-def test_login_ok_and_fail(client: TestClient) -> None:
-    import os as _os
-
-    _os.environ["ADMIN_USERNAME"] = "admin"
-    _os.environ["ADMIN_PASSWORD"] = "admin"
-    get_settings.cache_clear()
-    try:
-        bad = client.post("/api/auth/login", json={"username": "admin", "password": "wrong"})
-        assert bad.status_code == 401
-        ok = client.post("/api/auth/login", json={"username": "admin", "password": "admin"})
-        assert ok.status_code == 200
-        assert ok.json()["ok"] is True
-        assert "password" not in ok.json()
-    finally:
-        _os.environ.pop("ADMIN_USERNAME", None)
-        _os.environ.pop("ADMIN_PASSWORD", None)
-        get_settings.cache_clear()
-
-
 def test_env_providers_listed_readonly(client: TestClient, monkeypatch) -> None:
     monkeypatch.setenv("GEMINI_API_KEY", "test-fake-env-key-1234567890")
     get_settings.cache_clear()

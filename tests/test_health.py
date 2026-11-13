@@ -50,7 +50,7 @@ def test_db_pool_sized_for_scheduled_bursts(monkeypatch) -> None:
 
 
 def test_health_db_shape(monkeypatch) -> None:
-    """health/db همیشه 200 برمی‌گرداند اما وضعیت ممکن است ok یا degraded باشد."""
+    """health/db همیشه 200 برمی‌گرداند، وضعیت ممکن است ok یا degraded باشد."""
     from backend.api.routers import health as health_router
 
     monkeypatch.setattr(
@@ -60,5 +60,26 @@ def test_health_db_shape(monkeypatch) -> None:
     assert res.status_code == 200
     body = res.json()
     assert body["status"] in {"ok", "degraded"}
-    assert "database" in body
-    assert "ok" in body["database"]
+
+
+def test_health_db_public_response_leaks_no_internals(monkeypatch) -> None:
+    """پاسخ عمومی نباید نسخهٔ سرور، revision مهاجرت یا متن خطا را افشا کند."""
+    from backend.api.routers import health as health_router
+
+    monkeypatch.setattr(
+        health_router,
+        "check_database",
+        lambda: {
+            "ok": False,
+            "detail": "OperationalError: password authentication failed",
+            "server": "PostgreSQL 16.15",
+            "migration": "f0auth_users_accounts",
+        },
+    )
+    body = client.get("/health/db").json()
+    assert set(body) == {"status"}
+    assert body["status"] == "degraded"
+
+    details = client.get("/health/db/details")
+    assert details.status_code == 200
+    assert details.json()["database"]["migration"] == "f0auth_users_accounts"
