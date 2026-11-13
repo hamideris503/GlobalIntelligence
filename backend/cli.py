@@ -20,11 +20,11 @@ logger = get_logger(__name__)
 
 
 def _create_admin() -> int:
-    username = input("Admin username: ").strip()
+    username = input("Admin username: ").strip().lower()
     if not username:
         print("username is required", file=sys.stderr)
         return 2
-    email = input("Admin email (optional): ").strip() or None
+    email = input("Admin email (optional): ").strip().lower() or None
     password = getpass.getpass("Admin password: ")
     confirm = getpass.getpass("Confirm password: ")
     if password != confirm:

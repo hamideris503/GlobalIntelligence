@@ -48,6 +48,8 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_username(cls, v: str) -> str:
         v = v.strip()
+        if not 3 <= len(v) <= 32:
+            raise ValueError("invalid username length")
         if not all(c.isalnum() or c in "_-" for c in v):
             raise ValueError("invalid username characters")
         if v.lower() in RESERVED_USERNAMES:

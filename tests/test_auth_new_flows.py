@@ -38,6 +38,20 @@ def test_register_verify_login(client: TestClient) -> None:
     assert me.json()["username"] == "newuser"
     assert me.json()["email_verified"] is True
 
+def test_register_rejects_username_that_is_blank_after_strip(client: TestClient) -> None:
+    for index, username in enumerate(("   ", "a  ")):
+        r = client.post(
+            "/api/auth/register",
+            json={
+                "email": f"short-{index}@example.com",
+                "username": username,
+                "password": "Password123456",
+                "confirm_password": "Password123456",
+            },
+        )
+        assert r.status_code == 422, r.text
+
+
 def _register_unverified(client: TestClient, email: str, username: str) -> None:
     clear_sink()
     r = client.post(
