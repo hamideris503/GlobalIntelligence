@@ -158,4 +158,7 @@
   5. توکن تأیید ایمیل منقضی → ۴۰۰ و کاربر تأییدنشده می‌ماند
   6. SMTP تنظیم‌نشده → `EMAIL_DELIVERY_NOT_CONFIGURED` بدون افشای توکن در پاسخ
 - اجرا: `pytest tests -q` → **1813 passed / 1 skipped / 0 failed** (442.98 s، Python 3.14، SQLite)؛ `ruff` پاک.
-- **هنوز اجرا نشده:** lane واقعی PostgreSQL 16، و سه spec Playwright در `tests/e2e/` (در CI نیستند).
+- اجرا روی **PostgreSQL 16 واقعی** (دیتابیس موقت `gi_test_lane`، مهاجرت‌ها `upgrade head`، ۵۴ جدول، سپس
+  دیتابیس پاک شد): **1814 passed / 0 failed** در 923.96 s (HEAD `ebe1292`). تست «skipped» روی SQLite
+  در این lane اجرا و سبز شد. `alembic downgrade base` در این lane تکرار نشد.
+- **هنوز اجرا نشده:** سه spec Playwright در `tests/e2e/` (در CI نیستند).
