@@ -161,4 +161,10 @@
 - اجرا روی **PostgreSQL 16 واقعی** (دیتابیس موقت `gi_test_lane`، مهاجرت‌ها `upgrade head`، ۵۴ جدول، سپس
   دیتابیس پاک شد): **1814 passed / 0 failed** در 923.96 s (HEAD `ebe1292`). تست «skipped» روی SQLite
   در این lane اجرا و سبز شد. `alembic downgrade base` در این lane تکرار نشد.
-- **هنوز اجرا نشده:** سه spec Playwright در `tests/e2e/` (در CI نیستند).
+- **اجرا شد:** سه spec Playwright در `tests/e2e/` با Chrome محلی (`chrome-win64/chrome.exe`) روی
+  backend موقت (SQLite، `MOCK_MODE=true`، پورت 18100) → **34 passed / 0 failed** در ۱.۵ دقیقه
+  (2026-11-13، HEAD `ebe1292` + تغییر UI). ورود یک‌باره با `tests/e2e/global-setup.js` (کاربر `e2e`).
+- **باگ واقعی که این اجرا پیدا کرد:** در حالت آفلاین/قطع سرور، `giApplyAuthGate` کل شل را با فرم ورود
+  مخفی می‌کرد و بنر «تلاش مجدد» هم با آن مخفی می‌شد. حالا وضعیت `down` هیچ تصمیمی دربارهٔ احراز
+  هویت نمی‌گیرد و شل با بنر آفلاین باقی می‌ماند.
+- **هنوز:** این سه spec در CI نیستند (نیازمند Chrome و کاربر تست).

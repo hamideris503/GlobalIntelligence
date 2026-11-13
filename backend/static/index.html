@@ -666,6 +666,9 @@ async function giCheckHealth(){
 function giApplyAuthGate(){
   const app = document.querySelector('.app');
   if (!app) return;
+  // Network/server failure is not an auth answer: keep the shell (and its offline
+  // banner) usable instead of hiding it behind a login form that cannot work.
+  if (giHealthStatus === 'down') return;
   const verified = !giCurrentUser || giCurrentUser.email_verified !== false;
   if (giHealthStatus === 'ok' && verified) {
     app.style.display = '';
@@ -3537,9 +3540,13 @@ giEnsureNetListeners();
     return;
   } else if (giHealthStatus === 'ok') {
     renderPage('overview');
-  } else {
+  } else if (giHealthStatus === 'auth') {
     giEnsureAuthModal(); giOpenAuth(); giApplyAuthGate();
     return;
+  } else {
+    // Backend unreachable at load: render the shell so the offline banner works.
+    renderPage('overview');
+    giUpdateNetBanner();
   }
   giApplyAuthGate();
 })();
