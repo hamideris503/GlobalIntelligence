@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.routing import Match, Mount
 
@@ -295,6 +296,19 @@ def create_app() -> FastAPI:
     # Serve the single-file UI at "/" (registered after all API routes so it cannot shadow them).
     _static_dir = Path(__file__).resolve().parent / "static"
     if _static_dir.is_dir():
+        _index_file = _static_dir / "index.html"
+        if _index_file.is_file():
+            # Email links point at UI paths, not the JSON API. Serve the SPA
+            # shell so the client can read ?token= and complete the flow.
+            @app.get("/verify-email", include_in_schema=False)
+            @app.get("/reset-password", include_in_schema=False)
+            def _auth_deeplink() -> FileResponse:
+                return FileResponse(
+                    _index_file,
+                    media_type="text/html",
+                    headers={"Cache-Control": "no-store"},
+                )
+
         app.router.routes.append(
             _StaticUIMount(
                 "/", app=StaticFiles(directory=str(_static_dir), html=True), name="static-ui"
