@@ -22,6 +22,12 @@ CSRF_HEADER = "X-CSRF-Token"
 
 LOGIN_WINDOW_SECONDS = 300
 LOGIN_MAX_FAILURES = 10
+REGISTER_WINDOW_SECONDS = 60 * 60
+REGISTER_MAX_ATTEMPTS = 5
+FORGOT_WINDOW_SECONDS = 60 * 60
+FORGOT_MAX_ATTEMPTS = 5
+RESEND_WINDOW_SECONDS = 60 * 60
+RESEND_MAX_ATTEMPTS = 3
 LAST_SEEN_REFRESH_SECONDS = 300
 
 NORMAL_SESSION_DAYS = 30
@@ -115,30 +121,59 @@ def revoke_all_user_sessions(db: Session, user_id: object) -> None:
     db.commit()
 
 
-def login_retry_after(db: Session, *, ip: str, username: str) -> int:
+def rate_limit_retry_after(
+    db: Session,
+    *,
+    key: str,
+    max_attempts: int,
+    window_seconds: int,
+    ip: str | None = None,
+) -> int:
+    """Return seconds until an auth throttle window frees a slot, or 0.
+
+    ``ip=None`` counts the key across all IPs; passing an IP counts it for
+    that client only. Keys are namespaced by the caller so login, register,
+    and recovery attempts cannot collide.
+    """
     now = datetime.now(UTC)
-    cutoff = now - timedelta(seconds=LOGIN_WINDOW_SECONDS)
+    cutoff = now - timedelta(seconds=window_seconds)
+    conditions = [
+        LoginAttempt.username == key[:128],
+        LoginAttempt.created_at >= cutoff,
+    ]
+    if ip is not None:
+        conditions.append(LoginAttempt.ip == ip[:64])
     stamps = (
         db.execute(
             select(LoginAttempt.created_at)
-            .where(
-                LoginAttempt.ip == ip,
-                LoginAttempt.username == username,
-                LoginAttempt.created_at >= cutoff,
-            )
+            .where(*conditions)
             .order_by(LoginAttempt.created_at)
         )
         .scalars()
         .all()
     )
-    if len(stamps) < LOGIN_MAX_FAILURES:
+    if len(stamps) < max_attempts:
         return 0
-    unlock_at = _aware(stamps[0]) + timedelta(seconds=LOGIN_WINDOW_SECONDS)
+    unlock_at = _aware(stamps[0]) + timedelta(seconds=window_seconds)
     return max(1, int((unlock_at - now).total_seconds()) + 1)
 
 
-def record_failed_login(db: Session, *, ip: str, username: str) -> None:
+def record_auth_attempt(db: Session, *, key: str, ip: str | None) -> None:
     now = datetime.now(UTC)
-    db.add(LoginAttempt(ip=(ip or "")[:64], username=username[:128], created_at=now))
+    db.add(LoginAttempt(ip=(ip or "")[:64], username=key[:128], created_at=now))
     db.execute(delete(LoginAttempt).where(LoginAttempt.created_at < now - timedelta(days=1)))
     db.commit()
+
+
+def login_retry_after(db: Session, *, ip: str, username: str) -> int:
+    return rate_limit_retry_after(
+        db,
+        key=username,
+        ip=ip,
+        max_attempts=LOGIN_MAX_FAILURES,
+        window_seconds=LOGIN_WINDOW_SECONDS,
+    )
+
+
+def record_failed_login(db: Session, *, ip: str, username: str) -> None:
+    record_auth_attempt(db, key=username, ip=ip)

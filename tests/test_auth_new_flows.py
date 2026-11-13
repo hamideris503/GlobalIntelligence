@@ -7,6 +7,12 @@ import re
 from fastapi.testclient import TestClient
 
 from backend.auth.email import clear_sink, get_sink_messages
+from backend.auth.sessions import (
+    FORGOT_MAX_ATTEMPTS,
+    REGISTER_MAX_ATTEMPTS,
+    RESEND_MAX_ATTEMPTS,
+)
+from tests.conftest import app
 
 
 def test_register_verify_login(client: TestClient) -> None:
@@ -157,3 +163,60 @@ def test_resend_smtp_failure_returns_structured_warning(client: TestClient, monk
     assert rs.status_code == 200, rs.text
     assert rs.json()["email_sent"] is False
     assert rs.json()["code"] == "EMAIL_DELIVERY_FAILED"
+
+
+def test_register_is_rate_limited_per_ip(client: TestClient) -> None:
+    for index in range(REGISTER_MAX_ATTEMPTS):
+        r = client.post(
+            "/api/auth/register",
+            json={
+                "email": f"burst-{index}@example.com",
+                "username": f"burst{index}",
+                "password": "Password123456",
+                "confirm_password": "Password123456",
+            },
+        )
+        assert r.status_code == 200, r.text
+
+    blocked = client.post(
+        "/api/auth/register",
+        json={
+            "email": "burst-final@example.com",
+            "username": "burstfinal",
+            "password": "Password123456",
+            "confirm_password": "Password123456",
+        },
+    )
+    assert blocked.status_code == 429
+    assert blocked.headers.get("Retry-After")
+
+
+def test_forgot_password_rate_limits_email_across_ips() -> None:
+    email = "target@example.com"
+    for index in range(FORGOT_MAX_ATTEMPTS):
+        ip_client = TestClient(app, client=(f"10.0.0.{index + 1}", 50000))
+        r = ip_client.post("/api/auth/forgot-password", json={"email": email})
+        assert r.status_code == 200, r.text
+
+    blocked_client = TestClient(app, client=("10.0.0.99", 50000))
+    blocked = blocked_client.post("/api/auth/forgot-password", json={"email": email})
+    assert blocked.status_code == 429
+    assert blocked.headers.get("Retry-After")
+
+
+def test_resend_verification_is_rate_limited_per_user(client: TestClient) -> None:
+    _register_unverified(client, "resend-limit@example.com", "resendlimit")
+    lr = client.post(
+        "/api/auth/session",
+        json={"username": "resendlimit", "password": "Password123456"},
+    )
+    assert lr.status_code == 200, lr.text
+    csrf = client.cookies.get("gi_csrf") or ""
+
+    for _ in range(RESEND_MAX_ATTEMPTS):
+        r = client.post("/api/auth/resend-verification", headers={"X-CSRF-Token": csrf})
+        assert r.status_code == 200, r.text
+
+    blocked = client.post("/api/auth/resend-verification", headers={"X-CSRF-Token": csrf})
+    assert blocked.status_code == 429
+    assert blocked.headers.get("Retry-After")

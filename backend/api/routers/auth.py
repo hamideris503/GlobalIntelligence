@@ -1,6 +1,7 @@
 """Auth API — نشست واقعی کاربر + ثبت‌نام + تأیید ایمیل + بازیابی حساب."""
 from __future__ import annotations
 
+import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
@@ -16,9 +17,17 @@ from backend.auth.email import EmailDeliveryFailed, EmailDeliveryNotConfigured, 
 from backend.auth.passwords import dummy_verify, hash_password, verify_password
 from backend.auth.sessions import (
     CSRF_COOKIE,
+    FORGOT_MAX_ATTEMPTS,
+    FORGOT_WINDOW_SECONDS,
+    REGISTER_MAX_ATTEMPTS,
+    REGISTER_WINDOW_SECONDS,
+    RESEND_MAX_ATTEMPTS,
+    RESEND_WINDOW_SECONDS,
     SESSION_COOKIE,
     create_session,
     login_retry_after,
+    rate_limit_retry_after,
+    record_auth_attempt,
     record_failed_login,
     revoke_all_user_sessions,
     revoke_session,
@@ -152,6 +161,33 @@ def _check_rate_limit(db: Session, request: Request, username: str) -> None:
         raise HTTPException(status_code=429, detail="too many login attempts; retry later", headers={"Retry-After": str(retry_after)})
 
 
+def _rate_limit_key(scope: str, value: str) -> str:
+    return f"{scope}:{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _enforce_attempt_limit(
+    db: Session,
+    *,
+    key: str,
+    max_attempts: int,
+    window_seconds: int,
+    ip: str | None = None,
+) -> None:
+    retry_after = rate_limit_retry_after(
+        db,
+        key=key,
+        max_attempts=max_attempts,
+        window_seconds=window_seconds,
+        ip=ip,
+    )
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail="too many attempts; retry later",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 def _create_token(db: Session, user: User, purpose: str, ttl_minutes: int, ip: str | None) -> str:
     raw = secrets.token_urlsafe(32)
     from backend.auth.sessions import token_hash
@@ -187,6 +223,25 @@ def _consume_token(db: Session, raw: str, purpose: str) -> AuthToken | None:
 def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> RegisterResponse:
     email = str(payload.email).strip().lower()
     username = payload.username.strip().lower()
+    client_ip = _client_ip(request)
+    email_key = _rate_limit_key("register", email)
+
+    _enforce_attempt_limit(
+        db,
+        key="register:ip",
+        ip=client_ip,
+        max_attempts=REGISTER_MAX_ATTEMPTS,
+        window_seconds=REGISTER_WINDOW_SECONDS,
+    )
+    _enforce_attempt_limit(
+        db,
+        key=email_key,
+        ip="",
+        max_attempts=REGISTER_MAX_ATTEMPTS,
+        window_seconds=REGISTER_WINDOW_SECONDS,
+    )
+    record_auth_attempt(db, key="register:ip", ip=client_ip)
+    record_auth_attempt(db, key=email_key, ip="")
 
     # uniqueness checks
     existing_email = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
@@ -266,6 +321,15 @@ def resend_verification(
 ) -> ResendVerificationResponse:
     if current.via != "session":
         raise HTTPException(status_code=403, detail="session required")
+    client_ip = _client_ip(request)
+    user_key = _rate_limit_key("resend_verification", current.username)
+    _enforce_attempt_limit(
+        db,
+        key=user_key,
+        max_attempts=RESEND_MAX_ATTEMPTS,
+        window_seconds=RESEND_WINDOW_SECONDS,
+    )
+    record_auth_attempt(db, key=user_key, ip=client_ip)
     user = db.execute(select(User).where(User.username == current.username)).scalar_one_or_none()
     if user is None or not user.active:
         raise HTTPException(status_code=401, detail="authentication required")
@@ -311,6 +375,24 @@ def forgot_username(payload: ForgotUsernameRequest, request: Request, db: Sessio
 @router.post("/forgot-password", response_model=OkResponse)
 def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)) -> OkResponse:
     email = str(payload.email).strip().lower()
+    client_ip = _client_ip(request)
+    email_key = _rate_limit_key("forgot_password", email)
+    _enforce_attempt_limit(
+        db,
+        key="forgot_password:ip",
+        ip=client_ip,
+        max_attempts=FORGOT_MAX_ATTEMPTS,
+        window_seconds=FORGOT_WINDOW_SECONDS,
+    )
+    _enforce_attempt_limit(
+        db,
+        key=email_key,
+        ip="",
+        max_attempts=FORGOT_MAX_ATTEMPTS,
+        window_seconds=FORGOT_WINDOW_SECONDS,
+    )
+    record_auth_attempt(db, key="forgot_password:ip", ip=client_ip)
+    record_auth_attempt(db, key=email_key, ip="")
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is not None and user.active and user.email_verified:
         try:
