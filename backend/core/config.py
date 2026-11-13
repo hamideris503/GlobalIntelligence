@@ -130,6 +130,14 @@ class Settings(BaseSettings):
     # --- Sessions (مرحله ۱ احراز هویت؛ کوکی HttpOnly) ---
     session_ttl_minutes: int = 720
 
+    # --- Auth rate limits (DB-backed rolling window) ---
+    auth_register_max_attempts: int = 5
+    auth_register_window_seconds: int = 3600
+    auth_forgot_password_max_attempts: int = 5
+    auth_forgot_password_window_seconds: int = 3600
+    auth_resend_verification_max_attempts: int = 3
+    auth_resend_verification_window_seconds: int = 3600
+
     # --- Email delivery (ثبت‌نام/بازیابی حساب) ---
     app_base_url: str = "http://localhost:8000"
     smtp_host: str | None = None

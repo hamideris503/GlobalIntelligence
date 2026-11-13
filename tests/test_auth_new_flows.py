@@ -7,11 +7,7 @@ import re
 from fastapi.testclient import TestClient
 
 from backend.auth.email import clear_sink, get_sink_messages
-from backend.auth.sessions import (
-    FORGOT_MAX_ATTEMPTS,
-    REGISTER_MAX_ATTEMPTS,
-    RESEND_MAX_ATTEMPTS,
-)
+from backend.core.config import get_settings
 from tests.conftest import app
 
 
@@ -165,8 +161,12 @@ def test_resend_smtp_failure_returns_structured_warning(client: TestClient, monk
     assert rs.json()["code"] == "EMAIL_DELIVERY_FAILED"
 
 
-def test_register_is_rate_limited_per_ip(client: TestClient) -> None:
-    for index in range(REGISTER_MAX_ATTEMPTS):
+def test_register_is_rate_limited_per_ip(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_REGISTER_MAX_ATTEMPTS", "2")
+    monkeypatch.setenv("AUTH_REGISTER_WINDOW_SECONDS", "3600")
+    get_settings.cache_clear()
+    settings = get_settings()
+    for index in range(settings.auth_register_max_attempts):
         r = client.post(
             "/api/auth/register",
             json={
@@ -193,7 +193,8 @@ def test_register_is_rate_limited_per_ip(client: TestClient) -> None:
 
 def test_forgot_password_rate_limits_email_across_ips() -> None:
     email = "target@example.com"
-    for index in range(FORGOT_MAX_ATTEMPTS):
+    settings = get_settings()
+    for index in range(settings.auth_forgot_password_max_attempts):
         ip_client = TestClient(app, client=(f"10.0.0.{index + 1}", 50000))
         r = ip_client.post("/api/auth/forgot-password", json={"email": email})
         assert r.status_code == 200, r.text
@@ -213,10 +214,29 @@ def test_resend_verification_is_rate_limited_per_user(client: TestClient) -> Non
     assert lr.status_code == 200, lr.text
     csrf = client.cookies.get("gi_csrf") or ""
 
-    for _ in range(RESEND_MAX_ATTEMPTS):
+    settings = get_settings()
+    for _ in range(settings.auth_resend_verification_max_attempts):
         r = client.post("/api/auth/resend-verification", headers={"X-CSRF-Token": csrf})
         assert r.status_code == 200, r.text
 
     blocked = client.post("/api/auth/resend-verification", headers={"X-CSRF-Token": csrf})
     assert blocked.status_code == 429
     assert blocked.headers.get("Retry-After")
+
+
+def test_auth_rate_limits_are_env_configurable(monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_REGISTER_MAX_ATTEMPTS", "7")
+    monkeypatch.setenv("AUTH_REGISTER_WINDOW_SECONDS", "120")
+    monkeypatch.setenv("AUTH_FORGOT_PASSWORD_MAX_ATTEMPTS", "4")
+    monkeypatch.setenv("AUTH_FORGOT_PASSWORD_WINDOW_SECONDS", "600")
+    monkeypatch.setenv("AUTH_RESEND_VERIFICATION_MAX_ATTEMPTS", "2")
+    monkeypatch.setenv("AUTH_RESEND_VERIFICATION_WINDOW_SECONDS", "900")
+    get_settings.cache_clear()
+
+    settings = get_settings()
+    assert settings.auth_register_max_attempts == 7
+    assert settings.auth_register_window_seconds == 120
+    assert settings.auth_forgot_password_max_attempts == 4
+    assert settings.auth_forgot_password_window_seconds == 600
+    assert settings.auth_resend_verification_max_attempts == 2
+    assert settings.auth_resend_verification_window_seconds == 900

@@ -17,12 +17,6 @@ from backend.auth.email import EmailDeliveryFailed, EmailDeliveryNotConfigured, 
 from backend.auth.passwords import dummy_verify, hash_password, verify_password
 from backend.auth.sessions import (
     CSRF_COOKIE,
-    FORGOT_MAX_ATTEMPTS,
-    FORGOT_WINDOW_SECONDS,
-    REGISTER_MAX_ATTEMPTS,
-    REGISTER_WINDOW_SECONDS,
-    RESEND_MAX_ATTEMPTS,
-    RESEND_WINDOW_SECONDS,
     SESSION_COOKIE,
     create_session,
     login_retry_after,
@@ -223,6 +217,7 @@ def _consume_token(db: Session, raw: str, purpose: str) -> AuthToken | None:
 def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> RegisterResponse:
     email = str(payload.email).strip().lower()
     username = payload.username.strip().lower()
+    settings = get_settings()
     client_ip = _client_ip(request)
     email_key = _rate_limit_key("register", email)
 
@@ -230,15 +225,15 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
         db,
         key="register:ip",
         ip=client_ip,
-        max_attempts=REGISTER_MAX_ATTEMPTS,
-        window_seconds=REGISTER_WINDOW_SECONDS,
+        max_attempts=settings.auth_register_max_attempts,
+        window_seconds=settings.auth_register_window_seconds,
     )
     _enforce_attempt_limit(
         db,
         key=email_key,
         ip="",
-        max_attempts=REGISTER_MAX_ATTEMPTS,
-        window_seconds=REGISTER_WINDOW_SECONDS,
+        max_attempts=settings.auth_register_max_attempts,
+        window_seconds=settings.auth_register_window_seconds,
     )
     record_auth_attempt(db, key="register:ip", ip=client_ip)
     record_auth_attempt(db, key=email_key, ip="")
@@ -268,7 +263,6 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
     delivery_code = ""
     try:
         raw_token = _create_token(db, user, "verify_email", 24 * 60, _client_ip(request))
-        settings = get_settings()
         link = f"{settings.app_base_url.rstrip('/')}/verify-email?token={quote(raw_token)}"
         send_email(
             email,
@@ -321,13 +315,14 @@ def resend_verification(
 ) -> ResendVerificationResponse:
     if current.via != "session":
         raise HTTPException(status_code=403, detail="session required")
+    settings = get_settings()
     client_ip = _client_ip(request)
     user_key = _rate_limit_key("resend_verification", current.username)
     _enforce_attempt_limit(
         db,
         key=user_key,
-        max_attempts=RESEND_MAX_ATTEMPTS,
-        window_seconds=RESEND_WINDOW_SECONDS,
+        max_attempts=settings.auth_resend_verification_max_attempts,
+        window_seconds=settings.auth_resend_verification_window_seconds,
     )
     record_auth_attempt(db, key=user_key, ip=client_ip)
     user = db.execute(select(User).where(User.username == current.username)).scalar_one_or_none()
@@ -337,7 +332,6 @@ def resend_verification(
         return ResendVerificationResponse(ok=True, email_sent=False, code="ALREADY_VERIFIED")
     try:
         raw_token = _create_token(db, user, "verify_email", 24 * 60, _client_ip(request))
-        settings = get_settings()
         link = f"{settings.app_base_url.rstrip('/')}/verify-email?token={quote(raw_token)}"
         send_email(
             user.email,
@@ -375,21 +369,22 @@ def forgot_username(payload: ForgotUsernameRequest, request: Request, db: Sessio
 @router.post("/forgot-password", response_model=OkResponse)
 def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)) -> OkResponse:
     email = str(payload.email).strip().lower()
+    settings = get_settings()
     client_ip = _client_ip(request)
     email_key = _rate_limit_key("forgot_password", email)
     _enforce_attempt_limit(
         db,
         key="forgot_password:ip",
         ip=client_ip,
-        max_attempts=FORGOT_MAX_ATTEMPTS,
-        window_seconds=FORGOT_WINDOW_SECONDS,
+        max_attempts=settings.auth_forgot_password_max_attempts,
+        window_seconds=settings.auth_forgot_password_window_seconds,
     )
     _enforce_attempt_limit(
         db,
         key=email_key,
         ip="",
-        max_attempts=FORGOT_MAX_ATTEMPTS,
-        window_seconds=FORGOT_WINDOW_SECONDS,
+        max_attempts=settings.auth_forgot_password_max_attempts,
+        window_seconds=settings.auth_forgot_password_window_seconds,
     )
     record_auth_attempt(db, key="forgot_password:ip", ip=client_ip)
     record_auth_attempt(db, key=email_key, ip="")
@@ -397,7 +392,6 @@ def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Sessio
     if user is not None and user.active and user.email_verified:
         try:
             raw_token = _create_token(db, user, "reset_password", 20, _client_ip(request))
-            settings = get_settings()
             link = f"{settings.app_base_url.rstrip('/')}/reset-password?token={quote(raw_token)}"
             send_email(
                 email,
