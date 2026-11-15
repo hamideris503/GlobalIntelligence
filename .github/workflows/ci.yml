@@ -75,6 +75,7 @@ jobs:
         timeout-minutes: 30
         working-directory: backend
         run: |
+          set +e
           set -o pipefail
           pytest ../tests -q -m "not pg" --basetemp=.pytest-sqlite 2>&1 | tee pytest-sqlite.log
           status=${PIPESTATUS[0]}
