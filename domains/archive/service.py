@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, not_, or_, select
 from sqlalchemy.orm import Session
 
 from backend.database.models.article import Article
@@ -99,11 +99,31 @@ def measure_storage(db: Session) -> dict[str, Any]:
     }
 
 
+# نشانهٔ ردیف dispatch که پیش‌نیازش (screening/provider واقعی) در دسترس نیست.
+# `DispatchService.mark_blocked` چنین ردیفی را عمداً `pending` نگه می‌دارد تا
+# تلاش را نسوزاند؛ اما این یک Job فعال نیست که آرشیو باید منتظرش بماند.
+BLOCKED_PREREQUISITE_MARKER = "screening_unavailable:"
+
+
 def _active_dispatches(db: Session, article_id) -> list[ArticleDispatch]:
+    """Jobهای واقعاً در جریان؛ ردیف‌های پارک‌شدهٔ «پیش‌نیاز ناموجود» مستثنا هستند.
+
+    بدون این استثنا، هر مقاله‌ای که screening آن به‌خاطر نبود runtime/provider محلی
+    پارک شده بود، برای همیشه `active_dispatch` می‌گرفت و هیچ‌وقت وارد آرشیو نمی‌شد
+    (در عمل: ۱۹ از ۲۰ مقاله).
+    """
     return db.execute(
         select(ArticleDispatch).where(
             ArticleDispatch.article_id == article_id,
             ArticleDispatch.status.in_(("pending", "retryable", "running", "claimed")),
+            or_(
+                # هر وضعیت غیر pending همیشه Job فعال است، حتی اگر خطای کهنه داشته باشد
+                ArticleDispatch.status != "pending",
+                ArticleDispatch.last_error.is_(None),
+                not_(
+                    ArticleDispatch.last_error.startswith(BLOCKED_PREREQUISITE_MARKER)
+                ),
+            ),
         )
     ).scalars().all()
 

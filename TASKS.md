@@ -6,11 +6,12 @@
 
 > ⚠️ این فایل تاریخچهٔ کارها را نگه می‌دارد. مرجع وضعیت جاری و بدهی‌ها: [`docs/FIXES_BACKLOG.md`](docs/FIXES_BACKLOG.md) و [`docs/ROADMAP_STAGE96_104.md`](docs/ROADMAP_STAGE96_104.md).
 
-### اصلاح ادعاهای کهنه (بازبینی ۲۸ اکتبر)
+### اصلاح ادعاهای کهنه (بازبینی ۲۸ اکتبر + ۱۳ نوامبر ۲۰۲۶)
 
 - `ruff check` **اکنون شامل `source_bot`** است و پاس می‌شود؛ بند قدیمی زیر دربارهٔ کمبودن scope دیگر معتبر نیست.
 - `tests/conftest.py` وقتی `DATABASE_URL` به PostgreSQL اشاره کند، **واقعاً به PostgreSQL وصل می‌شود** (NullPool، بدون `create_all`)؛ ادعای «pytest همیشه روی SQLite اجرا می‌شود» دیگر درست نیست.
-- CI شاخهٔ `stage95-pg-ci-verification` عمداً به زیرمجموعه‌ای از تست‌ها کوچک شده است (F-03) — این یک وضعیت موقت نیست و باید در Stage 96 برگردد.
+- CI شاخهٔ `stage95-pg-ci-verification` عمداً به زیرمجموعه‌ای از تست‌ها کوچک شده بود (F-03) — در Stage 96 کل suite به CI برگشت.
+- Stage 96 (PG + CI + auth + E2E) در ۱۳ نوامبر ۲۰۲۶ بسته شد: PG 1814/0، E2E 34/0، auth TLS + بنر offline اصلاح شد. `docs/FIXES_BACKLOG.md` به‌روزرسانی شد.
 - کارهای باز جدید (با شاهد و روش اثبات) در `docs/FIXES_BACKLOG.md` ثبت شده‌اند: F-01 تا F-35.
 
 ---
@@ -178,6 +179,6 @@
 - No known critical error
 - User can reproduce result
 
-## Correction — CI facts (2026-11-12)
+## Correction — CI facts (2026-11-13)
 
-The Phase 15 notes above are outdated: the current `.github/workflows/ci.yml` has **3 jobs** (`backend`, `backend-sqlite`, `docker`), **no `frontend` job**, and lint runs as `ruff check backend domains tests scripts source_bot` (including `source_bot/`). A lightweight `Legacy UI guard` step was also added (`python scripts/check_legacy_ui_backup.py --live-only`); the hash check of the retired UI backup runs on the host, not on CI runners. Remote GitHub Actions execution is still **NOT_VERIFIED**.
+The Phase 15 notes above are outdated: the current `.github/workflows/ci.yml` has **3 jobs** (`backend`, `backend-sqlite`, `docker`), **no `frontend` job**, and lint runs as `ruff check backend domains tests scripts source_bot` (including `source_bot/`). A lightweight `Legacy UI guard` step was also added (`python scripts/check_legacy_ui_backup.py --live-only`); the hash check of the retired UI backup runs on the host, not on CI runners. Stage 96 is now **COMPLETE** (13 Nov 2026): PG 1814/0, Playwright E2E 34/0, auth hardened, offline banner fixed. Remote GitHub Actions execution is still **NOT_VERIFIED** — needs push + Actions tab check.

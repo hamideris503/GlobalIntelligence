@@ -560,11 +560,38 @@ def _model(client: TestClient, pid: str, name: str = "m-free",
     return res.json()
 
 
+def _mark_tested(pid: str) -> None:
+    """شاهد تست موفق را ثبت می‌کند تا Provider از Draft خارج شود.
+
+    تست‌های این فایل دربارهٔ مدل/مصرف‌کننده‌اند، نه دربارهٔ گذار فعال‌سازی؛ مسیر
+    واقعی promotion در `tests/test_provider_lifecycle.py` از طریق endpoint تست
+    اتصال سنجیده می‌شود.
+    """
+    import uuid as _uuid
+
+    from backend.database.models.ai_settings import AIProviderRow
+    from tests.conftest import TestingSession as _Session
+
+    session = _Session()
+    try:
+        row = session.get(AIProviderRow, _uuid.UUID(pid))
+        assert row is not None
+        row.last_test_status = "ok"
+        session.commit()
+    finally:
+        session.close()
+
+
 def _provider_id(client: TestClient) -> str:
     res = client.post("/api/settings/providers",
                       json={"name": "G1", "kind": "groq", "api_key": FAKE_KEY})
     assert res.status_code == 200, res.text
-    return res.json()["id"]
+    pid = res.json()["id"]
+    # WP-07.1: Provider جدید Draft است؛ این تست‌ها به Provider فعال نیاز دارند.
+    _mark_tested(pid)
+    assert client.put(f"/api/settings/providers/{pid}",
+                      json={"enabled": True}).status_code == 200
+    return pid
 
 
 def test_model_create_forces_unverified_disabled(client: TestClient) -> None:

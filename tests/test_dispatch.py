@@ -289,6 +289,64 @@ def test_stale_running_at_max_attempts_becomes_terminal() -> None:
         db.close()
 
 
+def test_retryable_row_is_claimable_after_a_db_roundtrip() -> None:
+    """A stored ``next_retry_at`` must not break the claim UPDATE.
+
+    SQLite hands back naive datetimes while the claim predicate uses an aware
+    ``now``; letting SQLAlchemy evaluate that comparison in Python raised
+    TypeError and every dispatch tick failed, so retried rows never ran.
+    """
+    db = TestingSession()
+    try:
+        art = _article(db)
+        svc = DispatchService(db)
+        row = svc.ensure_dispatch(art.id, "event_extraction")
+        db.commit()
+        assert svc.claim(row) is True
+        svc.mark_retryable(row, "transient failure")
+        row.next_retry_at = datetime.now(UTC) - timedelta(seconds=5)  # due again
+        db.commit()
+    finally:
+        db.close()
+
+    db = TestingSession()
+    try:
+        svc = DispatchService(db)
+        rows = svc.claimable("event_extraction")
+        assert [r.id for r in rows]
+        assert svc.claim(rows[0]) is True
+        assert rows[0].status == "running"
+        assert rows[0].attempts == 2
+    finally:
+        db.close()
+
+
+def test_startup_recovery_frees_rows_claimed_just_before_a_crash() -> None:
+    """kill -9 leaves a freshly claimed row `running`; startup must free it.
+
+    The ordinary lease (dispatch_lease_seconds, default 900 s) would keep the
+    row unclaimable for that whole window, because the restarted process can
+    never hold the previous process's lease.
+    """
+    db = TestingSession()
+    try:
+        art = _article(db)
+        svc = DispatchService(db)
+        row = svc.ensure_dispatch(art.id, "event_extraction")
+        db.commit()
+        assert svc.claim(row) is True
+        db.commit()
+        assert row.status == "running"
+
+        assert recover_at_startup(db)["stale"] == 1
+        db.refresh(row)
+        assert row.status == "retryable"
+        assert row.attempts == 1
+        assert row.next_retry_at is not None
+    finally:
+        db.close()
+
+
 def test_ai_fallback_cannot_route_back_into_local_runtimes(monkeypatch) -> None:
     """Both local models off: the Gateway chain must exclude Kev/Laya."""
     import backend.ai.gateway as gateway_module

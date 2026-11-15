@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from source_bot.registry import ADAPTERS, PREVIEW_ADAPTERS, pick_adapter
 from source_bot.security import validate_url
 
-from backend.configuration.errors import UnknownKind
+from backend.configuration.errors import NeedsAdapter, UnknownKind
 
 DESCRIPTOR_VERSION = "1"
 
@@ -40,15 +40,31 @@ class FieldSpec:
 
 @dataclass(frozen=True)
 class Descriptor:
+    """قرارداد یک kind قابل‌پیکربندی.
+
+    `adapter_state` تنها دو مقدار مجاز دارد:
+    - ``ready``: descriptor + validation + تست/activation + مصرف‌کنندهٔ runtime دارد.
+    - ``needs_adapter``: گروه تنظیمات شناخته شده است اما adapter/مصرف‌کننده ندارد؛
+      فقط برای نمایش صادقانه برگردانده می‌شود و ذخیرهٔ پیکربندی برایش ممکن نیست.
+    """
+
     kind: str
     label: str
     version: str
     fields: tuple[FieldSpec, ...]
     adapters: tuple[str, ...] = ()
     preview_adapters: tuple[str, ...] = ()
+    adapter_state: str = "ready"
+    note: str = ""
+
+    @property
+    def creatable(self) -> bool:
+        return self.adapter_state == "ready"
 
     def as_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        data["creatable"] = self.creatable
+        return data
 
 
 SOURCE_DESCRIPTOR = Descriptor(
@@ -81,31 +97,103 @@ SOURCE_DESCRIPTOR = Descriptor(
 
 _REGISTRY: dict[str, Descriptor] = {SOURCE_DESCRIPTOR.kind: SOURCE_DESCRIPTOR}
 
+# گروه‌های تنظیمات که هنوز adapter/مصرف‌کنندهٔ runtime ندارند (WP-06 بند ۱۲).
+# این‌ها فقط برای نمایش صادقانه در UI هستند: هیچ instance/revision برایشان ساخته
+# نمی‌شود و هیچ secretی در این مسیر ذخیره نمی‌گردد. گروه‌هایی که مصرف‌کنندهٔ
+# موجود دارند در همین لیست نیستند (AI Providers → /api/settings/providers،
+# General/Processing → /api/settings/app، Archive/Retention → /api/retention).
+NEEDS_ADAPTER_KINDS: dict[str, tuple[str, str]] = {
+    "email": (
+        "Email / SMTP",
+        "پیکربندی از env خوانده می‌شود (SMTP_*)؛ adapter تنظیمات و تست بدون ارسال واقعی ندارد.",
+    ),
+    "telegram": (
+        "Telegram",
+        "ارسال از env خوانده می‌شود (TELEGRAM_*); مسیر test-deliver در /api/alerts جداگانه است.",
+    ),
+    "scheduling": (
+        "Scheduling",
+        "زمان‌بندی Jobها در این نسخه از n8n/BackgroundTasks می‌آید؛ adapter پیکربندی ندارد.",
+    ),
+    "ui_preferences": (
+        "UI Preferences",
+        "ترجیحات UI در localStorage مرورگر است، نه پیکربندی سرور.",
+    ),
+    "access_security": (
+        "Access / Security",
+        "سیاست‌های امنیتی از env و /api/auth کنترل می‌شوند؛ adapter پیکربندی ندارد.",
+    ),
+}
+
+
+def needs_adapter_definitions() -> list[dict]:
+    """تعریف‌های نمایشی برای kindهای بدون adapter (بدون فیلد قابل‌ذخیره)."""
+    return [
+        {
+            "kind": kind,
+            "label": label,
+            "version": DESCRIPTOR_VERSION,
+            "fields": [],
+            "adapters": [],
+            "preview_adapters": [],
+            "adapter_state": "needs_adapter",
+            "creatable": False,
+            "note": note,
+        }
+        for kind, (label, note) in NEEDS_ADAPTER_KINDS.items()
+    ]
+
 _URL_FIELDS = ("feed_url", "rss_url", "api_url", "homepage_url", "data_download_url")
 
 
 def all_definitions() -> list[dict]:
-    """همهٔ descriptorها برای مصرف UI/کلاینت."""
-    return [d.as_dict() for d in _REGISTRY.values()]
+    """همهٔ descriptorها برای مصرف UI/کلاینت (ready + needs_adapter)."""
+    ready = [d.as_dict() for d in _REGISTRY.values()]
+    return ready + needs_adapter_definitions()
 
 
 def definition(kind: str) -> Descriptor:
     desc = _REGISTRY.get(kind)
-    if desc is None:
-        raise UnknownKind(f"unknown configuration kind: {kind}")
-    return desc
+    if desc is not None:
+        return desc
+    if kind in NEEDS_ADAPTER_KINDS:
+        raise NeedsAdapter(
+            f"configuration kind '{kind}' has no adapter (NEEDS_ADAPTER); "
+            "it cannot be stored from the control plane"
+        )
+    raise UnknownKind(f"unknown configuration kind: {kind}")
+
+
+SECRET_VALUE_PREFIXES = ("sk-", "ghp_", "AIza", "Bearer ")
+
+
+def _looks_like_secret(value: object) -> bool:
+    return isinstance(value, str) and value.startswith(SECRET_VALUE_PREFIXES)
 
 
 def redact(kind: str, payload: dict) -> dict:
-    """حذف مقدار فیلدهای secret از payload خروجی."""
+    """حذف مقدار فیلدهای secret از payload خروجی.
+
+    علاوه بر فیلدهای `secret`، مقدار `endpoint_config.api_key_env` هم اگر شبیه
+    کلید باشد (نه نام متغیر env) ماسک می‌شود؛ وگرنه همان مقداری که validation
+    رد می‌کند از مسیر GET بازخوانی و افشا می‌شد.
+    """
     desc = _REGISTRY.get(kind)
     if desc is None:
         return dict(payload)
     secret_names = {f.name for f in desc.fields if f.secret}
-    return {
-        k: ("***" if k in secret_names and v not in (None, "") else v)
-        for k, v in payload.items()
-    }
+    out: dict = {}
+    for k, v in payload.items():
+        if k in secret_names and v not in (None, ""):
+            out[k] = "***"
+        elif k == "endpoint_config" and isinstance(v, dict):
+            cfg = dict(v)
+            if _looks_like_secret(cfg.get("api_key_env")):
+                cfg["api_key_env"] = "***"
+            out[k] = cfg
+        else:
+            out[k] = v
+    return out
 
 
 def resolve_adapter(payload: dict) -> dict:
@@ -240,9 +328,11 @@ __all__ = [
     "DESCRIPTOR_VERSION",
     "FieldSpec",
     "Descriptor",
+    "NEEDS_ADAPTER_KINDS",
     "SOURCE_DESCRIPTOR",
     "all_definitions",
     "definition",
+    "needs_adapter_definitions",
     "redact",
     "resolve_adapter",
     "validate",

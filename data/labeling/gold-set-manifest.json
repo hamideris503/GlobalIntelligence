@@ -1,0 +1,118 @@
+{
+  "manifest_version": "wp08-v1",
+  "created": "2026-11-14",
+  "dataset_version": "gold-set-v1-2026-11-14",
+  "status": "READY_FOR_EVALUATION",
+  "min_labeled_samples": 200,
+  "record_count": 382,
+  "valid_samples": 382,
+  "human_labels": 382,
+  "rejected": 0,
+  "pending": 0,
+  "duplicates": 0,
+  "label_distribution": {
+    "relevant_true": 295,
+    "relevant_false": 87
+  },
+  "source": {
+    "merged_file": "data/labeling/labeled-merged-stage50-stage53.jsonl",
+    "merged_sha256": "d7802af05dc2197674118defc2d579c1538f96037c8247376acc3f8c1f4fafa4",
+    "merged_total": 382,
+    "original_versions": {
+      "stage50-primary-fulltext-2026-10-20": 232,
+      "stage53-out-of-domain-2026-10-21": 150
+    },
+    "source_files": [
+      {
+        "path": "H:/GIRuntime/labeling/reviewed/stage53_combined200_20261021T215844Z/labeled-final.jsonl",
+        "sha256": "a0095e9109af60feb8eff3f5cbd8e6d767b5e99fb387a8830aa17ec6a1729356",
+        "records": 200,
+        "dataset_version": "stage53-out-of-domain-2026-10-22-combined200-v1",
+        "label_distribution": {"relevant_true": 36, "relevant_false": 164},
+        "validation": "READY_FOR_EVALUATION"
+      },
+      {
+        "path": "H:/GIRuntime/labeling/reviewed/stage50_51_labeled_corrected.jsonl",
+        "sha256": "58cd0ec7a867fff7473cfa936768f2bc7a25cdfe647c528a03fd6cd26f80b419",
+        "records": 232,
+        "dataset_version": "stage50-primary-fulltext-2026-10-20",
+        "label_distribution": {"relevant_true": 231, "relevant_false": 1},
+        "validation": "READY_FOR_EVALUATION"
+      },
+      {
+        "path": "H:/GIRuntime/labeling/review-package/labeled-final.jsonl",
+        "sha256": "3c4c91456c5356931811b0660b26ba88868b840bcaf3c2cb00da0d68a61260dd",
+        "records": 150,
+        "dataset_version": "stage53-out-of-domain-2026-10-21",
+        "validation": "WAITING_FOR_HUMAN_LABELS (below MIN_LABELED_SAMPLES=200)"
+      },
+      {
+        "path": "H:/GIRuntime/labeling/reviewed/stage53_labeled_corrected.jsonl",
+        "sha256": "6958a7d18199b18755cbcc55df07a84d20b88e145b230cfa5f9e08c7cc6f355d",
+        "records": 150,
+        "dataset_version": "stage53-out-of-domain-2026-10-21",
+        "validation": "WAITING_FOR_HUMAN_LABELS (below MIN_LABELED_SAMPLES=200)"
+      }
+    ]
+  },
+  "staging_copy": {
+    "path": "backups/roadmap_v22/wp08_gold_set_v1.jsonl",
+    "sha256": "52ea7ac56ba8c73c28dc105884e927849c1845f2488c6418bcc5f6650916f321",
+    "records": 382,
+    "dataset_version": "gold-set-v1-2026-11-14",
+    "validation": "READY_FOR_EVALUATION",
+    "provenance_preserved": true,
+    "note": "Unified dataset_version over two original versions; original version stored in source_dataset_version per record."
+  },
+  "held_out_split": {
+    "seed": "wp08-heldout-v1",
+    "frac": 0.2,
+    "dev_count": 301,
+    "holdout_count": 81,
+    "dev_label_distribution": {"relevant_true": 234, "relevant_false": 67},
+    "holdout_label_distribution": {"relevant_true": 61, "relevant_false": 20},
+    "split_file": "backups/roadmap_v22/wp08_split_v1.json",
+    "rule": "No holdout sample used for tuning; dev only."
+  },
+  "evaluation": {
+    "note": "Metrics computed from existing result files (model runs 2026-11-04/08). Kev/Laya runtimes not available in this environment; no new model run performed.",
+    "kev_full_results_sha256": "21c8c207870d41b5020c17fdf228fbd86b21e016a486ee679dab90f6092e73d4",
+    "laya_full_results_sha256": "68dfacd0964ff9d0f9d38baf4c961edc6d06a56e7c1d1210f2126481274608f7",
+    "kev": {
+      "n": 382,
+      "confusion": {"TP": 122, "TN": 83, "FP": 4, "FN": 173},
+      "accuracy": 0.5366,
+      "precision": 0.9683,
+      "recall": 0.4136,
+      "f1": 0.5796,
+      "macro_f1": 0.5318,
+      "latency_ms_mean": 7543.1,
+      "latency_ms_p95": 11876.0,
+      "abstain_rate": 0.0
+    },
+    "laya": {
+      "n": 382,
+      "confusion": {"TP": 59, "TN": 69, "FP": 18, "FN": 236},
+      "accuracy": 0.3351,
+      "precision": 0.7662,
+      "recall": 0.2000,
+      "f1": 0.3172,
+      "macro_f1": 0.3346,
+      "latency_ms_mean": 1877.9,
+      "latency_ms_p95": 3154.8,
+      "abstain_rate": 0.0
+    },
+    "holdout_kev": {"n": 81, "accuracy": 0.4583, "f1": 0.4800, "macro_f1": 0.4574, "TP": 18, "TN": 15, "FP": 0, "FN": 39},
+    "holdout_laya": {"n": 81, "accuracy": 0.4028, "f1": 0.4267, "macro_f1": 0.4017, "TP": 16, "TN": 13, "FP": 2, "FN": 41}
+  },
+  "human_label_provenance": "OWNER_PROVIDED_HUMAN_LABELS (single annotator reviewer-1; no second annotator data available -> limitation recorded, not blocking)",
+  "limitations": [
+    "Kev/Laya runtimes (ports 8123/8124) not available in this environment; no new model run performed. Metrics derived from existing result files.",
+    "Single annotator only; inter-annotator agreement not computable (no second-annotator data).",
+    "stage50_51 subset is 99.6% relevant (1/232 false) -> not usable alone for IRRELEVANT detection.",
+    "held-out split is deterministic by id hash; not a true random split, but reproducible.",
+    "Gateway (cloud) provider evaluation remains BLOCKED (Groq 403 / Gemini policy)."
+  ],
+  "stage_status": "READY_FOR_EVALUATION (dataset) / EVALUATION_REPORTED (Kev+Laya from existing runs) / HELD_OUT_SPLIT_DEFINED"
+}
+}

@@ -14,6 +14,12 @@ class UnknownKind(ConfigurationError):
     status_code = 404
 
 
+class NeedsAdapter(ConfigurationError):
+    """این kind هیچ adapter/مصرف‌کنندهٔ runtime ندارد؛ ذخیرهٔ پیکربندی جعلی ممنوع."""
+
+    status_code = 409
+
+
 class NotFound(ConfigurationError):
     """instance یا revision پیدا نشد."""
 
@@ -32,4 +38,11 @@ class Invalid(ConfigurationError):
     status_code = 422
 
 
-__all__ = ["ConfigurationError", "Conflict", "Invalid", "NotFound", "UnknownKind"]
+__all__ = [
+    "ConfigurationError",
+    "Conflict",
+    "Invalid",
+    "NeedsAdapter",
+    "NotFound",
+    "UnknownKind",
+]

@@ -26,7 +26,12 @@ from backend.ai.schemas.types import (
     ProviderHealth,
 )
 
-ALLOWED = ("groq", "openai/gpt-oss-20b")
+ACTIVE = [
+    ("groq", "openai/gpt-oss-20b"),
+    ("cloudflare", "@cf/meta/llama-3.2-3b-instruct"),
+    ("gemini", "gemini-3.5-flash"),
+    ("openrouter", "openrouter/free"),
+]
 
 
 def _req(**kw) -> AIRequest:
@@ -139,18 +144,33 @@ def test_fallback_never_reaches_disallowed() -> None:
         async def health(self) -> ProviderHealth:
             return ProviderHealth(provider=self.name, healthy=True)
 
+    class _Forbidden(BaseProvider):
+        """اگر Free Policy درست کار کند، generate این Provider هرگز صدا زده نمی‌شود."""
+
+        name = "openai"
+        default_model = "gpt-4o-mini"  # در allowlist غیرفعال است
+
+        async def generate(self, request: AIRequest) -> AIResponse:
+            raise AssertionError("disallowed provider was called")
+
+        async def health(self) -> ProviderHealth:
+            return ProviderHealth(provider=self.name, healthy=True)
+
     from backend.ai.routing.router import Route
 
     gw = AIGateway()
     gw._settings.mock_mode = False
     gw._max_retries = 0
     gw._providers["groq"] = _Flaky()
+    gw._providers["openai"] = _Forbidden()
     gw.set_routes({"probe": Route("probe", ["groq", "openai"])})
     req = AIRequest(messages=[Message.user("hi")], task="probe", role="probe")
     with pytest.raises(AIError) as exc:
         asyncio.run(gw.generate(req))
-    # اولین نامزد مجاز شکست خورد؛ دومی غیرمجاز → توقف، نه fallback
-    assert exc.value.kind == AIErrorKind.model_not_allowed
+    # قرارداد (GI-AI-001): نامزد غیرمجاز هرگز فراخوانی نمی‌شود (اگر می‌شد،
+    # AssertionError بالا می‌داد) و خطای واقعی Provider مجاز حفظ می‌شود؛
+    # یعنی خطای سیاست جای خطای rate_limit/quota/timeout را نمی‌گیرد.
+    assert exc.value.kind == AIErrorKind.rate_limit
 
 
 def test_all_quota_exhausted_maps_to_free_unavailable() -> None:
@@ -333,5 +353,5 @@ def test_expired_verification_blocks(monkeypatch) -> None:
     assert "expired" in str(exc.value)
 
 
-def test_active_pairs_lists_only_groq() -> None:
-    assert free_policy.active_pairs() == [ALLOWED]
+def test_active_pairs_lists_verified_free_providers() -> None:
+    assert free_policy.active_pairs() == ACTIVE

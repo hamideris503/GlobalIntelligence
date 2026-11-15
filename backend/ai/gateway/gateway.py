@@ -90,16 +90,18 @@ class AIGateway:
         self._cred_version = store.get_version()
 
     # --- provider cache ---
-    def _provider(self, name: str) -> AIProvider:
+    def _provider(self, name: str, *, include_disabled: bool = False) -> AIProvider:
         # Step 8: اگر تنظیمات عوض شده، کش را دور بریز (بدون ری‌استارت)
         from backend.ai import credentials_store as store
 
         if store.get_version() != self._cred_version:
             self._providers = {}
             self._cred_version = store.get_version()
-        if name not in self._providers:
-            self._providers[name] = build_provider_with_store(name)
-        return self._providers[name]
+        cache_key = f"{name}|draft" if include_disabled else name
+        if cache_key not in self._providers:
+            self._providers[cache_key] = build_provider_with_store(
+                name, include_disabled=include_disabled)
+        return self._providers[cache_key]
 
     # --- route resolution ---
     def _route(self, request: AIRequest) -> Route:
@@ -169,13 +171,19 @@ class AIGateway:
         assert last_exc is not None
         raise last_exc
 
-    async def generate(self, request: AIRequest) -> AIResponse:
+    async def generate(
+        self, request: AIRequest, *, include_disabled_provider: bool = False,
+    ) -> AIResponse:
         """تولید پاسخ؛ در صورت شکست Provider، به Provider بعدی fallback می‌کند.
 
         رفتار زنجیره:
         - اگر MOCK_MODE فعال باشد → فقط mock (توسعه/آفلاین).
         - در غیر این صورت → زنجیره‌ی نقش، سپس AI_DEFAULT_PROVIDER.
           mock هرگز در production صدا زده نمی‌شود.
+
+        `include_disabled_provider=True` فقط برای «تست اتصال Provider در Draft»
+        است: ردیف غیرفعال هم با کلید خودش resolve می‌شود تا promotion ممکن باشد.
+        بررسی‌های Free Policy در هر حالت اجرا می‌شوند و قابل دور زدن نیستند.
         """
         route = self._route(request)
         chain = list(route.providers)
@@ -211,6 +219,7 @@ class AIGateway:
                 )
 
         failures: list[AIError] = []
+        attempted = False
         import uuid as _uuid
 
         from backend.ai import budget as _budget
@@ -223,19 +232,36 @@ class AIGateway:
             # می‌شود؛ نامجاز → توقف فوری، بدون fallback به بعدی.
             # نام نمایشی DB ابتدا به kind واقعی adapter resolve می‌شود.
             try:
-                provider = self._provider(name)
+                provider = self._provider(
+                    name, include_disabled=include_disabled_provider)
             except ValueError as exc:
                 raise AIError(
                     f"provider not allowed: {name}",
                     kind=AIErrorKind.provider_not_allowed,
                     provider=name, retryable=False) from exc
             kind = getattr(provider, "name", None) or name
-            _policy.check_provider(kind, mock_mode=effective_mock)
-            _policy.check_model(
-                kind,
-                request.metadata.get("model") or getattr(provider, "default_model", None),
-                mock_mode=effective_mock)
+            # Free-Only: هر نامزد پیش از HTTP بررسی می‌شود و نامجاز هرگز
+            # فراخوانی نمی‌شود. اما اگر قبلاً یک Provider واقعی تلاش کرده و
+            # شکست خورده باشد، نامزد نامجازِ بعدی نباید خطای واقعی را با
+            # `model_not_allowed` بپوشاند (GI-AI-001): فقط skip می‌شود.
+            # اگر هیچ تلاشی انجام نشده باشد، خطای سیاست همان خطای نهایی است
+            # (fail-closed، همان قرارداد قبلی).
             try:
+                _policy.check_provider(kind, mock_mode=effective_mock)
+                _policy.check_model(
+                    kind,
+                    request.metadata.get("model")
+                    or getattr(provider, "default_model", None),
+                    mock_mode=effective_mock)
+            except AIError as policy_exc:
+                if not attempted:
+                    raise
+                logger.warning(
+                    "candidate %s skipped by free policy (%s); keeping the "
+                    "real provider error", name, policy_exc.kind)
+                continue
+            try:
+                attempted = True
                 started = time.perf_counter()
                 response = await self._call_with_retry(
                     provider, request,

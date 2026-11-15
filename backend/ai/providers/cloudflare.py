@@ -29,7 +29,7 @@ class CloudflareProvider(HTTPProvider):
         s = get_settings()
         self.api_key = api_key or getattr(s, "cloudflare_api_token", None) or None
         self.account_id = account_id or getattr(s, "cloudflare_account_id", None) or None
-        self.default_model = default_model or "@cf/meta/llama-3.1-8b-instruct"
+        self.default_model = default_model or "@cf/meta/llama-3.2-3b-instruct"
         self._default_timeout = float(s.ai_request_timeout_seconds)
 
     def configured(self) -> bool:

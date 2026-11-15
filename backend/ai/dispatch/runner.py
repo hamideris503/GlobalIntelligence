@@ -702,9 +702,17 @@ async def run_once(
 
 
 def recover_at_startup(db: Session) -> dict[str, int]:
-    """Mark abandoned leases retryable and re-enqueue missing decisions."""
+    """Mark abandoned leases retryable and re-enqueue missing decisions.
+
+    Startup recovery ignores the ordinary lease window: this process just
+    started, so it cannot be holding any lease and every ``running`` row was
+    left behind by the previous process. Using the default lease left such a
+    row unusable for up to ``dispatch_lease_seconds`` (measured: 900 s after a
+    kill -9 mid-event-extraction), while the consumer kept skipping it. Passing
+    0 disables the age grace window: at startup no live owner can exist.
+    """
     service = DispatchService(db)
-    stale = service.recover_stale()
+    stale = service.recover_stale(stale_seconds=0)
     missing = service.recover_missing()
     db.commit()
     return {"stale": stale, "reenqueued": missing}

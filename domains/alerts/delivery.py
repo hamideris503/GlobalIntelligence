@@ -80,7 +80,10 @@ def _smtp_send(
     msg["To"] = ", ".join(recipients)
     msg["Subject"] = subject
     msg.set_content(body)
-    if use_tls:
+    # SMTP_USE_TLS به‌تنهایی معنای پروتکل را تعیین نمی‌کند: پورت ۴۶۵ = TLS ضمنی
+    # (SMTP_SSL) و پورت ۵۸۷/۲۵ = STARTTLS روی اتصال ساده. قبلاً با use_tls=true
+    # همیشه SMTP_SSL استفاده می‌شد و ارسال روی ۵۸۷ با SSLError می‌شکست.
+    if use_tls and port == 465:
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL(host, port, timeout=timeout, context=context) as server:
             if username and password:
@@ -88,7 +91,8 @@ def _smtp_send(
             server.send_message(msg)
     else:
         with smtplib.SMTP(host, port, timeout=timeout) as server:
-            server.starttls(context=ssl.create_default_context())
+            if use_tls:
+                server.starttls(context=ssl.create_default_context())
             if username and password:
                 server.login(username, password)
             server.send_message(msg)
@@ -130,6 +134,9 @@ def _send_telegram(alert: Alert) -> tuple[bool, str | None]:
             try:
                 j = json.loads(body)
                 if j.get("ok") is True:
+                    # message_id برای اثبات تحویل ثبت می‌شود (بدون افشای توکن/chat id)
+                    mid = (j.get("result") or {}).get("message_id")
+                    logger.info("telegram sent message_id=%s", mid)
                     return True, None
                 return False, str(j.get("description") or "telegram api error")
             except (ValueError, TypeError):
@@ -144,7 +151,9 @@ def _send_email(alert: Alert) -> tuple[bool, str | None]:
     port_raw = _env("SMTP_PORT") or "587"
     sender = _env("SMTP_FROM") or _env("SMTP_TO")
     recipients_raw = _env("SMTP_TO") or ""
-    username = _env("SMTP_USER")
+    # یک credential، دو نام: Auth از SMTP_USERNAME و Alert از SMTP_USER می‌خواند.
+    # بدون این alias، ایمیل Alert هرگز login نمی‌کرد حتی وقتی USERNAME تنظیم شده بود.
+    username = _env("SMTP_USER") or _env("SMTP_USERNAME")
     password = _env("SMTP_PASSWORD")
     use_tls = (_env("SMTP_USE_TLS") or "true").lower() not in {"0", "false", "no"}
     if not host or not recipients_raw or not sender:

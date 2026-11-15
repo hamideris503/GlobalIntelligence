@@ -9,8 +9,40 @@
 - خواندن → `viewer` (به‌جز تنظیمات/آرشیو/audit/ops که `admin` است)
 
 `X-API-Key` نقش `admin` می‌گیرد، پس n8n و اسکریپت‌ها بدون تغییر کار می‌کنند.
+
+**سیاست ثبت‌نام (۲۰۲۶-۱۱-۱۴):** هر حساب تازه‌با نقش `admin` ساخته می‌شود و
+مهاجرت `a9f1c2d3e4b5` حساب‌های قدیمی‌تر را هم به `admin` ارتقا می‌دهد؛ ماتریس
+زیر فقط «حداقل نقش لازم» هر مسیر را تعریف می‌کند.
 ابزارهای مستقل: `/health`, `/health/db`, `/api/auth/*` (ورود عمومی‌اند؛
 `/api/auth/me` و خروج خودشان `require_user` دارند).
+
+## `/dashboard`
+
+| متد | مسیر | حداقل نقش |
+| --- | --- | --- |
+| GET | `/api/dashboard/overview` | viewer |
+
+## `/analyses`
+
+| متد | مسیر | حداقل نقش |
+| --- | --- | --- |
+| GET | `/api/analyses` | viewer |
+| GET | `/api/analyses/{analysis_id}/trace` | viewer |
+| POST | `/api/analyses/request` | analyst |
+
+## `/country-profiles`
+
+| متد | مسیر | حداقل نقش |
+| --- | --- | --- |
+| GET | `/api/country-profiles` | viewer |
+| GET | `/api/country-profiles/{code}` | viewer |
+
+## `/retention`
+
+| متد | مسیر | حداقل نقش |
+| --- | --- | --- |
+| GET | `/api/retention/disk` | viewer |
+| GET | `/api/retention/dry-run` | viewer |
 
 ## `/jobs`
 
@@ -51,6 +83,7 @@
 | POST | `/api/alerts/{alert_id}/resolve` | admin |
 | POST | `/api/alerts/deliver/pending` | admin |
 | POST | `/api/alerts/{alert_id}/deliver/{channel}` | admin |
+| POST | `/api/alerts/test-deliver/{channel}` | admin |
 
 ## `/audit`
 
@@ -312,6 +345,7 @@
 | GET | `/api/forecasts` | viewer |
 | GET | `/api/forecasts/ledger/active` | viewer |
 | GET | `/api/forecasts/{forecast_id}` | viewer |
+| GET | `/api/forecasts/outlook` | viewer |
 | POST | `/api/forecasts/{forecast_id}/supersede` | admin |
 
 ## `/evaluation`
@@ -356,6 +390,7 @@
 | POST | `/api/settings/providers/{provider_id}/key` | admin |
 | DELETE | `/api/settings/providers/{provider_id}` | admin |
 | POST | `/api/settings/providers/{provider_id}/test` | admin |
+| POST | `/api/settings/providers/{provider_id}/auto-detect-model` | admin |
 | GET | `/api/settings/providers/{provider_id}/models` | admin |
 | GET | `/api/settings/models` | admin |
 | POST | `/api/settings/models` | admin |
@@ -426,6 +461,7 @@
 | POST | `/api/risk/analyze` | analyst |
 | GET | `/api/risk/assessments` | viewer |
 | GET | `/api/risk/overview` | viewer |
+| GET | `/api/risk/matrix` | viewer |
 
 ## `/decisions`
 
@@ -435,6 +471,8 @@
 | POST | `/api/decisions/from-debate` | analyst |
 | GET | `/api/decisions` | viewer |
 | GET | `/api/decisions/{decision_id}` | viewer |
+| GET | `/api/decisions/{decision_id}/reviews` | viewer |
+| POST | `/api/decisions/{decision_id}/review` | analyst |
 
 ## `/learning`
 

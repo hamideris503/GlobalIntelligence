@@ -199,6 +199,29 @@ def test_admin_session_never_expires(client: TestClient, keyed) -> None:
     assert int(match.group(1)) == ADMIN_SESSION_DAYS * 24 * 60 * 60
 
 
+def test_login_cookie_lifetime_matches_session_policy(client: TestClient, keyed) -> None:
+    """کوکی همان لحظهٔ ورود باید با عمر نشست بخواند، نه فقط پس از تمدید.
+
+    پیش از این اصلاح، ورودِ ادمین کوکی ۳۰ روزه می‌گرفت در حالی که نشست سرور
+    بدون انقضاست — یعنی ادمین بعد از ۳۰ روز بی‌دلیل بیرون می‌افتاد.
+    """
+    _make_user(username="boss", role="admin")
+    _make_user(username="reader", role="viewer")
+
+    admin_login = _login(client, "boss")
+    assert admin_login.status_code == 200
+    admin_cookie = admin_login.headers.get("set-cookie") or ""
+    admin_max_age = int(re.search(r"Max-Age=(\d+)", admin_cookie, re.I).group(1))
+    assert admin_max_age == ADMIN_SESSION_DAYS * 24 * 60 * 60
+
+    client.cookies.clear()
+    viewer_login = _login(client, "reader")
+    assert viewer_login.status_code == 200
+    viewer_cookie = viewer_login.headers.get("set-cookie") or ""
+    viewer_max_age = int(re.search(r"Max-Age=(\d+)", viewer_cookie, re.I).group(1))
+    assert viewer_max_age == NORMAL_SESSION_DAYS * 24 * 60 * 60
+
+
 def test_normal_session_slides_and_expires_on_inactivity(client: TestClient, keyed) -> None:
     user_id = _make_user(username="normal", role="viewer")
     assert _login(client, "normal").status_code == 200

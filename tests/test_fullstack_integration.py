@@ -84,6 +84,29 @@ class _Stub:
         return self
 
 
+def _promote_provider(client, pid: str) -> None:
+    """Provider تازه‌ساخته‌شده را از Draft خارج می‌کند (WP-07.1).
+
+    در این تست‌ها موضوع، رفتار Budget/Quota است نه گذار فعال‌سازی؛ مسیر واقعی
+    promotion (تست اتصال → فعال) در `tests/test_provider_lifecycle.py` سنجیده می‌شود.
+    """
+    import uuid as _uuid
+
+    from backend.database.models.ai_settings import AIProviderRow
+    from tests.conftest import TestingSession as _Session
+
+    session = _Session()
+    try:
+        row = session.get(AIProviderRow, _uuid.UUID(pid))
+        assert row is not None
+        row.last_test_status = "ok"
+        session.commit()
+    finally:
+        session.close()
+    res = client.put(f"/api/settings/providers/{pid}", json={"enabled": True})
+    assert res.status_code == 200, res.text
+
+
 def _chat_ok(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={
         "model": MODEL,
@@ -180,6 +203,7 @@ def test_daily_quota_exhaustion_has_no_fallback_and_keeps_data(
 ) -> None:
     provider_id = client.post(
         "/api/settings/providers", json={"name": "E2E Quota", "kind": "groq"}).json()["id"]
+    _promote_provider(client, provider_id)
     model_id = client.post(
         "/api/settings/models",
         json={"provider_id": provider_id, "model_name": "quota-probe"}).json()["id"]
@@ -300,6 +324,7 @@ def test_quota_exhaustion_over_http_is_503_and_keeps_data(
 ) -> None:
     provider_id = client.post("/api/settings/providers",
                               json={"name": "E2E 503", "kind": "groq"}).json()["id"]
+    _promote_provider(client, provider_id)
 
     def quota(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(429, headers={"retry-after": "30"},

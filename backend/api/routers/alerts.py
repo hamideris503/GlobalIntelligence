@@ -194,3 +194,52 @@ def deliver_one(alert_id: uuid.UUID, channel: str, dry_run: bool = True, db: Ses
         raise HTTPException(status_code=404, detail='alert not found')
     d = deliver_alert(db, alert, channel, dry_run=dry_run)
     return {'alert_id': str(alert.id), 'channel': channel, 'status': d.status, 'attempts': d.attempts, 'last_error': d.last_error}
+
+
+@router.post('/test-deliver/{channel}')
+def test_deliver(
+    channel: str, dry_run: bool = True, db: Session = Depends(get_db)
+) -> dict[str, object]:
+    """Create a synthetic test alert and attempt delivery. Only for manual testing."""
+    from datetime import UTC, datetime
+
+    from backend.database.models.alert import AlertRule
+
+    # Find or create a dummy rule
+    rule_name = '_gi_test_rule'
+    rule = db.execute(select(AlertRule).where(AlertRule.name == rule_name)).scalars().one_or_none()
+    if rule is None:
+        rule = AlertRule(
+            name=rule_name,
+            metric='_test_metric',
+            operator='gt',
+            threshold=0.0,
+            severity='info',
+            active=True,
+            cooldown_hours=0,
+        )
+        db.add(rule)
+        db.flush()
+
+    # Create synthetic alert
+    alert = Alert(
+        rule_id=rule.id,
+        metric='_test_metric',
+        value=0.0,
+        severity='info',
+        message='[TEST] This is a synthetic test alert from GlobalIntelligence.',
+        observed_at=datetime.now(UTC),
+    )
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+
+    d = deliver_alert(db, alert, channel, dry_run=dry_run)
+    return {
+        'alert_id': str(alert.id),
+        'channel': channel,
+        'status': d.status,
+        'attempts': d.attempts,
+        'last_error': d.last_error,
+        'dry_run': dry_run,
+    }

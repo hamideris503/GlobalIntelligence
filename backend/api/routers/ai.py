@@ -85,6 +85,53 @@ async def chat(payload: AIChatRequest, db: Session = Depends(get_db)) -> AIGener
     from backend.ai import credentials_store as store
 
     metadata: dict = {}
+    # زمینهٔ داده‌ها: خلاصهٔ کوتاه از DB تا مدل بتواند به سؤال‌های مبتنی بر داده پاسخ دهد.
+    context_parts: list[str] = []
+    try:
+        from sqlalchemy import func as _func
+
+        from backend.database.models import (
+            alert as _alert_m,
+        )
+        from backend.database.models import (
+            article as _article_m,
+        )
+        from backend.database.models import (
+            forecast as _forecast_m,
+        )
+        from backend.database.models import (
+            risk_assessment as _risk_m,
+        )
+        from backend.database.models import (
+            source as _source_m,
+        )
+        def _count(model) -> int:
+            try:
+                from sqlalchemy import select as _select
+                return int(db.execute(_select(_func.count()).select_from(model)).scalar() or 0)
+            except Exception:  # noqa: BLE001
+                return 0
+        counts = {
+            "sources": _count(_source_m.Source),
+            "articles": _count(_article_m.Article),
+            "forecasts": _count(_forecast_m.Forecast),
+            "risk_assessments": _count(_risk_m.RiskAssessment),
+            "alerts": _count(_alert_m.Alert),
+        }
+        context_parts.append("COUNTS: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
+    except Exception:  # noqa: BLE001
+        pass
+    if context_parts:
+        # prepend as system message if not already present
+        msgs = [m for m in payload.messages]
+        has_system = any(getattr(m, "role", None) == "system" for m in msgs)
+        if not has_system:
+            from backend.ai.schemas.types import Message as _Msg
+            payload_messages_with_ctx = [_Msg(role="system", content="You are an assistant with access to the GlobalIntelligence app data.\n" + "\n".join(context_parts))] + list(payload.messages)
+        else:
+            payload_messages_with_ctx = list(payload.messages)
+    else:
+        payload_messages_with_ctx = list(payload.messages)
     if payload.provider:
         try:
             rows = (
@@ -108,7 +155,7 @@ async def chat(payload: AIChatRequest, db: Session = Depends(get_db)) -> AIGener
         metadata["model"] = payload.model
     gateway = get_gateway()
     request = AIRequest(
-        messages=[Message(role=m.role, content=m.content) for m in payload.messages],  # type: ignore[arg-type]
+        messages=[Message(role=m.role, content=m.content) for m in payload_messages_with_ctx],  # type: ignore[arg-type]
         role="chat",
         task="interactive_chat",
         temperature=payload.temperature,

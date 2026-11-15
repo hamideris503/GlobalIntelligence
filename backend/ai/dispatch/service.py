@@ -227,7 +227,12 @@ class DispatchService:
 
     # --- claim / state transitions --------------------------------------
     def claim(self, dispatch: ArticleDispatch) -> bool:
-        """Atomically move one due row to running; False means someone else owns it."""
+        """Atomically move one due row to running; False means someone else owns it.
+
+        Also the retry path: a ``retryable`` row carries ``next_retry_at``, so
+        this UPDATE must not let SQLAlchemy compare naive/aware datetimes in
+        Python (see the ``synchronize_session`` note below).
+        """
         now = utcnow()
         res = self.db.execute(
             update(ArticleDispatch)
@@ -244,6 +249,12 @@ class DispatchService:
                 attempts=ArticleDispatch.attempts + 1,
                 last_error=None,
             )
+            # SQLite returns naive datetimes while ``now`` is aware; the ORM's
+            # default in-Python session synchronisation then raises
+            # "can't compare offset-naive and offset-aware datetimes" for any
+            # row whose next_retry_at is set (every retry). The database
+            # compares the stored values itself, so skip that pass.
+            .execution_options(synchronize_session=False)
         )
         self.db.flush()
         if (res.rowcount or 0) != 1:
@@ -365,12 +376,19 @@ class DispatchService:
 
     # --- recovery --------------------------------------------------------
     def recover_stale(self, *, stale_seconds: int | None = None) -> int:
-        """Return rows abandoned mid-run to retryable without losing the work."""
+        """Return rows abandoned mid-run to retryable without losing the work.
+
+        Pass ``stale_seconds=0`` from a startup path: the process that owned the
+        lease is gone, so age is irrelevant and waiting for the lease expiry
+        would leave the row blocked for up to ``dispatch_lease_seconds``.
+        """
         seconds = (
             int(self.settings.dispatch_lease_seconds)
             if stale_seconds is None else stale_seconds
         )
-        cutoff = utcnow() - timedelta(seconds=max(1, seconds))
+        # ``stale_seconds=0`` means "no live owner can exist" (startup recovery):
+        # every ``running`` row is abandoned, so no grace window is applied.
+        cutoff = utcnow() - timedelta(seconds=max(0, seconds))
         rows = list(self.db.execute(
             select(ArticleDispatch).where(
                 ArticleDispatch.status == "running",

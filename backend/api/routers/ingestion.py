@@ -7,7 +7,7 @@ from typing import Any
 
 from domains.news.ingestion import NewsIngestionPipeline
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.api.errors import ApiError
@@ -124,7 +124,12 @@ async def ingest_all(
     use_mock = effective_mock_mode() if mock is None else mock
     stmt = select(Source).where(Source.active.is_(True))
     if not use_mock:
-        stmt = stmt.where(Source.collection_method == "rss", Source.feed_url.is_not(None))
+        # GI-OPS-001: شرط قبلی فقط `collection_method == "rss"` بود، پس منبعی
+        # که با feed_url ساخته شده ولی collection_method خالی داشت بی‌صدا
+        # کنار گذاشته می‌شد. اکنون وجود feed_url به‌تنهایی کافی است.
+        stmt = stmt.where(
+            or_(Source.collection_method == "rss", Source.feed_url.is_not(None))
+        )
     sources = list(db.execute(stmt).scalars().all())
 
     if mock is None:

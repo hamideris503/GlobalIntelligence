@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from backend.configuration import descriptors
 from backend.configuration.errors import Conflict, Invalid, NotFound
 from backend.configuration.preview import PreviewError, UnsupportedAdapter, preview_fetch
+from backend.core.logging import get_logger
 from backend.database.models.configuration import ConfigurationInstance, ConfigurationRevision
 
 STATUS_DRAFT = "draft"
@@ -28,6 +29,8 @@ STATUS_VALIDATED = "validated"
 STATUS_TESTED = "tested"
 STATUS_ACTIVE = "active"
 STATUS_ARCHIVED = "archived"
+
+logger = get_logger(__name__)
 
 STATUSES = (STATUS_DRAFT, STATUS_VALIDATED, STATUS_TESTED, STATUS_ACTIVE, STATUS_ARCHIVED)
 
@@ -44,6 +47,32 @@ def _load(raw: str | None) -> dict | None:
     except Exception:  # noqa: BLE001
         return None
     return value if isinstance(value, dict) else None
+
+
+def _audit(
+    db: Session,
+    action: str,
+    actor: str,
+    instance: ConfigurationInstance,
+    *,
+    params: dict | None = None,
+    result: dict | None = None,
+    status: str = "ok",
+) -> None:
+    """هر گذار lifecycle یک رکورد حسابرسی دارد (WP-06: Audit)."""
+    try:
+        log_action(
+            db,
+            action=action,
+            actor=actor,
+            target_type="configuration_instance",
+            target_id=str(instance.id),
+            params={"kind": instance.kind, "slug": instance.slug, **(params or {})},
+            result=result or {"ok": True},
+            status=status,
+        )
+    except Exception:  # noqa: BLE001 — حسابرسی نباید گذار را بشکند
+        logger.warning("configuration audit failed | action=%s", action, exc_info=True)
 
 
 def instance_or_404(db: Session, instance_id: uuid.UUID) -> ConfigurationInstance:
@@ -117,6 +146,10 @@ def create_instance(
     db.commit()
     db.refresh(instance)
     db.refresh(revision)
+    _audit(
+        db, "configuration_create", actor, instance,
+        params={"revision": revision.revision_number},
+    )
     return instance, revision
 
 
@@ -138,6 +171,10 @@ def create_revision(
     db.commit()
     db.refresh(instance)
     db.refresh(revision)
+    _audit(
+        db, "configuration_revision", actor, instance,
+        params={"revision": revision.revision_number},
+    )
     return revision
 
 
@@ -153,6 +190,12 @@ def validate_revision(
     revision.status = STATUS_VALIDATED if result["ok"] else STATUS_DRAFT
     db.commit()
     db.refresh(revision)
+    _audit(
+        db, "configuration_validate", "api", instance,
+        params={"revision": number},
+        result={"ok": bool(result["ok"]), "issues": len(result.get("issues") or [])},
+        status="ok" if result["ok"] else "failed",
+    )
     return revision, result
 
 
@@ -172,17 +215,25 @@ def test_revision(
         revision.test_json = _dump({"ok": False, "reason": "unsupported_adapter",
                                     "adapter": plan["adapter"]})
         db.commit()
+        _audit(db, "configuration_test", "api", instance, params={"revision": number},
+               result={"ok": False, "reason": "unsupported_adapter"}, status="failed")
         raise Invalid(str(exc)) from exc
     except PreviewError as exc:
         revision.test_json = _dump({"ok": False, "reason": "preview_failed",
                                     "adapter": plan["adapter"]})
         db.commit()
+        _audit(db, "configuration_test", "api", instance, params={"revision": number},
+               result={"ok": False, "reason": "preview_failed"}, status="failed")
         raise Invalid(str(exc)) from exc
     result = {**result, "ok": True, "tested_at": datetime.now(UTC).isoformat()}
     revision.test_json = _dump(result)
     revision.status = STATUS_TESTED
     db.commit()
     db.refresh(revision)
+    _audit(
+        db, "configuration_test", "api", instance, params={"revision": number},
+        result={"ok": True, "adapter": result.get("adapter"), "count": result.get("count")},
+    )
     return revision, result
 
 

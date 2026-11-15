@@ -16,6 +16,7 @@ from backend.auth.deps import CurrentUser, is_email_verified, require_session_us
 from backend.auth.email import EmailDeliveryFailed, EmailDeliveryNotConfigured, send_email
 from backend.auth.passwords import dummy_verify, hash_password, verify_password
 from backend.auth.sessions import (
+    ADMIN_SESSION_DAYS,
     CSRF_COOKIE,
     NORMAL_SESSION_DAYS,
     SESSION_COOKIE,
@@ -69,7 +70,8 @@ class RegisterRequest(BaseModel):
 
 
 class VerifyEmailRequest(BaseModel):
-    token: str = Field(..., min_length=10, max_length=256)
+    # توکن لینک (۴۳ کاراکتر) یا کد ۶ رقمی ایمیل
+    token: str = Field(..., min_length=6, max_length=256)
 
 
 class ResendVerificationResponse(BaseModel):
@@ -133,8 +135,37 @@ def _is_https(request: Request) -> bool:
     return request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
 
 
-def _set_session_cookies(response: Response, request: Request, token: str, csrf: str) -> None:
-    max_age = NORMAL_SESSION_DAYS * 24 * 60 * 60
+def _app_origin(request: Request) -> str:
+    """پایهٔ URL برای لینک‌های ایمیل.
+
+    اگر APP_BASE_URL صریحاً (غیر از مقدار پیش‌فرض localhost:8000) تنظیم شده باشد،
+    از آن استفاده می‌شود؛ در غیر این صورت از origin درخواست جاری (host/port) استفاده
+    می‌شود تا لینک به همان پورتی که سرویس روی آن اجرا می‌شود اشاره کند.
+    """
+    settings = get_settings()
+    configured = (settings.app_base_url or "").strip().rstrip("/")
+    default_origins = {"http://localhost:8000", "http://127.0.0.1:8000"}
+    if configured and configured not in default_origins:
+        return configured
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip() or request.url.scheme
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or request.url.netloc
+    )
+    return f"{scheme}://{host}".rstrip("/")
+
+
+def _set_session_cookies(
+    response: Response,
+    request: Request,
+    token: str,
+    csrf: str,
+    days: int = NORMAL_SESSION_DAYS,
+) -> None:
+    # عمر کوکی باید با عمر نشست سمت سرور بخواند، وگرنه نشست ادمین که در DB
+    # بدون انقضاست با کوکی ۳۰ روزه زودتر از موعد از کار می‌افتد.
+    max_age = days * 24 * 60 * 60
     secure = _is_https(request)
     response.set_cookie(SESSION_COOKIE, token, max_age=max_age, httponly=True, samesite="lax", secure=secure, path="/")
     response.set_cookie(CSRF_COOKIE, csrf, max_age=max_age, httponly=False, samesite="lax", secure=secure, path="/")
@@ -178,8 +209,9 @@ def _enforce_attempt_limit(
         )
 
 
-def _create_token(db: Session, user: User, purpose: str, ttl_minutes: int, ip: str | None) -> str:
-    raw = secrets.token_urlsafe(32)
+def _create_token(db: Session, user: User, purpose: str, ttl_minutes: int, ip: str | None, raw: str | None = None) -> str:
+    if raw is None:
+        raw = secrets.token_urlsafe(32)
     from backend.auth.sessions import token_hash
 
     db.add(
@@ -193,6 +225,24 @@ def _create_token(db: Session, user: User, purpose: str, ttl_minutes: int, ip: s
     )
     db.commit()
     return raw
+
+
+def _create_verification_code(
+    db: Session, user: User, ttl_minutes: int, ip: str | None
+) -> str:
+    """کد ۶ رقمی یک‌بارمصرف؛ چون `token_hash` یکتاست، برخورد را دوباره تولید می‌کند."""
+    from backend.auth.sessions import token_hash
+
+    for _ in range(5):
+        code = f"{secrets.randbelow(1000000):06d}"
+        taken = db.execute(
+            select(AuthToken).where(AuthToken.token_hash == token_hash(code))
+        ).scalar_one_or_none()
+        if taken is None:
+            _create_token(db, user, "verify_email", ttl_minutes, ip, raw=code)
+            return code
+    # فضای کدها اشباع شده؛ توکن بلند جایگزین می‌شود تا تأیید ممکن بماند.
+    return _create_token(db, user, "verify_email", ttl_minutes, ip)
 
 
 def _consume_token(db: Session, raw: str, purpose: str) -> AuthToken | None:
@@ -247,7 +297,7 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
         email=email,
         email_verified=False,
         password_hash=hash_password(payload.password),
-        role="viewer",
+        role="admin",
         active=True,
     )
     db.add(user)
@@ -259,11 +309,15 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
     delivery_code = ""
     try:
         raw_token = _create_token(db, user, "verify_email", 24 * 60, _client_ip(request))
-        link = f"{settings.app_base_url.rstrip('/')}/verify-email?token={quote(raw_token)}"
+        code = _create_verification_code(db, user, 24 * 60, _client_ip(request))
+        base = _app_origin(request)
+        link = f"{base}/verify-email?token={quote(raw_token)}"
         send_email(
             email,
             "تأیید حساب GlobalIntelligence",
-            f"برای تأیید حساب خود روی لینک زیر کلیک کنید:\n{link}\n\nاین لینک تا ۲۴ ساعت معتبر است.",
+            f"برای تأیید حساب خود روی لینک زیر کلیک کنید:\n{link}\n\n"
+            f"یا این کد را در صفحهٔ تأیید وارد کنید:\n{code}\n\n"
+            f"این لینک تا ۲۴ ساعت معتبر است.",
         )
         email_sent = True
     except EmailDeliveryNotConfigured:
@@ -283,8 +337,18 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
 
 
 @router.get("/verify-email", response_model=OkResponse)
-def verify_email(token: str, db: Session = Depends(get_db)) -> OkResponse:
-    row = _consume_token(db, token, "verify_email")
+def verify_email(request: Request, token: str, db: Session = Depends(get_db)) -> OkResponse:
+    settings = get_settings()
+    # کد ۶ رقمی فضای حدس کوچکی دارد؛ بدون سقف تلاش، brute-force ممکن می‌شد.
+    _enforce_attempt_limit(
+        db,
+        key="verify_email:ip",
+        ip=_client_ip(request),
+        max_attempts=settings.auth_verify_email_max_attempts,
+        window_seconds=settings.auth_verify_email_window_seconds,
+    )
+    record_auth_attempt(db, key="verify_email:ip", ip=_client_ip(request))
+    row = _consume_token(db, token.strip(), "verify_email")
     if row is None:
         raise HTTPException(status_code=400, detail="invalid or expired token")
     user = db.get(User, row.user_id)
@@ -299,8 +363,8 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> OkResponse:
 
 
 @router.post("/verify-email", response_model=OkResponse)
-def verify_email_post(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> OkResponse:
-    return verify_email(payload.token, db)
+def verify_email_post(payload: VerifyEmailRequest, request: Request, db: Session = Depends(get_db)) -> OkResponse:
+    return verify_email(request, payload.token, db)
 
 
 @router.post("/resend-verification", response_model=ResendVerificationResponse)
@@ -328,11 +392,15 @@ def resend_verification(
         return ResendVerificationResponse(ok=True, email_sent=False, code="ALREADY_VERIFIED")
     try:
         raw_token = _create_token(db, user, "verify_email", 24 * 60, _client_ip(request))
-        link = f"{settings.app_base_url.rstrip('/')}/verify-email?token={quote(raw_token)}"
+        code = _create_verification_code(db, user, 24 * 60, _client_ip(request))
+        base = _app_origin(request)
+        link = f"{base}/verify-email?token={quote(raw_token)}"
         send_email(
             user.email,
             "تأیید حساب GlobalIntelligence",
-            f"برای تأیید حساب خود روی لینک زیر کلیک کنید:\n{link}\n\nاین لینک تا ۲۴ ساعت معتبر است.",
+            f"برای تأیید حساب خود روی لینک زیر کلیک کنید:\n{link}\n\n"
+            f"یا این کد را در صفحهٔ تأیید وارد کنید:\n{code}\n\n"
+            f"این لینک تا ۲۴ ساعت معتبر است.",
         )
         return ResendVerificationResponse(ok=True, email_sent=True)
     except EmailDeliveryNotConfigured:
@@ -388,7 +456,7 @@ def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Sessio
     if user is not None and user.active and user.email_verified:
         try:
             raw_token = _create_token(db, user, "reset_password", 20, _client_ip(request))
-            link = f"{settings.app_base_url.rstrip('/')}/reset-password?token={quote(raw_token)}"
+            link = f"{_app_origin(request)}/reset-password?token={quote(raw_token)}"
             send_email(
                 email,
                 "بازیابی رمز عبور GlobalIntelligence",
@@ -477,7 +545,8 @@ def create_session_endpoint(
         raise HTTPException(status_code=401, detail=INVALID_CREDENTIALS)
 
     token, csrf = create_session(db, user=user, ip=_client_ip(request), user_agent=request.headers.get("user-agent"))
-    _set_session_cookies(response, request, token, csrf)
+    session_days = ADMIN_SESSION_DAYS if user.role == "admin" else NORMAL_SESSION_DAYS
+    _set_session_cookies(response, request, token, csrf, days=session_days)
     log_action(db, action="auth.login", actor=user.username, result={"via": "session"})
     return SessionResponse(user=UserRead(username=user.username, role=user.role, via="session", email=user.email, email_verified=is_email_verified(user)))
 

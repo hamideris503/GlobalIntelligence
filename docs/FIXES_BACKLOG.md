@@ -15,6 +15,11 @@ proves the fix.
 
 ## خلاصهٔ شمارش
 
+> **توجه:** شمارش جدول زیر فقط ۳۵ قلم اصلی ۲۸ اکتبر را می‌شمارد و به‌روز نشده است.
+> دو قلم تازهٔ `GI-DISPATCH-001` و `GI-DISPATCH-002` در بخش «نقص‌های آزمون ۲۴/۷ — ۱۵ نوامبر ۲۰۲۶»
+> در پایان همین سند ثبت شده‌اند؛ اقلام `GI-ALERT-001/002/003` و `GI-ARCH-001` در
+> `docs/BUGS_AND_DEFECTS_REGISTER.md` نگه‌داری می‌شوند.
+
 | سطح | تعداد | معنی |
 |---|---|---|
 | P0 | ۴ | ادغام/CI را مسدود می‌کند |
@@ -102,6 +107,7 @@ proves the fix.
 - **اثر:** دو worker هم‌زمان پشت یک ردیف می‌ایستند (سریال) تا اولی commit کند؛ در محیط چند-worker به تأخیر و در تست به deadlock می‌رسد.
 - **اصلاح:** `SELECT … FOR UPDATE SKIP LOCKED` یا معادل آن در claim دسته‌ای.
 - **اثبات:** تست دو worker هم‌زمان بدون بلوکه‌شدن؛ هر ردیف فقط یک بار claim شود.
+- **وضعیت بازبینی ۲۰۲۶-۱۱-۱۴:** **FIXED (کد از قبل درست بود، سند کهنه بود)** — `DispatchService.claimable()` در `backend/ai/dispatch/service.py:457-475` با `.with_for_update(skip_locked=True)` انتخاب می‌کند و تنها مصرف‌کننده‌اش `runner.run_once()` (`runner.py:665`) است. شاهد ماشینی: `tests/test_doc_claims.py::test_claimable_statement_uses_skip_locked` (SQL کامپایل‌شده برای دیالکت PG شامل `FOR UPDATE SKIP LOCKED`). `claim()` نیز یک UPDATE شرطی compare-and-swap است و روی PG فقط یک برنده دارد.
 
 ### F-12 · زنجیرهٔ migration روی SQLite قابل اجرا نیست — **اندازه‌گیری‌شده**
 - **شاهد:** `DATABASE_URL=sqlite:///… alembic upgrade head` → `NotImplementedError: No support for ALTER of constraints in SQLite dialect`.
@@ -208,3 +214,241 @@ v1 ثابت است؛ Stage 104/97 آن را هدف می‌گیرد.
 
 **دادهٔ اندازه‌گیری‌شده:** SQLite `1570 passed / 1 skipped`؛ PostgreSQL `1573 passed / 0 failed`
 روی دیتابیس موقتِ ساخته‌شده از schema خالی و سپس حذف‌شده. جزئیات: `docs/qa/QA_BASELINE.md`.
+
+---
+
+## وضعیت به‌روزشده — ۱۳ نوامبر ۲۰۲۶ (Stage 96 بسته شد)
+
+**مبنا:** `step6a-analysis-dashboard` (`ebe1292`) + commitهای بعدی
+
+| قلم | وضعیت قبلی | وضعیت فعلی | شاهد |
+|---|---|---|---|
+| Stage 96 — تثبیت PG + CI | در انتظار | **COMPLETE** | PostgreSQL 16 **1814 passed / 0 failed** (۹۲۳.۹۶s، HEAD `ebe1292`) |
+| F-02 PG deadlock | PARTIAL | **FIXED** | `test_claim_is_atomic` روی PG ۰.۳۶s؛ ۱۸۱۴/۰ |
+| F-03 CI کاهش‌یافته | PARTIAL | **FIXED** | CI job بک‌اند کل suite اجرا می‌کند |
+| F-05 discover PG timeout | FIXED | **FIXED** | — |
+| F-06 missing article FK | FIXED | **FIXED** | — |
+| F-07 SQLite assert | FIXED | **FIXED** | — |
+| F-08 آفلاین واقعی | FIXED | **FIXED** | — |
+| F-09 cwd وابسته | FIXED | **FIXED** | — |
+| F-10 temp isolation | FIXED | **FIXED** | — |
+| F-11 `SKIP LOCKED` | VERIFIED | **CLOSED** | commit `0160bfe`؛ `with_for_update(skip_locked=True)` در `service.py:473` |
+| F-14 race JobRun | CLOSED | **CLOSED** | — |
+| F-15 AdaptiveRouter | CLOSED | **CLOSED** | — |
+| F-16 ETag | CLOSED | **CLOSED** | — |
+| F-27 IPv6 | CLOSED | **CLOSED** | — |
+| Playwright E2E | Not run | **34 passed / 0 failed** | Chrome محلی `chrome-win64/`، backend موقت :18100، HEAD `ebe1292` + باگ UI |
+| باگ بنر آفلاین (giApplyAuthGate) | bug — بنر آفلاین مخفی | **FIXED** | `backend/static/index.html` — وضعیت `down` دیگر auth gate را trigger نمی‌کند |
+| F-20 topics/entities JSONB | باز | باز (نیاز به تصمیم schema) | — |
+| F-23 rate limit multi-process | باز | باز (مستند) | `docs/F23_RATE_LIMIT.md` |
+| F-13 شاخهٔ غیرقابل‌دستیافتنی | باز | باز (پیاده‌سازی نشده) | F-06 دستی حل شد |
+
+**دادهٔ اندازه‌گیری‌شده:** PostgreSQL 16 **1814 passed / 0 failed** (۲۰۲۶-۱۱-۱۳، Python 3.14، ۹۲۳.۹۶s)؛ Playwright E2E **34 passed / 0 failed** (۱.۵ دقیقه)؛ SQLite **1813 passed / 1 skipped / 0 failed** (Python 3.14، ۴۴۲.۹۸s)
+
+---
+
+# بازبینی ادعاها — ۱۴ نوامبر ۲۰۲۶
+
+**دلیل:** در جریان کار روی UI معلوم شد دو ادعای امنیتی این سند/`UI_MIGRATION_MANIFEST`
+از grep ناقص آمده بودند (`GI-SEC-001`, `GI-SEC-002`) و یک قلم P1 (`F-11`) از قبل
+حل شده بود. این بخش اقلام **P0/P1** را دوباره با کد سنجیده است. اقلام P2/P3
+(۱۴ + ۸) در این بازبینی **بازآزمایی نشده‌اند** و وضعیت قبلی‌شان معتبر نیست.
+
+| قلم | وضعیت واقعی | شاهد (دستور/کد) |
+|---|---|---|
+| F-01 تغییرهای commit‌نشده | **OPEN** (بدون تغییر) | `git status --porcelain` همچنان فایل tracked تغییریافته دارد |
+| F-02 deadlock دیسپچ روی PG | **FIXED** | `tests/test_dispatch.py:132,177` دو session با commit واقعی + تست دو-`Barrier` |
+| F-03 CI فقط زیرمجموعه | **FIXED** | `.github/workflows/ci.yml:54` → `pytest tests -q --basetemp=.pytest-ci` |
+| F-04 شاهد CI راه‌دور | **NOT_VERIFIED** | نیازمند push مالک؛ بدون تغییر |
+| F-05 تایم‌اوت Settings روی PG | **FIXED** | `tests/conftest.py:71` → `_pg_url.set(host="127.0.0.1")` |
+| F-06 مقالهٔ گمشده روی PG | **FIXED** | `tests/test_domain_engines.py:76` → `_orphan()` ردیف در حافظه، بدون INSERT |
+| F-07 assert صریح SQLite | **FIXED** | هیچ `assert 'sqlite' in` در `tests/` نمانده؛ نگهبان: `test_no_sqlite_only_assertions_remain` |
+| F-08 «آفلاین» نبودن source_bot | **FIXED** | `tests/test_security.py:230` تست محافظ resolver آفلاین |
+| F-09 تست وابسته به cwd | **FIXED** | `tests/test_deploy.py:41` → `Path(__file__).resolve().parents[1]` |
+| F-10 temp مشترک/فِیل کاذب | **FIXED** | `tests/conftest.py:25-28` → ریشهٔ `gi-pytest-<pid>-*` اختصاصی هر اجرا |
+| F-11 `claim` بدون SKIP LOCKED | **FIXED (کهنه بود)** | `service.py:473` + نگهبان `test_claimable_statement_uses_skip_locked` |
+| F-12 migration روی SQLite | **OPEN (طراحی)** | `alembic` روی SQLite از ALTER constraint پشتیبانی نمی‌کند؛ لاین migration فقط PG |
+| F-13 تشخیص کد مرده | **OPEN (ابزار)** | هنوز ابزار واحد نیست؛ پوشش شاخه‌های خطا موردی است |
+
+**نگهبان ماشینی:** `tests/test_doc_claims.py` چهار واقعیت پرتکرار مستند را قفل می‌کند
+(SKIP LOCKED، گیت admin برای `test-deliver`، IP literal در DSN لاین PG، ریشهٔ temp
+اختصاصی) تا این اسناد بی‌صدا از کد جدا نشوند.
+
+---
+
+# نقص‌های آزمون ۲۴/۷ — ۱۵ نوامبر ۲۰۲۶
+
+**مبنا:** سرویس نصب‌شدهٔ ویندوز روی `8010` (Task Scheduler + `scripts/run_backend_forever.cmd`)،
+DB = `dev.db` (SQLite)، `MOCK_MODE=false`، HEAD `2d0e1bc` + working tree (هیچ commit نشده).
+همهٔ اقلام زیر **اندازه‌گیری‌شده** هستند (اجرای واقعی، نه گزارش).
+
+## GI-DISPATCH-001 · ردیف `running` پس از restart تا ۹۰۰ ثانیه قفل می‌ماند — **FIXED**
+
+- **علامت:** پس از `kill -9` در میانهٔ dispatch، ردیف `event_extraction@v1` دقیقه‌ها در وضعیت
+  `running` ماند، هیچ مصرف‌کننده‌ای آن را برنداشت و Job مربوطه پیش نمی‌رفت.
+- **شاهد:**
+  - `SELECT task_name,status,attempts FROM article_dispatches WHERE status='running'`
+    → `('event_extraction@v1','running',1)` با `updated_at` چند ثانیه قبل از crash.
+  - پس از restart، لاگ **هیچ** خط `dispatch recovery` نداشت (یعنی `recover_stale` ردیفی پیدا نکرد).
+  - علت عددی: `backend/core/config.py` → `dispatch_lease_seconds: int = 900`؛
+    `recover_at_startup` با lease پیش‌فرض اجرا می‌شد و ردیف تازه‌تر از ۹۰۰ ثانیه را «زنده» می‌پنداشت.
+- **علت ریشه‌ای:** فرض «lease یعنی مالک زنده» در مسیر startup غلط است؛ پروسه‌ای که تازه بالا آمده
+  هرگز lease پروسهٔ قبلی را در دست ندارد، پس هر ردیف `running` در آن لحظه رهاشده است.
+- **اصلاح:**
+  - `backend/ai/dispatch/runner.py` → `recover_at_startup`: `service.recover_stale(stale_seconds=0)`.
+  - `backend/ai/dispatch/service.py` → `recover_stale`: `cutoff = utcnow() - timedelta(seconds=max(0, seconds))`
+    (قبلاً `max(1, …)` بود و مقدار ۰ را بی‌اثر می‌کرد)؛ مقدار ۰ = «بدون پنجرهٔ مهلت».
+- **اثبات:**
+  - لاگ واقعی پس از restart: `dispatch stale running recovered | n=1` و
+    `dispatch recovery | {'stale': 1, 'reenqueued': 0}`.
+  - ردیف: `retryable`, `last_error="stale running recovered after restart"`, سپس
+    `dispatch tick | {'claimed': 1, 'completed': 1, …}` و نهایتاً `completed` با `attempts=2`.
+  - تست نگهبان: `tests/test_dispatch.py::test_startup_recovery_frees_rows_claimed_just_before_a_crash`.
+  - سوئیت کامل پس از اصلاح: `pytest tests -q` → **1928 passed, 2 skipped, 0 failed** (446.20s, exit 0).
+- **گزارش کامل:** `docs/execution_reports/PHASE_12_REPORT.md`
+
+## GI-DISPATCH-002 · روی SQLite هر claim ردیف `retryable` استثنا می‌داد — **FIXED**
+
+- **علامت:** حلقهٔ dispatch هر ۲۰ ثانیه `dispatch tick failed` می‌داد و **هیچ retry اجرا نمی‌شد**؛
+  ردیف `retryable` برای همیشه در صف می‌ماند.
+- **شاهد:** `logs/backend-8010.out.log` → ۱۱ بار
+  `WARNING backend.ai.dispatch.runner | dispatch tick failed` با stack:
+  `runner.py:666 service.claim(dispatch)` → `service.py:232 update(ArticleDispatch)` →
+  `sqlalchemy/orm/evaluator.py:263` → `TypeError: can't compare offset-naive and offset-aware datetimes`.
+- **علت ریشه‌ای:** SQLite datetime را naive برمی‌گرداند، در حالی که `utcnow()` aware است. هندل
+  `UPDATE … WHERE next_retry_at <= :now` با `synchronize_session` پیش‌فرض SQLAlchemy سعی می‌کند
+  شرط را در Python روی اشیای درون‌حافظه ارزیابی کند → مقایسهٔ naive/aware. ردیف‌های `pending`
+  (که `next_retry_at` آن‌ها NULL است) به این مقایسه نمی‌رسیدند، پس فقط مسیر retry می‌شکست.
+  روی PostgreSQL این رخ نمی‌دهد چون درایور datetime aware برمی‌گرداند — یعنی نقص **مخصوص SQLite**
+  و در نتیجه در تست‌های PG دیده نمی‌شد.
+- **اصلاح:** `backend/ai/dispatch/service.py` → `claim()` با
+  `.execution_options(synchronize_session=False)`؛ مقایسه در خود DB انجام می‌شود و
+  `refresh` بعدی مقدار واقعی را می‌خواند.
+- **اثبات:**
+  - `tests/test_dispatch.py::test_retryable_row_is_claimable_after_a_db_roundtrip` — با برداشتن
+    موقت اصلاح **fail** می‌شود و با اصلاح pass (اعتبارسنجی خودِ تست انجام شد).
+  - `pytest tests/test_dispatch.py tests/test_domain_routing.py tests/test_domain_engines.py -q`
+    → **78 passed, 1 skipped** (۵.۶۲s)؛ `ruff check` روی فایل‌های تغییریافته پاک.
+  - لاگ واقعی: `dispatch tick | {'claimed': 1, 'completed': 1, …}` بدون خطای بعدی.
+  - سوئیت کامل پس از اصلاح: `pytest tests -q` → **1928 passed, 2 skipped, 0 failed** (446.20s, exit 0).
+- **گزارش کامل:** `docs/execution_reports/PHASE_12_REPORT.md`
+
+## جمع‌بندی وضعیت این دو قلم
+
+| قلم | شدت | وضعیت | ابزار بستن |
+|---|---|---|---|
+| GI-DISPATCH-001 | P1 (از دست رفتن کار تا ۱۵ دقیقه) | **FIXED** | `recover_at_startup` + `recover_stale(0)` + ۱ تست |
+| GI-DISPATCH-002 | P1 (retry بی‌اثر روی SQLite) | **FIXED** | `claim()` با `synchronize_session=False` + ۱ تست |
+
+## سوئیت کامل پس از این دو اصلاح — **اندازه‌گیری‌شده**
+
+```
+cd J:\Documents\GlobalIntelligence
+python -m pytest tests -q
+→ 1928 passed, 2 skipped, 746 warnings in 446.20s (0:07:26)   exit=0
+```
+
+- اجرا روی SQLite (Python 3.14)، working tree شامل هر دو اصلاح dispatch، `0 failed`.
+- مبنای مقایسه: آخرین اجرای کامل پیش از این فاز **۱۹۱۲ passed / ۲ skipped** بود؛
+  افزایش ۱۶ تست از تست‌های افزوده‌شدهٔ همین دورهٔ کاری است (از جمله دو تست رگرسیون این دو قلم).
+- خروجی خام: `.tmp-audit-2026/fullsuite.log` (gitignored).
+### لاین PostgreSQL — همان سوئیت، همان working tree
+
+محیط: PostgreSQL **16.16** (alpine) در یک کانتینر ایزولهٔ موقت (`gi_pg_lane_tmp`) روی `127.0.0.1:15434`،
+دیتابیس تازهٔ `gi_pg_lane_phase13`، `alembic upgrade head` روی همان DB (rc=0)، سپس:
+
+```
+DATABASE_URL=postgresql+psycopg://…@127.0.0.1:15434/gi_pg_lane_phase13
+python -m pytest tests -q
+→ 1929 passed, 1 skipped, 746 warnings in 1044.22s (0:17:24)   exit=0
+```
+
+بعد از اجرا، DB و کانتینر موقت حذف شدند؛ به کانتینرهای `gi_postgres` / `gi_staging_postgres` کاربر
+دست نزده شد. خروجی خام: `.tmp-audit-2026/pgsuite.log`.
+
+### مقایسهٔ دو لاین
+
+| لاین | نتیجه | زمان | تفاوت |
+|---|---|---|---|
+| SQLite | 1928 passed / 2 skipped / 0 failed | 446.20s | سریع‌تر؛ ۱ تست فقط-PG (هم‌زمانی `claim`) اینجا skip می‌شود |
+| PostgreSQL 16.16 | 1929 passed / 1 skipped / 0 failed | 1044.22s | تست هم‌زمانی دوسطریِ `claim` فقط اینجا اجرا می‌شود؛ ۱ تست دیگر اینجا skip است |
+
+- مجموع موارد هر دو لاین **۱۹۳۰** است و **هیچ شکستی در هیچ لاینی نیست**.
+- اختلاف skip دو لاین یک تست است: تست هم‌زمانی `claim` روی SQLite رد و روی PG اجرا می‌شود
+  (نام تست‌های skip در این اجراها ثبت نشده؛ فقط شمارش‌ها اندازه‌گیری شده‌اند).
+- دو نقص این بخش (GI-DISPATCH-001/002) روی هر دو لاین پاس‌اند: اصلاح ۰۰۱ مستقل از DB است و
+  اصلاح ۰۰۲ (که مخصوص SQLite بود) هیچ رفتاری روی PG را تغییر نمی‌دهد، چون مقایسه در هر دو حالت
+  به خود دیتابیس سپرده می‌شود.
+
+**نکتهٔ محیطی (نقص محصول نیست) — تشخیص کامل:** فوروارد پورتِ Docker Desktop برای چند کانتینر
+**کهنه** شده است. شاهد اندازه‌گیری‌شده (Docker Engine 29.8.2، همهٔ کانتینرها Up 31h):
+
+| پورت میزبان | کانتینر | از میزبان | از داخل کانتینر |
+|---|---|---|---|
+| `5678` | `gi_n8n` | ✅ `HTTP/1.1 200 OK` | ✅ سالم |
+| `8000` | `gi_backend` | ❌ پذیرش و بستن فوری (`b''`) | ✅ `/health`=200 |
+| `15432` | `gi_postgres` | ❌ `b''` | ✅ `pg_isready` سالم |
+| `15433` | `gi_staging_postgres` | ❌ `b''` | ✅ سالم |
+| `5173` / `8001` | `gi_frontend` / `gi_staging_backend` | ❌ `b''` | — |
+
+- شنوندهٔ هر پورت `com.docker.backend.exe` است (مدل مستند Docker Desktop: شنونده روی میزبان،
+  فوروارد از طریق کانال حافظهٔ مشترک به VM). TCP پذیرفته می‌شود ولی هیچ بایتی به کانتینر نمی‌رسد؛
+  تأیید قاطع: پس از دو تلاش اتصال، **هیچ خطی** در `docker logs gi_postgres` ثبت نشد (فقط checkpoint)
+  و `pg_isready` داخل کانتینر سالم است. پس مسئلهٔ PG، اعتبارنامه، `pg_hba` یا SSL نیست؛ خودِ
+  فوروارد کهنه است.
+- هر چهار پورت (`8000`, `5173`, `8001`, `5678`) شنوندهٔ یکسانی دارند: **همان**
+  `com.docker.backend.exe` با PID 14676؛ پس خودِ فورواردر زنده است و فقط رکورد فورواردِ
+  کانتینرهای یادشده مرده. تاریخ ساخت کانتینرها این را توضیح نمی‌دهد: `gi_staging_backend`
+  (۲۰۲۶-۱۰-۱۲) از `gi_n8n` (۲۰۲۶-۱۰-۱۶) قدیمی‌تر است ولی پورتش مرده و پورت n8n سالم؛ همچنین
+  هر سه اپ داخل کانتینر پاسخ ۲۰۰ می‌دهند (`gi_backend` `/health`، `gi_frontend` `5173`،
+  `gi_staging_backend` `/health`). یعنی وضعیت، **per-container** است، نه نسخه یا سن کانتینر.
+- شاهد مکانیزم رفع: پس از `docker restart gi_postgres gi_staging_postgres`، دقیقاً همان دو پورت
+  سالم شدند و سه کانتینر restart‌نشده مرده ماندند — یعنی رکورد فوروارد در (re)start کانتینر
+  بازساخته می‌شود، نه با گذشت زمان یا با خودِ فرآیند فورواردر.
+- این کلاس باگ در یادداشت‌های انتشار Docker Desktop ثبت شده است («published ports staying
+  unreachable for the life of the container…»). فورواردِ کهنه با restart همان کانتینر یا با
+  Restart کردن Docker Desktop بازساخته می‌شود؛ افزودن/تازه‌سازی پورت منتشرشده روی کانتینرِ
+  در حال اجرا پشتیبانی نمی‌شود.
+- **راه‌حلِ بدون دست‌زدن به داده:** داده در named volume‌های `globalintelligence_pg_data` و
+  `gi_staging_pg_data` است، نه در لایهٔ کانتینر؛ پس `docker compose restart postgres` (یا Restart از
+  Tray → Troubleshoot برای بازسازی همهٔ فورواردها) هیچ داده‌ای را تغییر نمی‌دهد و فقط چند ثانیه
+  قطعی دارد. صحت‌سنجی پس از آن: تست خام سوکت باید به‌جای `b''` پاسخ PG بدهد.
+- **اجرا شد و رفع شد (۱۵ نوامبر ۲۰۲۶، با تأیید مالک):** `docker restart gi_postgres gi_staging_postgres`
+  در ۲.۷۶s تمام شد؛ هر دو کانتینر `healthy` و نتیجهٔ سنجش:
+
+  | بررسی | قبل | بعد |
+  |---|---|---|
+  | SSLRequest میزبان → `15432` / `15433` | `b''` | `b'N'` (پاسخ واقعی PG) |
+  | اتصال با اعتبارنامهٔ `.env` به DB `globalintelligence` | ❌ | ✅ `current_user=gi_user` |
+  | جدول‌ها / head مهاجرت | — | ۵۴ جدول / `a9f1c2d3e4b5` |
+  | `job_runs` (شاهدِ نماندن داده) | 533 | **533** (بدون تغییر) |
+  | `/health` و `/health/db` از داخل `gi_backend` | 200 / ok | 200 / `{"status":"ok"}` |
+
+  یعنی هیچ داده‌ای جابه‌جا نشد و اپلیکیشن بدون مداخله دوباره به DB وصل شد.
+- **`8000` و `5173` هم رفع شدند (همان روز، با تأیید مالک):** `docker restart gi_backend gi_frontend`
+  در ۴.۳۰s تمام شد و نتیجه:
+
+  | بررسی | قبل | بعد |
+  |---|---|---|
+  | میزبان → `8000` | `b''` | `HTTP/1.1 200 OK` |
+  | `curl /health` و `/health/db` روی `8000` | — | **۲۰۰ / ۲۰۰** |
+  | میزبان → `5173` (curl با Host درست) | `b''` | **۲۰۰** (با سوکت بدون هدر Host، Vite طبق قاعدهٔ خودش ۴۰۳ می‌دهد) |
+
+  نکتهٔ عملیاتی: `docker compose restart frontend` کار نمی‌کند (`no such service: frontend`) چون سرویس
+  `frontend` در `docker compose config --services` نیست (profile-gated است)؛ باید با نام کانتینر یا
+  `docker restart gi_frontend` عمل کرد.
+- **`8001` هم رفع شد (همان روز، با تأیید مالک):** `docker restart gi_backend gi_frontend gi_staging_backend`
+  در ۷.۶۳s تمام شد و هر سه کانتینر `healthy`/`Up` شدند:
+
+  | بررسی | قبل | بعد |
+  |---|---|---|
+  | میزبان → `8000` (`/health`, `/health/db`) | `b''` | **۲۰۰ / ۲۰۰** |
+  | میزبان → `5173` (curl با Host) | `b''` | **۲۰۰** |
+  | میزبان → `8001` (`/health`) | `b''` | **۲۰۰** |
+
+  **نتیجه:** هر سه پورت ۸۰۰۰/۵۱۷۳/۸۰۰۱ اکنون از میزبان پاسخ می‌دهند. هیچ پورت مردهٔ دیگری
+  باقی نمانده است. (سوکت خام بدون هدر Host روی ۵۱۷۳ همچنان ۴۰۳ می‌دهد که رفتار معمول Vite است.)
+- پیش از رفع، لاین PG روی یک PG 16.16 ایزولهٔ موقت (`gi_pg_lane_tmp`، پورت ۱۵۴۳۴، بعداً حذف‌شده)
+  اجرا شده بود؛ نتیجهٔ سوئیت روی آن معتبر است.
+
+- **باقی‌مانده:** CI راه‌دور هنوز تأیید نشده (`F-04`).

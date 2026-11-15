@@ -206,22 +206,26 @@ def create_provider(payload: ProviderCreate, db: Session = Depends(get_db)) -> P
             enc_extra = encrypt_secret(json.dumps(payload.extra, ensure_ascii=False))
         except CredentialError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # WP-07.1: هر Provider جدید Draft است. `payload.enabled` عمداً نادیده گرفته
+    # می‌شود؛ فعال‌سازی فقط پس از تست اتصال موفق (PUT با enabled=true) مجاز است.
     row = AIProviderRow(
         name=payload.name.strip(), kind=payload.kind, base_url=base_url,
         api_key_encrypted=enc_key, key_hint=hint, extra_encrypted=enc_extra,
-        enabled=payload.enabled,
+        enabled=False,
     )
     db.add(row)
     db.flush()
     if payload.default_model and payload.default_model.strip():
+        # مدل هم Draft است: فعال‌سازی مدل به verification تازه نیاز دارد.
         db.add(AIModelRow(provider_id=row.id,
-                          model_name=payload.default_model.strip(), enabled=True))
+                          model_name=payload.default_model.strip(), enabled=False))
     db.commit()
     db.refresh(row)
     store.bump_version()
     log_action(db, action="provider_create", actor="settings",
                target_type="ai_provider", target_id=str(row.id),
-               params={"name": row.name, "kind": row.kind}, result={"ok": True})
+               params={"name": row.name, "kind": row.kind, "draft": True},
+               result={"ok": True})
     return _to_provider_read(row)
 
 
@@ -251,6 +255,12 @@ def update_provider(provider_id: str, payload: ProviderUpdate,
         except CredentialError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     if payload.enabled is not None:
+        if payload.enabled and row.last_test_status != "ok":
+            raise HTTPException(
+                status_code=422,
+                detail="provider must pass the connectivity test before activation "
+                       "(POST /api/settings/providers/{id}/test)",
+            )
         row.enabled = payload.enabled
     db.commit()
     db.refresh(row)
@@ -268,6 +278,10 @@ def rotate_key(provider_id: str, payload: KeyRotateRequest,
     except CredentialError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     row.key_hint = mask_secret(True, last4_of(payload.api_key))
+    # کلید جدید تأییدنشده است: شاهد تست قبلی باطل و Provider به Draft برمی‌گردد.
+    row.last_test_status = None
+    row.last_tested_at = None
+    row.enabled = False
     db.commit()
     db.refresh(row)
     store.bump_version()
@@ -314,8 +328,8 @@ def test_provider(provider_id: str, payload: ProviderTestRequest,
     if not _test_allowed(client_ip):
         raise HTTPException(status_code=429, detail="too many connection tests; retry in a minute")
     kind, row = _resolve_target(db, provider_id)
-    if row is not None and not row.enabled:
-        raise HTTPException(status_code=422, detail="provider is disabled")
+    # WP-07.1: تست اتصال، دروازهٔ promotion است؛ پس Draft هم تست می‌شود
+    # (فقط کلید لازم است). سیاست Free در Gateway همچنان اجرا می‌شود.
     if row is not None and not row.api_key_encrypted:
         raise HTTPException(status_code=422, detail="no API key stored for this provider")
     label = row.name if row is not None else kind
@@ -327,16 +341,22 @@ def test_provider(provider_id: str, payload: ProviderTestRequest,
         gateway = AIGateway()
         # تست اتصال: دقیقاً یک تلاش صریح، بدون retry/fallback پنهان.
         gateway._max_retries = 0
-        resp = asyncio.run(gateway.generate(AIRequest(
-            messages=[Message.user("Reply with exactly: OK")],
-            task="connectivity_check", temperature=0.0, max_tokens=32,
-            metadata={"force_provider": row.name if row is not None else kind,
-                      **({"model": payload.model} if payload.model else {})},
-        )))
+        resp = asyncio.run(gateway.generate(
+            AIRequest(
+                messages=[Message.user("Reply with exactly: OK")],
+                task="connectivity_check", temperature=0.0, max_tokens=32,
+                metadata={"force_provider": row.name if row is not None else kind,
+                          **({"model": payload.model} if payload.model else {})},
+            ),
+            include_disabled_provider=True,
+        ))
         ok = not resp.is_mock
         if row is not None:
             row.last_test_status = "ok" if ok else "fail"
             row.last_tested_at = datetime.now(UTC)
+            if ok:
+                # گذار Draft → فعال فقط با شاهد تست موفق (همان درخواست، یک گذار).
+                row.enabled = True
             db.commit()
         return ProviderTestResponse(
             ok=ok, provider=label, model=resp.model,
@@ -362,6 +382,93 @@ def test_provider(provider_id: str, payload: ProviderTestRequest,
         except Exception:  # noqa: BLE001
             pass
         return ProviderTestResponse(ok=False, provider=label, error=simple)
+
+
+@router.post("/providers/{provider_id}/auto-detect-model")
+def auto_detect_model(provider_id: str, db: Session = Depends(get_db)) -> dict:
+    """کشف خودکار مدل کارکردنی (رایگان) برای یک Provider.
+
+    لیست مدل‌های Provider را می‌گیرد و هر کدام را با یک prompt کوچک تست
+    می‌کند؛ اولین مدلی که موفق شود به‌عنوان مدل پیش‌فرض ثبت، تأیید
+    (FREE_VERIFIED) و Provider فعال می‌شود. برای Providerهای openai_compatible
+    (base URL دلخواه) مناسب است.
+    """
+    from backend.ai import credentials_store as _store
+    from backend.ai.gateway import AIGateway
+    from backend.ai.schemas.types import AIRequest, Message
+    from backend.database.models.ai_settings import AIModelRow
+
+    kind, row = _resolve_target(db, provider_id)
+    row = _require_db_row(row, "تشخیص مدل")
+    if kind not in ("openai_compatible", "openai", "groq", "openrouter", "gemini", "cloudflare"):
+        raise HTTPException(status_code=422, detail="auto-detect only for HTTP providers")
+    # fetch model list using discover_models logic (reuse)
+    try:
+        models = discover_models(provider_id, db)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail="could not fetch model list") from exc
+    if not models:
+        raise HTTPException(status_code=422, detail="no models discovered")
+    # decrypt key
+    try:
+        api_key = decrypt_secret(row.api_key_encrypted) if row.api_key_encrypted else None
+    except CredentialError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not api_key:
+        raise HTTPException(status_code=422, detail="no API key stored")
+    gateway = AIGateway()
+    gateway._max_retries = 0
+    detected: str | None = None
+    errors: list[str] = []
+    # مدل‌هایی که نامشان «free» دارند اولویت دارند (OpenRouter :free و ...)
+    ordered = sorted(models, key=lambda m: ("free" not in str(m).lower(),))
+    for cand in ordered[:20]:
+        if not cand:
+            continue
+        try:
+            resp = asyncio.run(gateway.generate(
+                AIRequest(
+                    messages=[Message.user("Reply with exactly: OK")],
+                    task="connectivity_check", temperature=0.0, max_tokens=8,
+                    metadata={"force_provider": row.name, "model": cand},
+                ),
+                include_disabled_provider=True,
+            ))
+            if not resp.is_mock:
+                detected = cand
+                break
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{cand}: {type(exc).__name__}")
+            continue
+    if not detected:
+        raise HTTPException(
+            status_code=404,
+            detail="no working model found; " + ("; ".join(errors[:3]) if errors else "")
+        )
+    # set as default model row + verify + enable
+    dup = db.execute(
+        select(AIModelRow).where(AIModelRow.provider_id == row.id,
+                                 AIModelRow.model_name == detected)
+    ).scalars().first()
+    if dup is None:
+        dup = AIModelRow(provider_id=row.id, model_name=detected, enabled=True)
+        db.add(dup)
+        db.flush()
+    dup.enabled = True
+    dup.free_status = "FREE_VERIFIED"
+    dup.free_verified_on = datetime.now(UTC).date()
+    dup.free_review_days = 90
+    row.last_test_status = "ok"
+    row.last_tested_at = datetime.now(UTC)
+    row.enabled = True
+    db.commit()
+    _store.bump_version()
+    log_action(db, action="auto_detect_model", actor="settings",
+               target_type="ai_provider", target_id=str(row.id),
+               params={"model": detected}, result={"ok": True})
+    return {"ok": True, "provider": row.name, "model": detected}
 
 
 @router.get("/providers/{provider_id}/models", response_model=list[str])
@@ -842,7 +949,7 @@ def import_from_env(db: Session = Depends(get_db)) -> ImportEnvResponse:
         model_name = getattr(settings, model_var.lower(), None) if model_var else None
         if kind == "cloudflare":
             # مدل پیش‌فرض زنده‌تست‌شده ثبت می‌شود (بدون قیمت).
-            model_name = "@cf/meta/llama-3.1-8b-instruct"
+            model_name = "@cf/meta/llama-3.2-3b-instruct"
         if exists is None:
             row = AIProviderRow(name=kind, kind=kind, api_key_encrypted=enc,
                                 key_hint=mask_secret(True, last4_of(api_key)),

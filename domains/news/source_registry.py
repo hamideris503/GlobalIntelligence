@@ -47,6 +47,11 @@ class SourceRegistry:
         ).scalar_one_or_none()
 
     def create(self, **fields: object) -> Source:
+        # GI-OPS-001: منبعی که فقط feed_url دارد باید به‌طور پیش‌فرض RSS باشد،
+        # وگرنه `/api/ingest/all` آن را بی‌صدا رد می‌کند (فیلتر روی
+        # collection_method == "rss" بود). مقدار صریح کاربر حفظ می‌شود.
+        if fields.get("feed_url") and not fields.get("collection_method"):
+            fields["collection_method"] = "rss"
         source = Source(**fields)  # type: ignore[arg-type]
         self.db.add(source)
         self.db.commit()

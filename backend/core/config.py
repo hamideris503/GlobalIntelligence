@@ -9,7 +9,7 @@ import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -138,12 +138,21 @@ class Settings(BaseSettings):
     auth_forgot_password_window_seconds: int = Field(default=3600, ge=1)
     auth_resend_verification_max_attempts: int = Field(default=3, ge=1)
     auth_resend_verification_window_seconds: int = Field(default=3600, ge=1)
+    # کد تأیید ۶ رقمی است؛ این سقف جلوی حدس‌زدن کد را می‌گیرد.
+    auth_verify_email_max_attempts: int = Field(default=10, ge=1)
+    auth_verify_email_window_seconds: int = Field(default=900, ge=1)
 
     # --- Email delivery (ثبت‌نام/بازیابی حساب) ---
     app_base_url: str = "http://localhost:8000"
     smtp_host: str | None = None
     smtp_port: int = 587
-    smtp_username: str | None = None
+    # دو نام برای یک credential وجود دارد: Alert delivery از `SMTP_USER`
+    # می‌خواند و Auth از `SMTP_USERNAME`. بدون این alias، تنظیم یکی از آن‌ها
+    # باعث می‌شد مسیر دیگر بی‌صدا login نکند.
+    smtp_username: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_USERNAME", "SMTP_USER"),
+    )
     smtp_password: str | None = None
     smtp_from: str | None = None
     smtp_use_tls: bool = True

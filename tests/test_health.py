@@ -4,11 +4,22 @@
 """
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
 
 client = TestClient(app)
+
+
+def _sqlite_lane() -> bool:
+    """آیا لاین تست روی SQLite است؟ (پارامترهای pool فقط برای PG ساخته می‌شوند)"""
+    from backend.core.config import get_settings
+
+    return get_settings().database_url.startswith("sqlite")
+
+
+SQLITE_LANE = _sqlite_lane()
 
 
 def test_root() -> None:
@@ -24,6 +35,11 @@ def test_health_liveness() -> None:
     assert res.json() == {"status": "ok"}
 
 
+@pytest.mark.skipif(
+    SQLITE_LANE,
+    reason="pool_size/max_overflow فقط برای pool غیر-SQLite ساخته می‌شوند "
+           "(GI-TEST-002)؛ این قرارداد در لاین PostgreSQL سنجیده می‌شود",
+)
 def test_db_pool_sized_for_scheduled_bursts(monkeypatch) -> None:
     """E2E: pool باید از پیش‌فرض بزرگ‌تر باشد تا burst ساعتی 500 ندهد."""
     import backend.database.session as sess_mod

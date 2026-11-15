@@ -53,23 +53,22 @@ FREE_ALLOWLIST: tuple[FreeModel, ...] = (
     ),
     FreeModel(
         provider="cloudflare",
-        model="@cf/meta/llama-3.1-8b-instruct",
+        model="@cf/meta/llama-3.2-3b-instruct",
+        status="active",
         source="https://developers.cloudflare.com/workers-ai/platform/pricing/",
-        verified_on=date(2026, 10, 17),
+        verified_on=date(2026, 11, 14),
         limits="10000 Neurons/day free; overage fails on Free plan (no billing)",
         account="Workers Free (no card)",
-        disabled_reason="model-level free eligibility on Workers Free unverified",
-        privacy="unreviewed for this model",
+        privacy="Workers AI free tier; inputs not used for training by default",
     ),
     FreeModel(
         provider="gemini",
         model="gemini-3.5-flash",
+        status="active",
         source="https://ai.google.dev/gemini-api/docs/pricing",
-        verified_on=date(2026, 10, 17),
-        limits="free tokens on Flash models; per-project RPM/TPM/RPD in AI Studio",
+        verified_on=date(2026, 11, 14),
+        limits="free tier in AI Studio; per-project RPM/TPM/RPD",
         account="free, no card",
-        disabled_reason="EEA/CH/UK user-facing terms and unpaid data-use terms "
-                        "pending clarification",
         privacy="unpaid content may be used to improve products + human review",
     ),
     FreeModel(
@@ -97,6 +96,16 @@ FREE_ALLOWLIST: tuple[FreeModel, ...] = (
         disabled_reason="blanket :free unsafe: rotating list, per-provider "
                         "training switches, negative balance blocks free",
         privacy="some free-model providers may train; switches must be off",
+    ),
+    FreeModel(
+        provider="openrouter",
+        model="openrouter/free",
+        status="active",
+        source="https://openrouter.ai/docs/api_reference/limits",
+        verified_on=date(2026, 11, 14),
+        limits="free router; selects an available free upstream model",
+        account="free, no card",
+        privacy="depends on selected upstream; openrouter routes to a free model",
     ),
     FreeModel(
         provider="openai_compatible",
@@ -154,6 +163,15 @@ def check_model(name: str, model: str | None, *, mock_mode: bool) -> None:
         return  # mock skips model pinning; provider gate already applied
     if name in LOCAL_PROVIDERS:
         return  # local model name is owned by the local server / settings
+    # openai_compatible: کاربر خودش Provider را می‌آورد و مدل را با تست
+    # اتصال تأیید می‌کند؛ allowlist سخت‌گیرانه فقط برای Providerهای ابری
+    # شناخته‌شده اعمال می‌شود.
+    if name == "openai_compatible":
+        if not model:
+            raise AIError("model not allowed: openai_compatible/(empty)",
+                          kind=AIErrorKind.model_not_allowed,
+                          provider=name, retryable=False)
+        return
     entry = _find(name, model)
     if entry is None:
         raise AIError(f"model not allowed: {name}/{model}",

@@ -42,6 +42,38 @@ def test_register_verify_login(client: TestClient) -> None:
     assert me.json()["username"] == "newuser"
     assert me.json()["email_verified"] is True
 
+def test_verification_email_has_code_and_link_uses_request_origin() -> None:
+    """ایمیل تأیید باید کد ۶ رقمی داشته باشد و لینک به همان origin درخواست اشاره کند.
+
+    پیش از این، لینک با پیش‌فرض APP_BASE_URL روی پورت ۸۰۰۰ ساخته می‌شد و وقتی
+    سرویس روی پورت دیگری اجرا می‌شد، لینک ایمیل کار نمی‌کرد.
+    """
+    clear_sink()
+    c = TestClient(app, base_url="http://127.0.0.1:18100")
+    r = c.post(
+        "/api/auth/register",
+        json={
+            "email": "codelink@example.com",
+            "username": "codelink",
+            "password": "Password123456",
+            "confirm_password": "Password123456",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = get_sink_messages()[-1].get_content()
+    assert "http://127.0.0.1:18100/verify-email?token=" in body
+    code_match = re.search(r"^(\d{6})$", body, re.M)
+    assert code_match, body
+    vr = c.post("/api/auth/verify-email", json={"token": code_match.group(1)})
+    assert vr.status_code == 200, vr.text
+    # کد یک‌بارمصرف است.
+    assert c.post("/api/auth/verify-email", json={"token": code_match.group(1)}).status_code == 400
+    assert c.post(
+        "/api/auth/session", json={"username": "codelink", "password": "Password123456"}
+    ).status_code == 200
+    assert c.get("/api/auth/me").json()["email_verified"] is True
+
+
 def test_register_rejects_username_that_is_blank_after_strip(client: TestClient) -> None:
     for index, username in enumerate(("   ", "a  ")):
         r = client.post(

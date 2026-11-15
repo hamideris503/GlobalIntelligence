@@ -121,7 +121,9 @@ def _release_lock() -> None:
 
 
 def should_stop() -> bool:
-    return os.path.exists(STOP_PATH) or os.path.exists("/tmp/source_bot.stop")
+    # STOP_PATH از tempfile.gettempdir() ساخته می‌شود؛ مسیر هاردکد‌شدهٔ «/tmp»
+    # در Windows معنا ندارد و در POSIX نیز همان مسیر را تکرار می‌کرد.
+    return os.path.exists(STOP_PATH)
 
 
 def _page_cap(opts: dict, settings) -> int:

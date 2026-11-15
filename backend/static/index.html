@@ -1026,22 +1026,23 @@ function giEnsureAuthModal(){
             <h3>ایمیل خود را تأیید کنید</h3>
             <p>ورود شما انجام شده است، اما برای فعال‌شدن کامل حساب باید مالکیت ایمیل را تأیید کنید. لینک یا کد تأیید به نشانی ثبت‌شده ارسال می‌شود.</p>
             <span class="gia-verify-address" id="giaVerifyEmailAddress">name@example.com</span>
-            <div class="gia-notice info show" style="margin:0"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span id="giaVerifyDeliveryNote">تا زمان پیکربندی سرویس ایمیل پروژه، ارسال واقعی لینک تأیید انجام نمی‌شود. هیچ تأیید ساختگی ثبت نمی‌شود.</span></div>
+            <div class="gia-notice info show" style="margin:0"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span id="giaVerifyDeliveryNote">ایمیل تأیید شامل یک لینک و یک کد ۶ رقمی است؛ هر کدام را وارد کنید کافی است.</span></div>
             <p class="gia-verify-status" id="giaVerifyStatus">حساب شما ساخته شده اما ایمیل هنوز تأیید نشده است.</p>
           </div>
-          <form id="giaVerifyForm" novalidate style="margin-top:14px"><div class="gia-field"><label for="giaVerifyToken">توکن یا کد تأیید</label><div class="gia-input-wrap"><input id="giaVerifyToken" type="text" placeholder="توکن موجود در ایمیل تأیید" dir="ltr" /></div><div class="gia-field-error" id="giaVerifyTokenError"></div></div><button class="gia-primary" style="margin-top:12px" type="submit">تأیید ایمیل</button></form>
-          <button class="gia-secondary" type="button" style="margin-top:9px" id="giaResendVerify">ارسال مجدد لینک تأیید</button>
+          <form id="giaVerifyForm" novalidate style="margin-top:14px"><div class="gia-field"><label for="giaVerifyToken">توکن یا کد تأیید</label><div class="gia-input-wrap"><input id="giaVerifyToken" type="text" placeholder="کد ۶ رقمی یا توکن لینک ایمیل" dir="ltr" autocomplete="one-time-code" /></div><div class="gia-field-error" id="giaVerifyTokenError"></div></div><button class="gia-primary" style="margin-top:12px" type="submit">تأیید ایمیل</button></form>
+          <button class="gia-secondary" type="button" style="margin-top:9px" id="giaResendVerify">ارسال مجدد لینک و کد تأیید</button>
           <button class="gia-secondary" type="button" style="margin-top:9px" id="giaVerifyWrongEmail">ایمیل را اشتباه وارد کردم / بازگشت به ورود</button>
           <button class="gia-secondary" type="button" style="margin-top:9px" id="giaVerifyLogout">خروج از حساب</button>
         </section>
 
         <section class="gia-view" id="giaViewAccount">
-          <h3 class="gia-view-title">حساب کاربری</h3><p class="gia-view-desc">اطلاعات هویتی و وضعیت تأیید حساب شما.</p>
+          <p class="gia-view-desc">اطلاعات هویتی و وضعیت تأیید حساب شما.</p>
           <div class="gia-account-row"><span>نام کاربری</span><strong id="giaAccountUsername">—</strong></div>
           <div class="gia-account-row"><span>ایمیل</span><strong class="gia-ltr" id="giaAccountEmail">—</strong></div>
           <div class="gia-account-row"><span>نقش</span><strong id="giaAccountRole">—</strong></div>
           <div class="gia-account-row"><span>وضعیت ایمیل</span><strong id="giaAccountEmailStatus">—</strong></div>
           <button class="gia-primary" type="button" style="margin-top:19px;display:none" id="giaAccountVerifyBtn" data-gia-view="verifyEmail">تأیید ایمیل</button>
+          <button class="gia-secondary" type="button" style="margin-top:9px" id="giaAccountBack">بازگشت به صفحهٔ اصلی</button>
           <button class="gia-secondary" type="button" style="margin-top:9px" id="giaAccountLogout">خروج از حساب</button>
           <p class="gia-fineprint">این اطلاعات از endpoint واقعی حساب کاربری خوانده می‌شود. نشست حساب پس از ورود حفظ می‌شود.</p>
         </section>
@@ -1103,7 +1104,7 @@ function giEnsureAuthModal(){
         giAuthShowView('verifyEmail');
         giAuthNotice('info', 'ورود انجام شد؛ برای فعال‌سازی کامل حساب، ایمیل خود را تأیید کنید.');
       } else if (typeof renderPage === 'function') {
-        renderPage(activePage || 'overview');
+        renderPage(activePage || giPageFromHash() || 'overview');
       }
     } catch (e) {
       giAuthApplyErrors(e, {
@@ -1221,7 +1222,7 @@ function giEnsureAuthModal(){
         giAuthNotice('success', 'ایمیل تأیید شد. ورود به داشبورد...');
         setTimeout(function(){
           giApplyAuthGate();
-          if (typeof renderPage === 'function') renderPage(activePage || 'overview');
+          if (typeof renderPage === 'function') renderPage(activePage || giPageFromHash() || 'overview');
         }, 900);
       } else {
         giAuthNotice('success', 'ایمیل تأیید شد. اکنون وارد حساب شوید.');
@@ -1240,9 +1241,9 @@ function giEnsureAuthModal(){
     try {
       const res = await api('POST', '/api/auth/resend-verification', { body: {} });
       if (res && res.email_sent){
-        giAuthNotice('success', 'لینک تأیید به ایمیل شما ارسال شد.');
+        giAuthNotice('success', 'لینک و کد تأیید به ایمیل شما ارسال شد.');
         const note = giAuthEl('giaVerifyDeliveryNote');
-        if (note) note.textContent = 'لینک تأیید به ایمیل ثبت‌شده ارسال شد.';
+        if (note) note.textContent = 'لینک و کد ۶ رقمی تأیید به ایمیل ثبت‌شده ارسال شد.';
       } else if (res && res.code === 'EMAIL_DELIVERY_NOT_CONFIGURED'){
         giAuthNotice('info', 'ارسال ایمیل هنوز پیکربندی نشده است. پس از راه‌اندازی SMTP، همین مسیر بدون تغییر UI کار می‌کند.');
       } else if (res && res.code === 'EMAIL_DELIVERY_FAILED'){
@@ -1255,7 +1256,7 @@ function giEnsureAuthModal(){
     } catch (e) {
       giAuthApplyErrors(e, {});
     } finally {
-      if (btn){ btn.disabled = false; btn.textContent = 'ارسال مجدد لینک تأیید'; }
+      if (btn){ btn.disabled = false; btn.textContent = 'ارسال مجدد لینک و کد تأیید'; }
     }
   });
 
@@ -1263,6 +1264,7 @@ function giEnsureAuthModal(){
   giAuthEl('giaVerifyWrongEmail').addEventListener('click', function(){ giLogout(); });
   giAuthEl('giaVerifyLogout').addEventListener('click', function(){ giLogout(); });
   giAuthEl('giaAccountLogout').addEventListener('click', function(){ giLogout(); });
+  const giaBack=giAuthEl('giaAccountBack'); if(giaBack) giaBack.addEventListener('click', function(){ if(giAuthModal){ giAuthModal.classList.remove('gia-open'); giAuthModal.style.display='none'; } const app=document.querySelector('.app'); if(app) app.style.display=''; });
 
   return wrap;
 }
@@ -1330,8 +1332,6 @@ const line=(inputPoints,color='#64a6ff',fill=true,gradientKey='')=>{
  const gradientId='giAreaGradient-'+(gradientKey||(++giGradientCounter));
  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".25"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${[.2,.4,.6,.8].map(y=>`<line class="grid-line" x1="0" x2="${w}" y1="${y*h}" y2="${y*h}"/>`).join('')}${fill?`<path d="${area}" fill="url(#${gradientId})" class="chart-area"/>`:''}<path class="chart-line" d="${d}" stroke="${color}"/>${dots}</svg>`
 };
-const chartPanel=(title,subtitle,points=[34,38,35,46,43,51,49,59,55,64,61,72],color='#62a3ff',id='chartA')=>`<section class="panel"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">${title}</div><div class="panel-sub">${subtitle}</div></div><div class="panel-actions"><div class="range-tabs" aria-label="بازهٔ زمانی غیرفعال" title="بازهٔ زمانی پس از اتصال دادهٔ timestampدار فعال می‌شود"><button class="active" type="button" disabled aria-disabled="true">۳۰ روز</button><button type="button" disabled aria-disabled="true">۹۰ روز</button><button type="button" disabled aria-disabled="true">۱ سال</button></div><button class="icon-btn" data-action="export">↗</button></div></div><div class="chart-wrap" id="${id}">${line(points,color,true,id+'-gradient')}<div class="chart-tooltip"></div></div><div style="display:flex;justify-content:space-between;margin-top:4px" class="tiny"><span>ابتدای بازه</span><span>انتهای بازه</span></div></div></section>`;
-const metrics=()=>`<div class="grid grid-4" style="margin-bottom:14px"><div class="panel metric"><div class="metric-icon blue">✧</div><div><div class="metric-label">تحلیل‌های تکمیل‌شدهٔ AI</div><div class="metric-number">۲۴۸</div><div class="metric-foot"><span class="trend-up">↑ ۱۲٪</span> نسبت به بازهٔ قبل</div></div><svg class="micro-spark" viewBox="0 0 62 25"><path d="M1 21 9 17 16 18 23 11 30 14 38 7 45 10 53 3 61 5" stroke="#629bff" stroke-width="2" fill="none"/></svg></div><div class="panel metric"><div class="metric-icon cyan">◎</div><div><div class="metric-label">سیگنال‌های بااهمیت P0 / P1</div><div class="metric-number">۳۶</div><div class="metric-foot"><span class="trend-up">↑ ۸ مورد</span> نیازمند توجه</div></div><svg class="micro-spark" viewBox="0 0 62 25"><path d="M1 19 9 16 16 20 23 10 30 13 38 8 45 11 53 2 61 4" stroke="#35d7e8" stroke-width="2" fill="none"/></svg></div><div class="panel metric"><div class="metric-icon violet">⌘</div><div><div class="metric-label">همگرایی میان مدل‌ها</div><div class="metric-number">۸۷٫۴٪</div><div class="metric-foot"><span class="trend-up">+۳٫۲٪</span> شاخص توافق نمونه</div></div><svg class="micro-spark" viewBox="0 0 62 25"><path d="M1 19 9 13 16 16 23 9 30 12 38 7 45 9 53 3 61 3" stroke="#a18bff" stroke-width="2" fill="none"/></svg></div><div class="panel metric"><div class="metric-icon amber">◷</div><div><div class="metric-label">پیش‌بینی‌های در انتظار ارزیابی</div><div class="metric-number">۱۹</div><div class="metric-foot" style="color:var(--amber)">۶ مورد سررسیدشده · نمونه</div></div><svg class="micro-spark" viewBox="0 0 62 25"><path d="M1 4 9 9 16 7 23 14 30 11 38 16 45 13 53 21 61 17" stroke="#f6b85d" stroke-width="2" fill="none"/></svg></div></div>`;
 function evidenceFlow(){return `<div class="evidence-flow"><div class="evidence-node"><span class="node-icon">▤</span><div><b>۱۲</b><br><span class="tiny">منبع</span></div></div><span class="flow-arrow">←</span><div class="evidence-node"><span class="node-icon cyan">◎</span><div><b>۴</b><br><span class="tiny">رویداد</span></div></div><span class="flow-arrow">←</span><div class="evidence-node"><span class="node-icon violet">◇</span><div><b>۹</b><br><span class="tiny">ادعا</span></div></div><span class="flow-arrow">←</span><div class="evidence-node"><span class="node-icon">✧</span><div><b>۱۷</b><br><span class="tiny">شاهد</span></div></div><span class="flow-arrow">←</span><div class="evidence-node"><span class="node-icon cyan">⌘</span><div><b>۱</b><br><span class="tiny">جمع‌بندی AI</span></div></div></div>`}
 async function loadDashboard(){
  const c=document.getElementById('dashLive');if(!c)return;
@@ -1417,6 +1417,7 @@ async function loadDebate(){
  window.__debateReqId=(window.__debateReqId||0)+1;const reqId=window.__debateReqId;
  try{
   const runs=await api('GET','/api/debate/runs',{timeout:10000});
+  window.__debateRuns=Array.isArray(runs)?runs:[];
   if(reqId!==window.__debateReqId)return;
   if(!document.getElementById('debateLive'))return;
   if(tag)tag.textContent='دادهٔ واقعی · تعداد: '+nf(runs.length);
@@ -1460,7 +1461,10 @@ async function loadEvidence(){
    c.innerHTML='<p class="muted">هیچ ادعایی ثبت نشده است. ابتدا Claims را از رویدادها استخراج کنید.</p>';
    return;
   }
-  c.innerHTML=claims.slice(0,50).map(function(cl){
+  const list=giFilterClaims(claims);
+  if(!list.length){c.innerHTML='<p class="muted">با فیلتر «'+esc(giEvidenceFilterLabel())+'» ادعایی مطابق نیست؛ '+nf(claims.length)+' ادعا بارگذاری شد.</p>';return}
+  if(tag)tag.textContent='دادهٔ واقعی · ادعاها: '+nf(claims.length)+' · نمایش: '+nf(list.length);
+  c.innerHTML=list.slice(0,50).map(function(cl){
    const evs=cl.evidence||[];
    const supports=evs.filter(function(e){return e.direction==='supports';}).length;
    const contradicts=evs.filter(function(e){return e.direction==='contradicts';}).length;
@@ -1606,7 +1610,7 @@ function selectGraphEdge(el){
  el.setAttribute('stroke','#fbbf24');el.setAttribute('stroke-width','3');
 }
 
-function markets(){return `<div class="page-head"><div><div class="eyebrow">MARKETS · LIVE DATA</div><h1>بازارهای مالی</h1><div class="page-desc">مشاهدات بازار، قیمت‌ها و تغییرات با منبع و زمان.</div></div><div class="head-actions"><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی</button></div></div><div id="marketsLive"></div>`}
+function markets(){return `<div class="page-head"><div><div class="eyebrow">MARKETS · LIVE DATA</div><h1>بازارهای مالی</h1><div class="page-desc">مشاهدات بازار، قیمت‌ها و تغییرات با منبع و زمان.</div></div><div class="head-actions"><input id="marketsSymbol" class="filter" type="text" placeholder="نماد (خالی = همه)" style="min-width:130px" aria-label="نماد بازار" dir="ltr"><button class="btn primary" data-action="marketsFetch">⇣ دریافت داده</button><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی</button></div></div><div id="marketsLive"></div>`}
 
 async function loadMarkets(){
  const c=document.getElementById('marketsLive');if(!c)return;
@@ -1643,9 +1647,9 @@ async function loadMarkets(){
  }
 }
 
-function alerts(){return `<div class="page-head"><div><div class="eyebrow">ALERTS · MONITORING</div><h1>مرکز هشدارها</h1><div class="page-desc">هشدارهای فعال، قواعد و وضعیت تأیید.</div></div><div class="head-actions"><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی</button></div></div><div id="alertsLive"></div>`}
+function alerts(){return `<div class="page-head"><div><div class="eyebrow">ALERTS · MONITORING</div><h1>مرکز هشدارها</h1><div class="page-desc">هشدارهای فعال، قواعد و وضعیت تأیید.</div></div><div class="head-actions"><button class="btn primary" type="button" onclick="sendTestAlert('telegram')">&#x2709; Test Telegram</button><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی</button></div></div><div id="alertsLive"></div>`}
 
-async function loadAlerts(){
+async function sendTestAlert(channel){const btn=document.querySelector('button[onclick*=sendTestAlert]');const orig=btn?btn.textContent:'';if(btn)btn.disabled=true;const out=document.getElementById('alertsLive');if(out)out.innerHTML='<p class=muted>Sending test alert...</p>';try{const r=await api('POST','/api/alerts/test-deliver/'+channel,{timeout:30000});const ok=r.status==='sent'||(r.dry_run===false&&r.attempts>=1);const icon=ok?'&#x2705;':'&#x274c';const cls=ok?'alert-success':'alert-error';const detail='Channel='+r.channel+' | Status='+r.status+' | Attempts='+r.attempts+(r.last_error?' | Error='+r.last_error:'');if(out)out.innerHTML='<div class=alert-strip style=margin-bottom:10px;padding:8px 12px;border-radius:8px class='+cls+'>'+icon+' <b>'+(r.dry_run?'Dry Run':'Sent')+'</b>: '+detail+'</div>';await new Promise(res=>setTimeout(res,2000));loadAlerts();}catch(e){const msg=(e&&e.message)||'Unknown';if(out)out.innerHTML='<p class=muted style=color:#ff657f>Error: '+msg+'</p>';}finally{if(btn){btn.disabled=false;btn.textContent=orig;}}}async function loadAlerts(){
  const c=document.getElementById('alertsLive');if(!c)return;
  if(window.__alertsBusy)return;window.__alertsBusy=true;
  window.__alertsReqId=(window.__alertsReqId||0)+1;const reqId=window.__alertsReqId;
@@ -1732,7 +1736,7 @@ function miniNetwork(){return `<div class="network"><svg viewBox="0 0 600 280" p
 function dashboard(){return `<div class="page-head"><div><div class="eyebrow">INTELLIGENCE OVERVIEW</div><h1>مرکز هوشمندی</h1><div class="page-desc">تصویر یکپارچه از تحلیل‌های AI، شواهد، پیش‌بینی‌ها و تصمیم‌های پیشنهادی — همه از دادهٔ واقعی Backend. هر مقدار غیرقابل‌محاسبه صریحاً INSUFFICIENT_EVIDENCE/UNAVAILABLE است، نه صفر جعلی.</div></div><div class="head-actions"><span class="sample" id="dashTag">در حال دریافت…</span><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی نما</button><button class="btn primary" data-page="reports">✦ ساخت گزارش تحلیلی</button></div></div><div id="dashLive"><p class="muted">در حال دریافت…</p></div>`;}
 function tableRows(rows){return rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}
 function aiAnalysis(){return `<div class="page-head"><div><div class="eyebrow">AI OUTPUTS · TRACEABLE RESULTS</div><h1>مرکز تحلیل هوشمند AI</h1><div class="page-desc">خروجی‌های قابل ردیابی — همه از دادهٔ واقعی Backend. هر تحلیل به منبع، شواهد و نسخهٔ مدل متصل است.</div></div><div class="head-actions"><span class="sample" id="anTag">در حال دریافت…</span><button class="btn primary" data-action="analysis">✦ درخواست تحلیل جدید</button></div></div><div id="anLive"><p class="muted">در حال دریافت…</p></div>`;}
-function aiChatPage(){return `<div class="page-head"><div><div class="eyebrow">AI CHAT · GATEWAY ROUTED</div><h1>گفت‌وگوی هوشمند</h1><div class="page-desc">پرسش به مدل مجاز از مسیر AI Gateway؛ Provider، مدل، وضعیت Mock/Real و مصرف باید آشکار باشند.</div></div><div class="head-actions"><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی</button> <button class="btn ghost" id="aiNewSession">جلسه جدید</button></div></div><div id="aiChatLive"></div>`;}
+function aiChatPage(){return `<div class="page-head"><div><div class="eyebrow">AI CHAT · GATEWAY ROUTED</div><h1>گفت‌وگوی هوشمند</h1><div class="page-desc">پرسش به مدل مجاز از مسیر AI Gateway؛ Provider، مدل، وضعیت Mock/Real و مصرف باید آشکار باشند.</div></div><div class="head-actions"><button class="btn ghost" data-action="refresh">⟳ تازه‌سازی</button> <button class="btn ghost" id="aiNewSession">جلسه جدید</button> <button class="btn ghost" id="aiChatFsBtn">تمام صفحه</button></div></div><div id="aiChatLive"></div>`;}
 
 async function loadAiChat(){
  const c=document.getElementById('aiChatLive');if(!c)return;
@@ -1750,10 +1754,13 @@ async function loadAiChat(){
    `<tr><td>حالت اجرا</td><td><span class="status ${mm?'s-green':'s-amber'}">${mm?'Mock (توسعه)':'Real (Production)'}</span></td></tr>`+
    `<tr><td>Provider پیش‌فرض</td><td>${esc(dp||'—')}</td></tr>`+
    `<tr><td>نقش‌ها</td><td>${esc((s&&s.roles||[]).join('، ')||'—')}</td></tr>`+
-   `</tbody></table></div></section>`+
-   `<section class="panel"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">جلسه چت</div><div class="panel-sub">جلسه فعلی · فقط در حافظه مرورگر</div></div></div>`+
+   `</tbody></table></div></section>`+   `<section class="panel" id="aiChatSession"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">جلسه چت</div><div class="panel-sub">جلسه فعلی · فقط در حافظه مرورگر</div></div></div>`+
    `<div id="aiChatMsgs" style="height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:10px;background:#0c1728;color:#e5f3ff;display:flex;flex-direction:column;gap:8px;">`+
    `<div class="gi-no-results" style="text-align:center;color:#7f95b2">هیچ پیامی هنوز ارسال نشده است. پیغام خود را بنویسید.</div>`+
+   `</div>`+
+   `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">`+
+   `<select id="aiChatProvider" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:#0b1420;color:#e5f3ff;font-size:12px"><option value="">Provider پیش‌فرض (Gateway)</option></select>`+
+   `<select id="aiChatModel" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:#0b1420;color:#e5f3ff;font-size:12px"><option value="">مدل پیش‌فرض</option></select>`+
    `</div>`+
    `<div style="display:flex;gap:8px;margin-top:8px">`+
    `<input type="text" id="aiChatInput" placeholder="پرسش خود را بنویسید…" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0b1420;color:#e5f3ff;font-size:13px">`+
@@ -1763,9 +1770,59 @@ async function loadAiChat(){
    `</div></section>`+
    `<p class="muted" style="font-size:11px;margin-top:8px">پاسخ‌ها از مسیر AI Gateway می‌آیند. Provider، مدل، مقدار توکن و latency کنار هر پاسخ نمایش داده می‌شود. در حالت Mock پاسخ نمایشی است.</p>`;
    // Wire up chat input events
+  // پر کردن انتخابگرهای Provider/Model
+  try{
+   const provs=await api('GET','/api/settings/providers',{timeout:10000});
+   const psel=document.getElementById('aiChatProvider');
+   if(psel && Array.isArray(provs)){
+    provs.forEach(p=>{const o=document.createElement('option');o.value=p.name||p.id;o.textContent=(p.name||p.id)+' ('+(p.kind||'')+')';psel.appendChild(o);});
+   }
+   const models=await api('GET','/api/settings/models',{timeout:10000});
+   const msel=document.getElementById('aiChatModel');
+   if(msel && Array.isArray(models)){
+    models.forEach(m=>{const o=document.createElement('option');o.value=m.model_name;o.textContent=m.model_name+' — '+(m.provider_name||'');msel.appendChild(o);});
+   }
+  }catch(e){/* ignore */}
   const aiInput=document.getElementById('aiChatInput');const aiBtn=document.getElementById('aiSendBtn');
   if(aiInput){aiInput.addEventListener('keypress',function(e){if(e.key==='Enter'){e.preventDefault();aiChatSend();}});}
   if(aiBtn){aiBtn.addEventListener('click',aiChatSend);}
+  const newSessBtn=document.getElementById('aiNewSession');
+  if(newSessBtn){newSessBtn.addEventListener('click',function(){
+   const area=document.getElementById('aiChatMsgs');if(area){area.innerHTML='<div class="gi-no-results" style="text-align:center;color:#7f95b2">هیچ پیامی هنوز ارسال نشده است. پیغام خود را بنویسید.</div>';} 
+   const attr=document.getElementById('aiChatAttr');if(attr)attr.textContent='';
+  });}
+  // دکمه تمام‌صفحه برای تمرکز روی چت
+  const fsBtn=document.getElementById('aiChatFsBtn');
+  if(fsBtn){
+   fsBtn.addEventListener('click',function(){
+    const target=document.getElementById('aiChatSession');
+    if(!target)return;
+    if(!document.fullscreenElement){
+     (target.requestFullscreen||target.webkitRequestFullscreen||target.msRequestFullscreen).call(target);
+     fsBtn.textContent='خروج از تمام صفحه';
+    }else{
+     (document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen).call(document);
+     fsBtn.textContent='تمام صفحه';
+    }
+   });
+   document.addEventListener('fullscreenchange',function(){
+    const area=document.getElementById('aiChatMsgs');
+    const target=document.getElementById('aiChatSession');
+    if(document.fullscreenElement){
+     if(target){target.style.display='flex';target.style.flexDirection='column';target.style.height='100vh';target.style.overflow='hidden';}
+     const pad=target&&target.querySelector('.panel-pad');
+     if(pad){pad.style.display='flex';pad.style.flexDirection='column';pad.style.flex='1 1 auto';pad.style.minHeight='0';}
+     if(area){area.style.flex='1 1 auto';area.style.height='auto';area.style.minHeight='0';}
+    }else{
+     if(target){target.style.display='';target.style.flexDirection='';target.style.height='';target.style.overflow='';}
+     const pad2=target&&target.querySelector('.panel-pad');
+     if(pad2){pad2.style.display='';pad2.style.flexDirection='';pad2.style.flex='';pad2.style.minHeight='';}
+     if(area){area.style.flex='';area.style.height='340px';area.style.minHeight='';}
+    }
+    const b=document.getElementById('aiChatFsBtn');
+    if(b){b.textContent=document.fullscreenElement?'خروج از تمام صفحه':'تمام صفحه';}
+   });
+  }
 }catch(e){
   if(reqId!==window.__aiChatReqId)return;
   if(!document.getElementById('aiChatLive'))return;
@@ -1785,7 +1842,11 @@ async function aiChatSend(){
  const userMsg=document.createElement('div');userMsg.className='chat-msg user';userMsg.innerHTML='<div class="chat-meta">شما · اکنون</div>'+safe;area.appendChild(userMsg);area.scrollTop=area.scrollHeight;
  const loadingMsg=document.createElement('div');loadingMsg.className='chat-msg ai';loadingMsg.innerHTML='<div class="chat-meta">AI Gateway · در حال پاسخ…</div><div class="chat-msg-body">در حال پردازش…</div>';area.appendChild(loadingMsg);area.scrollTop=area.scrollHeight;
  try{
-  const r=await api('POST','/api/ai/chat',{timeout:30000,body:{messages:[{role:'user',content:q}]}});
+  const provSel=document.getElementById('aiChatProvider');const modelSel=document.getElementById('aiChatModel');
+  const body={messages:[{role:'user',content:q}]};
+  if(provSel && provSel.value) body.provider=provSel.value;
+  if(modelSel && modelSel.value) body.model=modelSel.value;
+  const r=await api('POST','/api/ai/chat',{timeout:60000,body});
   if(r){
    loadingMsg.innerHTML='<div class="chat-meta">AI Gateway · '+esc(r.provider||'—')+' · '+esc(r.model||'—')+'</div><div class="chat-msg-body">'+r.text.replace(/\n/g,'<br>')+'</div><div class="chat-usage" style="font-size:11px;color:#7f95b2;margin-top:6px">توکن: '+nf(r.usage?.total_tokens||0)+' · latency: '+(r.latency_ms||'—')+'ms · '+(r.is_mock?'Mock (نمونه)':'Real (واقعی)')+'</div>';
   }
@@ -1865,8 +1926,8 @@ function bindEvaluationPage(){
   giOpenRealDrawer('Forecast / Outcome',giKvRows([['Forecast ID','<span class="latin">'+esc(b.dataset.evalId)+'</span>'],['منبع','/api/evaluation/scores'],['یادداشت','این ردیف فقط از Outcome واقعی دارای actual_value ساخته می‌شود.']]));
  });
 }
-function debate(){return `<div class="page-head"><div><div class="eyebrow">MULTI-MODEL ANALYSIS</div><h1>مناظره و اختلاف‌سنجی مدل‌ها</h1><div class="page-desc">مقایسهٔ مستقل دیدگاه‌ها؛ هیچ رأی اکثریتی به‌تنهایی حقیقت یا اطمینان بالا ایجاد نمی‌کند.</div></div><div class="head-actions"><span class="sample">اجرای نمایشی</span><button class="btn primary" data-action="debate">ساخت مناظرهٔ جدید</button></div></div><div class="grid grid-3" style="margin-bottom:14px"><div class="panel metric"><div class="metric-icon blue">⌘</div><div><div class="metric-label">مدل‌های مشارکت‌کننده</div><div class="metric-number">۳</div></div></div><div class="panel metric"><div class="metric-icon cyan">◎</div><div><div class="metric-label">سطح توافق</div><div class="metric-number">۸۱٪</div></div></div><div class="panel metric"><div class="metric-icon amber">◷</div><div><div class="metric-label">هزینهٔ تخمینی</div><div class="metric-number">$۰٫۰۰</div></div></div></div><section class="panel" style="margin-bottom:14px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">موضوع مناظره</div><div class="panel-sub">ورودی، محدوده و هزینه باید پیش از اجرای واقعی روشن باشند.</div></div><span class="status s-amber">تأیید اجرا لازم است</span></div><div class="score-card"><div class="tiny">پرسش تحلیل</div><strong style="display:block;margin-top:5px;font-size:13px">آیا فشار فعلی بر مسیرهای تجاری به اختلال پایدار در عرضهٔ انرژی منجر می‌شود؟</strong></div><div class="grid grid-3" style="margin-top:10px"><div class="score-card"><div class="tiny">افق تحلیل</div><strong>۳۰ روز</strong></div><div class="score-card"><div class="tiny">سقف خروجی</div><strong>۲٬۰۰۰ توکن</strong></div><div class="score-card"><div class="tiny">شرکت‌کنندگان</div><strong>۳ مدل</strong></div></div></div></section><div class="debate-lane"><div class="debater"><div class="debater-head"><span class="model-avatar">K</span><span class="latin">Kev</span><span class="status s-green" style="margin-right:auto">نمونه</span></div><p>احتمال اختلال محدود افزایش یافته، اما دادهٔ فعلی برای استنتاج اختلال ساختاری کافی نیست.</p><div class="tiny">موضع نمونه: محتاطانه · اطمینان ۷۸٪</div></div><div class="debater"><div class="debater-head"><span class="model-avatar" style="background:#35d7e81f;color:#6ce0ec">L</span><span class="latin">Laya</span><span class="status s-green" style="margin-right:auto">نمونه</span></div><p>اثر کوتاه‌مدت در هزینهٔ حمل محتمل است؛ اما کانال انتقال به قیمت نهایی با تأخیر همراه است.</p><div class="tiny">موضع نمونه: اثر مرحله‌ای · اطمینان ۸۱٪</div></div><div class="debater"><div class="debater-head"><span class="model-avatar" style="background:#a18bff24;color:#b6a7ff">G</span><span class="latin">AI Gateway</span><span class="status s-amber" style="margin-right:auto">اختلاف جزئی</span></div><p>اگر محدودیت بیش از ۷۲ ساعت تداوم یابد، ریسک سناریو بالاتر می‌رود. دادهٔ ظرفیت جایگزین کم است.</p><div class="tiny">موضع نمونه: مشروط · اطمینان ۷۳٪</div></div></div><div class="grid grid-2" style="margin-top:14px"><section class="panel panel-pad"><div class="panel-title">نقشهٔ اختلاف دیدگاه‌ها</div><div class="panel-sub">محورهای توافق و اختلاف</div>${[['جهت اثر',92],['شدت اثر',68],['زمان‌بندی',54],['پایداری',61]].map(([n,v])=>`<div class="heat-row"><span>${n}</span><div class="signal-line"><span style="--w:${v}%"></span></div><b>${v}٪</b></div><div id="debateLive"></div>`).join('')}</section><section class="panel panel-pad"><div class="panel-title">جمع‌بندی و کنترل انسانی</div><p class="muted" style="font-size:10px;line-height:2">نتیجهٔ نمونه مشروط است. پیش از استفاده در تصمیم، دادهٔ تازه و شاهد مستقل لازم است.</p><div class="alert-strip">توافق مدل‌ها معادل احتمال آماری صحت نیست.</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" data-action="ack">ثبت بررسی انسانی</button><button class="btn" data-action="void">ابطال/خنثی‌سازی اجرا</button></div></section></div>`}
-function evidence(){return `<div class="page-head"><div><div class="eyebrow">EVIDENCE INTELLIGENCE · TRACEABILITY</div><h1>شواهد، ادعاها و زنجیرهٔ استدلال</h1><div class="page-desc">هر نتیجه باید به منبع، گزاره، شاهد و استنتاج قابل‌ممیزی متصل باشد — همه از دادهٔ واقعی Backend.</div></div><div class="head-actions"><span class="sample" id="evidenceTag">در حال دریافت…</span><button class="btn" data-action="filter">فیلتر شواهد</button></div></div><div id="evidenceLive"><p class="muted">در حال دریافت…</p></div>`;}
+function debate(){return `<div class="page-head"><div><div class="eyebrow">MULTI-MODEL ANALYSIS</div><h1>مناظره و اختلاف‌سنجی مدل‌ها</h1><div class="page-desc">مقایسهٔ مستقل دیدگاه‌ها؛ هیچ رأی اکثریتی به‌تنهایی حقیقت یا اطمینان بالا ایجاد نمی‌کند.</div></div><div class="head-actions"><input id="debateTarget" class="filter" type="text" placeholder="هدف (مثلاً Brent)" style="min-width:150px" aria-label="هدف مناظره" dir="ltr"><button class="btn primary" data-action="debate">ساخت مناظرهٔ جدید</button></div></div><div class="grid grid-3" style="margin-bottom:14px"><div class="panel metric"><div class="metric-icon blue">⌘</div><div><div class="metric-label">مدل‌های مشارکت‌کننده</div><div class="metric-number">۳</div></div></div><div class="panel metric"><div class="metric-icon cyan">◎</div><div><div class="metric-label">سطح توافق</div><div class="metric-number">۸۱٪</div></div></div><div class="panel metric"><div class="metric-icon amber">◷</div><div><div class="metric-label">هزینهٔ تخمینی</div><div class="metric-number">$۰٫۰۰</div></div></div></div><section class="panel" style="margin-bottom:14px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">موضوع مناظره</div><div class="panel-sub">ورودی، محدوده و هزینه باید پیش از اجرای واقعی روشن باشند.</div></div><span class="status s-amber">تأیید اجرا لازم است</span></div><div class="score-card"><div class="tiny">پرسش تحلیل</div><strong style="display:block;margin-top:5px;font-size:13px">آیا فشار فعلی بر مسیرهای تجاری به اختلال پایدار در عرضهٔ انرژی منجر می‌شود؟</strong></div><div class="grid grid-3" style="margin-top:10px"><div class="score-card"><div class="tiny">افق تحلیل</div><strong>۳۰ روز</strong></div><div class="score-card"><div class="tiny">سقف خروجی</div><strong>۲٬۰۰۰ توکن</strong></div><div class="score-card"><div class="tiny">شرکت‌کنندگان</div><strong>۳ مدل</strong></div></div></div></section><div class="debate-lane"><div class="debater"><div class="debater-head"><span class="model-avatar">K</span><span class="latin">Kev</span><span class="status s-green" style="margin-right:auto">نمونه</span></div><p>احتمال اختلال محدود افزایش یافته، اما دادهٔ فعلی برای استنتاج اختلال ساختاری کافی نیست.</p><div class="tiny">موضع نمونه: محتاطانه · اطمینان ۷۸٪</div></div><div class="debater"><div class="debater-head"><span class="model-avatar" style="background:#35d7e81f;color:#6ce0ec">L</span><span class="latin">Laya</span><span class="status s-green" style="margin-right:auto">نمونه</span></div><p>اثر کوتاه‌مدت در هزینهٔ حمل محتمل است؛ اما کانال انتقال به قیمت نهایی با تأخیر همراه است.</p><div class="tiny">موضع نمونه: اثر مرحله‌ای · اطمینان ۸۱٪</div></div><div class="debater"><div class="debater-head"><span class="model-avatar" style="background:#a18bff24;color:#b6a7ff">G</span><span class="latin">AI Gateway</span><span class="status s-amber" style="margin-right:auto">اختلاف جزئی</span></div><p>اگر محدودیت بیش از ۷۲ ساعت تداوم یابد، ریسک سناریو بالاتر می‌رود. دادهٔ ظرفیت جایگزین کم است.</p><div class="tiny">موضع نمونه: مشروط · اطمینان ۷۳٪</div></div></div><div class="grid grid-2" style="margin-top:14px"><section class="panel panel-pad"><div class="panel-title">نقشهٔ اختلاف دیدگاه‌ها</div><div class="panel-sub">محورهای توافق و اختلاف</div>${[['جهت اثر',92],['شدت اثر',68],['زمان‌بندی',54],['پایداری',61]].map(([n,v])=>`<div class="heat-row"><span>${n}</span><div class="signal-line"><span style="--w:${v}%"></span></div><b>${v}٪</b></div><div id="debateLive"></div>`).join('')}</section><section class="panel panel-pad"><div class="panel-title">جمع‌بندی و کنترل انسانی</div><p class="muted" style="font-size:10px;line-height:2">نتیجهٔ نمونه مشروط است. پیش از استفاده در تصمیم، دادهٔ تازه و شاهد مستقل لازم است.</p><div class="alert-strip">توافق مدل‌ها معادل احتمال آماری صحت نیست.</div><div style="display:flex;gap:8px;margin-top:12px"><span class="status s-amber" title="مسیر ثبت بررسی انسانی برای اجرای مناظره هنوز به API متصل نیست">بررسی انسانی · NOT_CONNECTED</span><button class="btn" data-action="void">ابطال اجرا</button></div></section></div>`}
+function evidence(){return `<div class="page-head"><div><div class="eyebrow">EVIDENCE INTELLIGENCE · TRACEABILITY</div><h1>شواهد، ادعاها و زنجیرهٔ استدلال</h1><div class="page-desc">هر نتیجه باید به منبع، گزاره، شاهد و استنتاج قابل‌ممیزی متصل باشد — همه از دادهٔ واقعی Backend.</div></div><div class="head-actions"><span class="sample" id="evidenceTag">در حال دریافت…</span><select id="evidenceFilter" class="filter" aria-label="فیلتر وضعیت بررسی ادعاها" onchange="giSetEvidenceFilter(this.value)"><option value="all">همهٔ ادعاها</option><option value="verified">تأییدشده</option><option value="pending">در انتظار بررسی</option><option value="rejected">ردشده/متناقض</option><option value="with_evidence">دارای شاهد</option></select></div></div><div id="evidenceLive"><p class="muted">در حال دریافت…</p></div>`;}
 function forecasts(){return `<div class="page-head"><div><div class="eyebrow">FORECAST LEDGER</div><h1>پیش‌بینی و سناریو</h1><div class="page-desc">سری پیش‌بینی، سناریوها و کالیبریشن از ارزیابی واقعی.</div></div><div class="head-actions"><input id="fcTarget" class="filter" style="min-width:160px" placeholder="هدف (مثلا XAUUSD)" value="XAUUSD"><select class="filter" id="fcHorizon"><option value="very_short">very_short</option><option value="short" selected>short</option><option value="medium">medium</option><option value="long">long</option></select><button class="btn" type="button" id="fcLoad">نمایش</button><button class="btn primary" type="button" id="fcRun">اجرای پیش‌بینی</button></div></div><div class="grid grid-4" style="margin-bottom:14px"><div class="panel metric"><div><div class="metric-label">نقاط سری</div><div class="metric-number" id="fcSeries">…</div></div></div><div class="panel metric"><div><div class="metric-label">سناریوها</div><div class="metric-number" id="fcScen">…</div></div></div><div class="panel metric"><div><div class="metric-label">کالیبریشن (n)</div><div class="metric-number" id="fcCal">…</div></div></div><div class="panel metric"><div><div class="metric-label">روش / نسخهٔ داده</div><div class="metric-number" id="fcMethod" style="font-size:14px">…</div></div></div></div><section class="panel"><div class="panel-pad"><div class="panel-title">سری پیش‌بینی</div><div id="fcSeriesWrap"><p class="muted">در حال دریافت…</p></div></div></section><section class="panel" style="margin-top:14px"><div class="panel-pad"><div class="panel-title">سناریوها</div><div id="fcScenWrap"><p class="muted">در حال دریافت…</p></div></div></section>`}
 async function loadForecasts(){const sw=document.getElementById('fcSeriesWrap'),cw=document.getElementById('fcScenWrap');if(!sw||!cw)return;const target=document.getElementById('fcTarget')?.value||'';const horizon=document.getElementById('fcHorizon')?.value||'short';try{const d=await api('GET','/api/forecasts/outlook?target='+encodeURIComponent(target)+'&horizon='+encodeURIComponent(horizon));const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};setT('fcSeries',nf((d.series||[]).length));setT('fcScen',nf((d.scenarios||[]).length));setT('fcCal',d.calibration?nf(d.calibration.n):'محاسبه نشده');setT('fcMethod',(d.method||'—')+' / '+(d.data_version||'—'));if(!(d.series||[]).length){sw.innerHTML='<p class="muted">دادهٔ کافی برای سری این هدف/افق نیست.</p>';}else{sw.innerHTML='<div class="table-wrap"><table><thead><tr><th>تاریخ</th><th>p50</th><th>low</th><th>high</th></tr></thead><tbody>'+d.series.map(p=>'<tr><td>'+esc((p.date||'').slice(0,10)||'—')+'</td><td>'+((p.p50==null)?'—':nf(p.p50))+'</td><td>'+((p.low==null)?'—':nf(p.low))+'</td><td>'+((p.high==null)?'—':nf(p.high))+'</td></tr>').join('')+'</tbody></table></div>';}if(!(d.scenarios||[]).length){cw.innerHTML='<p class="muted">سناریوی مرتبطی ثبت نشده است.</p>';}else{cw.innerHTML=d.scenarios.map(s=>'<div class="risk-item"><div><b>'+esc(s.name)+'</b><span>'+esc((s.drivers&&s.drivers.length)?s.drivers.slice(0,3).join(' · '):'بدون محرک')+'</span></div><strong>'+((s.probability==null)?'محاسبه نشده':nf(s.probability))+'</strong></div>').join('');}}catch(e){sw.innerHTML='<p class="muted">خطا در دریافت پیش‌بینی: '+esc(e&&e.message?e.message:'نامشخص')+'</p>';}}
 function bindForecastsPage(){const l=document.getElementById('fcLoad');l&&l.addEventListener('click',loadForecasts);const rEl=document.getElementById('fcRun');if(rEl&&!(giCurrentUser&&['admin','analyst'].includes(giCurrentUser.role)))rEl.style.display='none';const r=document.getElementById('fcRun');r&&r.addEventListener('click',async()=>{const target=document.getElementById('fcTarget')?.value||'';const horizon=document.getElementById('fcHorizon')?.value||'short';r.disabled=true;try{await api('POST','/api/forecasts/run?target='+encodeURIComponent(target)+'&horizon='+encodeURIComponent(horizon));toast('پیش‌بینی اجرا شد.');await loadForecasts();}catch(e){toastError(e)}finally{r.disabled=false}});}
@@ -1961,12 +2022,26 @@ async function loadInboxDetail(id){
  d.innerHTML=html;
  document.getElementById('inboxDetailClose')?.addEventListener('click',()=>{d.innerHTML='';});
 }
-function sources(){return `<div class="page-head"><div><div class="eyebrow">SOURCE REGISTRY · INGESTION</div><h1>مدیریت منابع و ورودی‌ها</h1><div class="page-desc">پیکربندی منابع ثبت‌شده و کنترل دریافت؛ پیش‌نمایش مستقل از ingest است.</div></div><div class="head-actions"><span class="sample" id="srcSampleTag">در حال دریافت…</span><button class="btn primary" type="button" id="srcAddBtn" style="display:none">＋ افزودن منبع</button></div></div><div class="grid grid-4" style="margin-bottom:14px"><div class="panel metric"><div><div class="metric-label">منابع ثبت‌شده</div><div class="metric-number" id="srcTotal">…</div></div></div><div class="panel metric"><div><div class="metric-label">فعال</div><div class="metric-number" id="srcActive">…</div></div></div><div class="panel metric"><div><div class="metric-label">سند</div><div class="metric-number" id="srcDocs">…</div></div></div><div class="panel metric"><div><div class="metric-label">مقاله</div><div class="metric-number" id="srcArts">…</div></div></div></div><div class="filterbar"><label class="search-mini">⌕ <input id="srcSearch" placeholder="جست‌وجوی منبع…"></label><select class="filter" id="srcStatusFilter"><option value="">همهٔ وضعیت‌ها</option><option value="active">فعال</option><option value="inactive">غیرفعال</option></select><select class="filter" id="srcSort"><option value="name">مرتب‌سازی: نام</option><option value="-last_checked_at">آخرین بررسی</option><option value="-credibility_score">اعتبار</option></select><button class="btn small" type="button" id="srcRefresh">↻ تازه‌سازی</button></div><section class="panel"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">رجیستری منابع</div><div class="panel-sub" id="srcTableSub">در حال دریافت از /api/sources…</div></div></div><div id="srcTableWrap"></div><div id="srcPager" class="pager" style="margin-top:10px;display:flex;gap:8px;align-items:center"></div></div></section><div id="srcFunnelPanel" class="panel" style="margin-top:14px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">قیف دریافت</div><div class="panel-sub" id="srcFunnelSub">در حال دریافت آمار از /api/ingest/stats…</div></div><div class="range-tabs" role="group" aria-label="بازهٔ قیف"><button type="button" class="active" data-funnel-window="24h">۲۴ ساعت</button><button type="button" data-funnel-window="7d">۷ روز</button></div></div><div id="srcFunnelBody"><p class="muted">در حال دریافت…</p></div></div></div>`}
-async function loadSources(){const wrap=document.getElementById('srcTableWrap');if(!wrap)return;wrap.innerHTML='<p class="muted">در حال دریافت فهرست منابع…</p>';try{const [stats,list]=await Promise.all([api('GET','/api/sources/stats'),api('GET','/api/sources?page=1&page_size=50&sort='+encodeURIComponent(document.getElementById('srcSort')?.value||'name'))]);const st=stats||{};const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};setT('srcTotal',nf(st.sources_total??0));setT('srcActive',nf(st.sources_active??0));setT('srcDocs',nf(st.documents_total??0));setT('srcArts',nf(st.articles_total??0));const tag=document.getElementById('srcSampleTag');if(tag)tag.textContent='دادهٔ واقعی';const items=Array.isArray(list)?list:(list?.items||[]);const q=(document.getElementById('srcSearch')?.value||'').trim().toLowerCase();const sf=document.getElementById('srcStatusFilter')?.value||'';let rows=items.filter(s=>{if(sf==='active'&&!s.active)return false;if(sf==='inactive'&&s.active)return false;if(q&&!(String(s.name||'').toLowerCase().includes(q)||String(s.domain||'').toLowerCase().includes(q)))return false;return true;});const sub=document.getElementById('srcTableSub');if(sub)sub.textContent=nf(rows.length)+' از '+nf(items.length)+' منبع';if(!rows.length){wrap.innerHTML='<p class="muted">منبعی با این فیلتر یافت نشد. هنوز منبعی ثبت نشده یا همه فیلتر شده‌اند.</p>';return}wrap.innerHTML='<div class="table-wrap"><table><thead><tr><th>منبع</th><th>نوع</th><th>کشور</th><th>وضعیت</th><th>آخرین بررسی</th><th></th></tr></thead><tbody>'+rows.map(s=>'<tr><td><b>'+esc(s.name||'بدون نام')+'</b><span class="cell-sub latin">'+esc(s.domain||s.feed_url||'—')+'</span></td><td>'+esc(s.type||'—')+'</td><td>'+esc(s.country||'—')+'</td><td>'+(s.active?'<span class="status s-green">فعال</span>':'<span class="status s-muted">غیرفعال</span>')+'</td><td>'+(s.last_checked_at?esc(String(s.last_checked_at).slice(0,10)):'—')+'</td><td><button class="btn small" type="button" data-src-open="'+esc(s.id)+'">جزئیات</button></td></tr>').join('')+'</tbody></table></div>';const admin=giCurrentUser&&giCurrentUser.role==='admin';const addBtn=document.getElementById('srcAddBtn');if(addBtn)addBtn.style.display=admin?'':'none';wrap.querySelectorAll('[data-src-open]').forEach(b=>b.addEventListener('click',()=>openSourceDetail(b.dataset.srcOpen)));}catch(e){wrap.innerHTML='<p class="muted">خطا در دریافت منابع: '+esc(e&&e.message?e.message:'خطای نامشخص')+'</p>';}}
+function sources(){return `<div class="page-head"><div><div class="eyebrow">SOURCE REGISTRY · INGESTION</div><h1>مدیریت منابع و ورودی‌ها</h1><div class="page-desc">پیکربندی منابع ثبت‌شده و کنترل دریافت؛ پیش‌نمایش مستقل از ingest است.</div></div><div class="head-actions"><span class="sample" id="srcSampleTag">در حال دریافت…</span><button class="btn" type="button" id="srcIngestBtn" title="اجرای دریافت از منابع فعال RSS">دریافت اکنون</button><button class="btn primary" type="button" id="srcAddBtn" style="display:none">＋ افزودن منبع</button></div></div><div class="grid grid-4" style="margin-bottom:14px"><div class="panel metric"><div><div class="metric-label">منابع ثبت‌شده</div><div class="metric-number" id="srcTotal">…</div></div></div><div class="panel metric"><div><div class="metric-label">فعال</div><div class="metric-number" id="srcActive">…</div></div></div><div class="panel metric"><div><div class="metric-label">سند</div><div class="metric-number" id="srcDocs">…</div></div></div><div class="panel metric"><div><div class="metric-label">مقاله</div><div class="metric-number" id="srcArts">…</div></div></div></div><div class="filterbar"><label class="search-mini">⌕ <input id="srcSearch" placeholder="جست‌وجوی منبع…"></label><select class="filter" id="srcStatusFilter"><option value="">همهٔ وضعیت‌ها</option><option value="active">فعال</option><option value="inactive">غیرفعال</option></select><select class="filter" id="srcSort"><option value="name">مرتب‌سازی: نام</option><option value="-last_checked_at">آخرین بررسی</option><option value="-credibility_score">اعتبار</option></select><button class="btn small" type="button" id="srcRefresh">↻ تازه‌سازی</button></div><section class="panel"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">رجیستری منابع</div><div class="panel-sub" id="srcTableSub">در حال دریافت از /api/sources…</div></div></div><div id="srcTableWrap"></div><div id="srcPager" class="pager" style="margin-top:10px;display:flex;gap:8px;align-items:center"></div></div></section><div id="srcFunnelPanel" class="panel" style="margin-top:14px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">قیف دریافت</div><div class="panel-sub" id="srcFunnelSub">در حال دریافت آمار از /api/ingest/stats…</div></div><div class="range-tabs" role="group" aria-label="بازهٔ قیف"><button type="button" class="active" data-funnel-window="24h">۲۴ ساعت</button><button type="button" data-funnel-window="7d">۷ روز</button></div></div><div id="srcFunnelBody"><p class="muted">در حال دریافت…</p></div></div></div>`}
+async function loadSources(){const wrap=document.getElementById('srcTableWrap');if(!wrap)return;wrap.innerHTML='<p class="muted">در حال دریافت فهرست منابع…</p>';try{const [stats,list]=await Promise.all([api('GET','/api/sources/stats'),api('GET','/api/sources?page=1&page_size=50&sort='+encodeURIComponent(document.getElementById('srcSort')?.value||'name'))]);const st=stats||{};const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};setT('srcTotal',nf(st.sources_total??0));setT('srcActive',nf(st.sources_active??0));setT('srcDocs',nf(st.documents_total??0));setT('srcArts',nf(st.articles_total??0));const tag=document.getElementById('srcSampleTag');if(tag)tag.textContent='دادهٔ واقعی';const addBtn=document.getElementById('srcAddBtn');if(addBtn)addBtn.style.display=giIsAdmin()?'':'none';const items=Array.isArray(list)?list:(list?.items||[]);const q=(document.getElementById('srcSearch')?.value||'').trim().toLowerCase();const sf=document.getElementById('srcStatusFilter')?.value||'';let rows=items.filter(s=>{if(sf==='active'&&!s.active)return false;if(sf==='inactive'&&s.active)return false;if(q&&!(String(s.name||'').toLowerCase().includes(q)||String(s.domain||'').toLowerCase().includes(q)))return false;return true;});const sub=document.getElementById('srcTableSub');if(sub)sub.textContent=nf(rows.length)+' از '+nf(items.length)+' منبع';if(!rows.length){wrap.innerHTML='<p class="muted">منبعی با این فیلتر یافت نشد. هنوز منبعی ثبت نشده یا همه فیلتر شده‌اند.</p>';return}wrap.innerHTML='<div class="table-wrap"><table><thead><tr><th>منبع</th><th>نوع</th><th>کشور</th><th>وضعیت</th><th>آخرین بررسی</th><th></th></tr></thead><tbody>'+rows.map(s=>'<tr><td><b>'+esc(s.name||'بدون نام')+'</b><span class="cell-sub latin">'+esc(s.domain||s.feed_url||'—')+'</span></td><td>'+esc(s.type||'—')+'</td><td>'+esc(s.country||'—')+'</td><td>'+(s.active?'<span class="status s-green">فعال</span>':'<span class="status s-muted">غیرفعال</span>')+'</td><td>'+(s.last_checked_at?esc(String(s.last_checked_at).slice(0,10)):'—')+'</td><td><button class="btn small" type="button" data-src-open="'+esc(s.id)+'">جزئیات</button></td></tr>').join('')+'</tbody></table></div>';wrap.querySelectorAll('[data-src-open]').forEach(b=>b.addEventListener('click',()=>openSourceDetail(b.dataset.srcOpen)));}catch(e){wrap.innerHTML='<p class="muted">خطا در دریافت منابع: '+esc(e&&e.message?e.message:'خطای نامشخص')+'</p>';}}
 async function openSourceDetail(id){const wrap=document.getElementById('srcTableWrap');if(!wrap)return;wrap.innerHTML='<p class="muted">در حال دریافت جزئیات…</p>';try{const [s,st]=await Promise.all([api('GET','/api/sources/'+id),api('GET','/api/sources/'+id+'/stats')]);const admin=giCurrentUser&&giCurrentUser.role==='admin';wrap.innerHTML='<div class="panel-pad"><div class="panel-head"><div><div class="panel-title">'+esc(s.name||'منبع')+'</div><div class="panel-sub">'+esc(s.domain||s.feed_url||'—')+'</div></div><button class="btn small" type="button" id="srcBack">← بازگشت</button></div><div class="grid grid-4" style="margin:10px 0"><div class="panel metric"><div><div class="metric-label">سند</div><div class="metric-number">'+nf(st.document_count??0)+'</div></div></div><div class="panel metric"><div><div class="metric-label">مقاله</div><div class="metric-number">'+nf(st.article_count??0)+'</div></div></div><div class="panel metric"><div><div class="metric-label">وضعیت</div><div class="metric-number" style="font-size:16px">'+(s.active?'فعال':'غیرفعال')+'</div></div></div><div class="panel metric"><div><div class="metric-label">اعتبارسنجی</div><div class="metric-number" style="font-size:16px">'+esc(s.validation_status||'—')+'</div></div></div></div><p class="muted">آخرین موفقیت: '+esc(s.last_success||'—')+' · آخرین خطا: '+esc(s.last_error||'—')+'</p>'+(admin?'<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn small" type="button" id="srcToggle">'+(s.active?'غیرفعال کردن':'فعال کردن')+'</button><button class="btn small" type="button" id="srcPreview">پیش‌نمایش دریافت</button><button class="btn small" type="button" id="srcRecheck">اعتبارسنجی مجدد</button></div><pre id="srcPreviewOut" class="mono" style="margin-top:10px;white-space:pre-wrap;font-size:10px"></pre>':'<p class="muted">فعال/غیرفعال، پیش‌نمایش و اعتبارسنجی فقط برای مدیر است.</p>')+'</div>';document.getElementById('srcBack')?.addEventListener('click',loadSources);if(admin){document.getElementById('srcToggle')?.addEventListener('click',async()=>{try{await api('PATCH','/api/sources/'+id,{body:{active:!s.active}});toast('وضعیت منبع تغییر کرد.');openSourceDetail(id);}catch(e){toastError(e)}});document.getElementById('srcPreview')?.addEventListener('click',async()=>{const out=document.getElementById('srcPreviewOut');if(!out)return;out.textContent='در حال پیش‌نمایش…';try{const r=await api('POST','/api/sources/'+id+'/preview?limit=5');out.textContent=JSON.stringify(r,null,2).slice(0,4000);}catch(e){out.textContent='خطا: '+(e&&e.message?e.message:'نامشخص')}});document.getElementById('srcRecheck')?.addEventListener('click',async()=>{try{await api('POST','/api/sources/'+id+'/recheck');toast('اعتبارسنجی مجدد اجرا شد.');openSourceDetail(id);}catch(e){toastError(e)}});}}catch(e){wrap.innerHTML='<p class="muted">خطا در دریافت جزئیات: '+esc(e&&e.message?e.message:'نامشخص')+'</p>';}}
 async function loadFunnel(win){const body=document.getElementById('srcFunnelBody');if(!body)return;body.innerHTML='<p class="muted">در حال دریافت…</p>';try{const d=await api('GET','/api/ingest/stats?window='+encodeURIComponent(win||'24h'));const st=(d&&d.stages)||{};const order=['fetched','normalized','dedup','prioritized','classified','analyzed','stored'];const labels={fetched:'دریافت',normalized:'نرمال‌سازی',dedup:'خوشه‌بندی تکرار',prioritized:'اولویت‌گذاری',classified:'طبقه‌بندی',analyzed:'تحلیل',stored:'ذخیره'};body.innerHTML='<div class="pipeline-flow">'+order.map((k,i)=>{const v=st[k];const num=(v===null||v===undefined)?'محاسبه نشده':nf(v);return (i?'<i>→</i>':'')+'<div class="pipe-node"><b>'+esc(labels[k])+'</b><strong style="font-size:15px">'+esc(num)+'</strong></div>';}).join('')+'</div>';const sub=document.getElementById('srcFunnelSub');if(sub)sub.textContent='بازه: '+esc(d.window||win)+' · از '+esc(String(d.since||'').slice(0,16).replace('T',' '));}catch(e){body.innerHTML='<p class="muted">خطا در دریافت قیف: '+esc(e&&e.message?e.message:'نامشخک')+'</p>';}}
-function bindSourcesPage(){const r=document.getElementById('srcRefresh');r&&r.addEventListener('click',()=>{loadSources();loadFunnel(window.__srcFunnelWindow)});document.querySelectorAll('[data-funnel-window]').forEach(b=>b.addEventListener('click',()=>{window.__srcFunnelWindow=b.dataset.funnelWindow;document.querySelectorAll('[data-funnel-window]').forEach(x=>{x.classList.toggle('active',x===b)});loadFunnel(window.__srcFunnelWindow)}));const s=document.getElementById('srcSearch');s&&s.addEventListener('input',()=>{clearTimeout(window.__srcT);window.__srcT=setTimeout(loadSources,250)});const f=document.getElementById('srcStatusFilter');f&&f.addEventListener('change',loadSources);const so=document.getElementById('srcSort');so&&so.addEventListener('change',loadSources);const a=document.getElementById('srcAddBtn');a&&a.addEventListener('click',()=>openSourceForm(null));}
-function providersPage(){return `<div class="page-head"><div><div class="eyebrow">AI PROVIDER CONTROL</div><h1>مرکز کنترل Provider و مدل‌ها</h1><div class="page-desc">کاتالوگ، وضعیت اعتبارنامه، تست اتصال، ثبت کلید و فعال/غیرفعال. کلید فقط write-only است و هرگز بازخوانی نمی‌شود.</div></div><div class="head-actions"><span class="sample" id="provTag">در حال دریافت…</span><button class="btn ghost" type="button" id="provRefresh">⟳ تازه‌سازی</button><button class="btn primary" type="button" id="provAddBtn" style="display:none">＋ افزودن Provider</button><button class="btn" type="button" id="provImportEnv" style="display:none">انتقال کلیدها از .env</button></div></div><div class="alert-strip" style="margin-bottom:14px">تست اتصال یک درخواست واقعی و هزینه‌زا به Provider می‌فرستد و از فعال‌سازی جداست. Providerهای env فقط‌خواندنی‌اند.</div><div id="provFormWrap"></div><div id="provActionWrap"></div><div id="providersLive"><p class="muted">در حال دریافت…</p></div>`}
+function bindSourcesPage(){const r=document.getElementById('srcRefresh');r&&r.addEventListener('click',()=>{loadSources();loadFunnel(window.__srcFunnelWindow)});document.querySelectorAll('[data-funnel-window]').forEach(b=>b.addEventListener('click',()=>{window.__srcFunnelWindow=b.dataset.funnelWindow;document.querySelectorAll('[data-funnel-window]').forEach(x=>{x.classList.toggle('active',x===b)});loadFunnel(window.__srcFunnelWindow)}));const s=document.getElementById('srcSearch');s&&s.addEventListener('input',()=>{clearTimeout(window.__srcT);window.__srcT=setTimeout(loadSources,250)});const f=document.getElementById('srcStatusFilter');f&&f.addEventListener('change',loadSources);const so=document.getElementById('srcSort');so&&so.addEventListener('change',loadSources);const a=document.getElementById('srcAddBtn');a&&a.addEventListener('click',()=>openSourceForm(null));
+const ing=document.getElementById('srcIngestBtn');
+if(ing&&!ing.dataset.giBound){ing.dataset.giBound='1';ing.addEventListener('click',async()=>{
+  if(!confirm('دریافت از همهٔ منابع فعال (RSS) اجرا شود؟'))return;
+  ing.disabled=true;const old=ing.textContent;ing.textContent='در حال دریافت…';
+  try{const res=await api('POST','/api/ingest/all?limit=20',{timeout:120000});const rows=Array.isArray(res)?res:[];
+    const stored=rows.reduce((n,r)=>n+(((r||{}).stored)||0),0);
+    const dup=rows.reduce((n,r)=>n+(((r||{}).duplicates)||0),0);
+    const errs=rows.reduce((n,r)=>n+((((r||{}).errors)||[]).length),0);
+    toast('دریافت انجام شد · '+fa(stored)+' ذخیره · '+fa(dup)+' تکراری'+(errs?' · '+fa(errs)+' خطا':''));
+    loadSources();loadFunnel(window.__srcFunnelWindow||'24h');
+  }catch(e){toast('خطا در دریافت: '+((e&&e.message)||'نامشخص'));}
+  finally{ing.disabled=false;ing.textContent=old;}
+});}
+}
+function providersPage(){return `<div class="page-head"><div><div class="eyebrow">AI PROVIDER CONTROL</div><h1>مرکز کنترل Provider و مدل‌ها</h1><div class="page-desc">کاتالوگ، وضعیت اعتبارنامه، تست اتصال، ثبت کلید و فعال/غیرفعال. کلید فقط write-only است و هرگز بازخوانی نمی‌شود.</div></div><div class="head-actions"><span class="sample" id="provTag">در حال دریافت…</span><button class="btn ghost" type="button" id="provRefresh">⟳ تازه‌سازی</button><button class="btn" type="button" id="provTestAllBtn">تست اتصال همهٔ Providerها</button><button class="btn primary" type="button" id="provAddBtn" style="display:none">＋ افزودن Provider</button><button class="btn" type="button" id="provImportEnv" style="display:none">انتقال کلیدها از .env</button></div></div><div class="alert-strip" style="margin-bottom:14px">تست اتصال یک درخواست واقعی و هزینه‌زا به Provider می‌فرستد و از فعال‌سازی جداست. Providerهای env فقط‌خواندنی‌اند.</div><div id="provFormWrap"></div><div id="provActionWrap"></div><div id="providersLive"><p class="muted">در حال دریافت…</p></div>`}
 
 async function loadProviders(){
  const c=document.getElementById('providersLive');if(!c)return;
@@ -1986,18 +2061,19 @@ async function loadProviders(){
   const canWrite=giIsAdmin();
   const add=document.getElementById('provAddBtn');if(add)add.style.display=canWrite?'':'none';
   const imp=document.getElementById('provImportEnv');if(imp)imp.style.display=canWrite?'':'none';
-  const statusBadge=p=>!p.enabled?'<span class="status s-muted">غیرفعال</span>':(p.key_set?(p.last_test_status==='ok'?'<span class="status s-green">فعال · تست‌شده</span>':'<span class="status s-amber">کلید ثبت · تست‌نشده</span>'):'<span class="status s-red">بدون کلید</span>');
+  const connDot=p=>{if(!p.key_set)return '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7f8c8d;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px #7f8c8d33" title="بدون کلید"></span>';if(p.last_test_status==='ok')return '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2ecc71;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px #2ecc7133" title="وصل"></span>';if(p.last_test_status==='fail')return '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e74c3c;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px #e74c3c33" title="قطع"></span>';return '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f39c12;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px #f39c1233" title="تست نشده"></span>';};
+  const statusBadge=p=>!p.enabled?'<span class="status s-muted">غیرفعال</span>':(p.key_set?(p.last_test_status==='ok'?'<span class="status s-green">فعال · تست‌شده</span>':(p.last_test_status==='fail'?'<span class="status s-red">فعال · تست ناموفق</span>':'<span class="status s-amber">کلید ثبت · تست‌نشده</span>')):'<span class="status s-red">بدون کلید</span>');
   const rows=(providers&&providers.length)?providers.map(p=>{
    const isEnv=String(p.id).startsWith('env:');
-   const actions=isEnv?'<span class="muted">فقط‌خواندنی (.env)</span>':(canWrite?'<div class="gi-actions" style="margin:0"><button class="btn small" type="button" data-prov-act="test" data-prov-id="'+esc(p.id)+'" data-prov-name="'+esc(p.name)+'"'+((!p.enabled||!p.key_set)?' disabled title="ابتدا Provider باید فعال و کلیددار باشد"':'')+'>تست</button><button class="btn small" type="button" data-prov-act="key" data-prov-id="'+esc(p.id)+'">کلید</button><button class="btn small" type="button" data-prov-act="edit" data-prov-id="'+esc(p.id)+'">ویرایش</button></div>':'<span class="muted">فقط‌خواندنی</span>');
-   return '<tr><td><b>'+esc(p.name||'—')+'</b><span class="cell-sub latin">'+esc(isEnv?'env':p.id)+'</span></td><td>'+esc(p.kind||'—')+'</td><td class="latin">'+esc(p.base_url||'—')+'</td><td><span class="status '+(p.key_set?'s-green':'s-red')+'">'+(p.key_set?'ثبت‌شده':'ثبت‌نشده')+'</span><br><small>'+esc(p.key_hint||'—')+'</small></td><td><label class="switch"><input type="checkbox" data-prov-toggle="'+esc(p.id)+'" '+(p.enabled?'checked':'')+(isEnv?' disabled':'')+' aria-label="فعال بودن '+esc(p.name||'')+'"><span class="slider"></span></label></td><td>'+statusBadge(p)+(p.last_tested_at?' <small>'+esc(String(p.last_tested_at).slice(0,16))+'</small>':'')+'</td><td>'+actions+'</td></tr>';
+   const actions=isEnv?'<span class="muted">فقط‌خواندنی (.env)</span>':(canWrite?'<div class="gi-actions" style="margin:0"><button class="btn small" type="button" data-prov-act="test" data-prov-id="'+esc(p.id)+'" data-prov-name="'+esc(p.name)+'"'+((!p.key_set)?' disabled title="برای تست، ابتدا کلید Provider را ثبت کنید"':'')+'>تست</button><button class="btn small" type="button" data-prov-act="autodetect" data-prov-id="'+esc(p.id)+'" data-prov-name="'+esc(p.name)+'"'+((!p.key_set)?' disabled title="برای تشخیص، ابتدا کلید Provider را ثبت کنید"':'')+'>تشخیص مدل رایگان</button><button class="btn small" type="button" data-prov-act="key" data-prov-id="'+esc(p.id)+'">کلید</button><button class="btn small" type="button" data-prov-act="edit" data-prov-id="'+esc(p.id)+'">ویرایش</button></div>':'<span class="muted">فقط‌خواندنی</span>');
+   return '<tr><td>'+connDot(p)+'<b>'+esc(p.name||'—')+'</b><span class="cell-sub latin">'+esc(isEnv?'env':p.id)+'</span></td><td>'+esc(p.kind||'—')+'</td><td class="latin">'+esc(p.base_url||'—')+'</td><td><span class="status '+(p.key_set?'s-green':'s-red')+'">'+(p.key_set?'ثبت‌شده':'ثبت‌نشده')+'</span><br><small>'+esc(p.key_hint||'—')+'</small></td><td><label class="switch"><input type="checkbox" data-prov-toggle="'+esc(p.id)+'" '+(p.enabled?'checked':'')+(isEnv?' disabled':'')+' aria-label="فعال بودن '+esc(p.name||'')+'"><span class="slider"></span></label></td><td>'+statusBadge(p)+(p.last_tested_at?' <small>'+esc(String(p.last_tested_at).slice(0,16))+'</small>':'')+'</td><td>'+actions+'</td></tr>';
   }).join(''):'<tr><td colspan="7" class="muted">هیچ Provider‌ای در دیتابیس ثبت نشده است. با «افزودن Provider» یا «انتقال از .env» شروع کنید.</td></tr>';
   const catRows=(catalog&&catalog.length)?catalog.map(x=>'<tr><td><b>'+esc(x.display_name||x.kind)+'</b><span class="cell-sub latin">'+esc(x.kind)+'</span></td><td>'+esc((x.env_vars||[]).join(', ')||'—')+'</td><td>'+esc(x.notes||x.free_notes||'—')+'</td><td>'+(x.configured?'<span class="status s-green">پیکربندی‌شده</span>':'<span class="status s-muted">پیکربندی‌نشده</span>')+'</td></tr>').join(''):'<tr><td colspan="4" class="muted">کاتالوگ خالی است.</td></tr>';
   const modelRows=(models&&models.length)?models.slice(0,100).map(m=>'<tr><td><b class="latin">'+esc(m.model_name)+'</b></td><td>'+esc(m.provider_name||'—')+'</td><td>'+(m.enabled?'<span class="status s-green">فعال</span>':'<span class="status s-muted">غیرفعال</span>')+'</td><td>'+esc(m.verification_status||'—')+'</td></tr>').join(''):'<tr><td colspan="4" class="muted">مدلی ثبت نشده است.</td></tr>';
   c.innerHTML='<section class="panel" style="margin-bottom:10px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">Provider‌های ثبت‌شده</div><div class="panel-sub">'+nf((providers||[]).length)+' ردیف · کلید فقط masked</div></div></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>نوع</th><th>base_url</th><th>کلید</th><th>فعال</th><th>آخرین تست</th><th>عملیات</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></section>'+
    '<div class="grid grid-2"><section class="panel"><div class="panel-pad"><div class="panel-title">کاتالوگ انواع</div><div class="table-wrap"><table><thead><tr><th>Provider</th><th>کلیدهای env</th><th>یادداشت</th><th>وضعیت</th></tr></thead><tbody>'+catRows+'</tbody></table></div></div></section>'+
    '<section class="panel"><div class="panel-pad"><div class="panel-title">مدل‌ها</div><div class="table-wrap"><table><thead><tr><th>مدل</th><th>Provider</th><th>وضعیت</th><th>verify</th></tr></thead><tbody>'+modelRows+'</tbody></table></div></div></section></div>'+
-   '<p class="muted" style="font-size:11px;margin-top:8px">تست اتصال (POST /api/settings/providers/{id}/test) یک درخواست واقعی و بدون retry پنهان است؛ فقط Provider فعال و کلیددار قابل تست است. فعال/غیرفعال‌سازی متغیر نسخهٔ Gateway را reload می‌کند.</p>';
+   '<p class="muted" style="font-size:11px;margin-top:8px">تست اتصال (POST /api/settings/providers/{id}/test) یک درخواست واقعی و بدون retry پنهان است؛ تست اتصال روی Draft هم مجاز است و در صورت موفقیت Provider را فعال می‌کند؛ فعال‌سازی دستی بدون تست رد می‌شود. فعال/غیرفعال‌سازی متغیر نسخهٔ Gateway را reload می‌کند.</p>';
  }catch(e){
   if(reqId!==window.__providersReqId)return;
   if(!document.getElementById('providersLive'))return;
@@ -2013,12 +2089,12 @@ function giProviderFormHtml(p){
  return '<section class="panel"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">'+(isEdit?'ویرایش Provider':'افزودن Provider')+'</div><div class="panel-sub">کلید write-only است و پس از ذخیره بازخوانی نمی‌شود.</div></div></div>'+
   '<div class="gi-form-grid">'+
   '<label>نام<input id="provFormName" value="'+esc(p?p.name:'')+'" maxlength="128"></label>'+
-  '<label>نوع<select id="provFormKind"'+(isEdit?' disabled':'')+'>'+opts+'</select></label>'+
+  '<label>نوع<select id="provFormKind"'+(isEdit?' disabled':'')+'>'+opts+'</select><small class="muted">برای هر Provider که در لیست نیست (هر سرویس OpenAI-compatible) از «openai_compatible» استفاده کنید و base_url آن را وارد کنید.</small></label>'+
   '<label id="provBaseWrap">base_url (فقط openai_compatible)<input id="provFormBase" class="latin" value="'+esc(p&&p.base_url?p.base_url:'')+'" placeholder="https://..."></label>'+
   '<label id="provAccountWrap">account_id (cloudflare)<input id="provFormAccount" class="latin" placeholder="account id"></label>'+
   (isEdit?'':'<label>مدل پیش‌فرض<input id="provFormModel" class="latin" placeholder="model name"></label>')+
   (isEdit?'':'<label>کلید API (اختیاری)<input id="provFormKey" type="password" autocomplete="new-password" placeholder="write-only"></label>')+
-  '<label>فعال<select id="provFormEnabled"><option value="true">true</option><option value="false">false</option></select></label>'+
+  (isEdit?'<label>فعال<select id="provFormEnabled"><option value="true">true</option><option value="false">false</option></select></label>':'<div class="muted" style="font-size:12px;padding:8px 0">وضعیت اولیه: <b>Draft</b> — پس از تست اتصال موفق به‌طور خودکار فعال می‌شود. (فعال‌سازی دستی بدون تست رد می‌شود.)</div>')+
   '</div><div class="gi-actions"><button class="btn primary" type="button" id="provFormSave">ذخیره</button><button class="btn" type="button" id="provFormCancel">انصراف</button></div><p class="muted" id="provFormErr" style="color:#ff657f"></p></div></section>';
 }
 function giShowProviderForm(p){
@@ -2072,12 +2148,39 @@ function giShowProviderKeyForm(p){
   catch(e){err.textContent=(e&&e.message)?e.message:'خطا';}
  });
 }
+async function giTestAllProviders(){
+ const btn=document.getElementById('provTestAllBtn');
+ if(btn) btn.disabled=true;
+ try{
+  const providers=(window.__giProviders||[]).filter(p=>p.key_set);
+  if(!providers.length){ toast('هیچ Providerی با کلید ثبت‌شده وجود ندارد.'); return; }
+  const results=[];
+  for(const p of providers){
+   try{
+    const r=await api('POST','/api/settings/providers/'+encodeURIComponent(p.id)+'/test',{body:{},timeout:60000});
+    results.push({name:p.name, ok:!!r.ok, msg:r.ok?('OK · '+(r.model||'model')+' · '+(r.latency_ms!=null?nf(Number(r.latency_ms).toFixed(0))+'ms':'—')):(r.error||'ناموفق')});
+   }catch(e){ results.push({name:p.name, ok:false, msg:(e&&e.message)?e.message:'خطا'}); }
+  }
+  const okCount=results.filter(x=>x.ok).length;
+  toast('تست همگانی: '+okCount+'/'+results.length+' موفق.'+'\n'+results.map(x=>(x.ok?'✓':'✗')+' '+x.name+': '+x.msg).join(' | '));
+  await loadProviders();
+ }finally{ if(btn) btn.disabled=false; }
+}
 async function giTestProvider(p,btn){
  if(!confirm('تست اتصال یک درخواست واقعی به «'+p.name+'» می‌فرستد و ممکن است هزینه‌زا باشد. ادامه؟'))return;
  btn.disabled=true;
  try{
   const r=await api('POST','/api/settings/providers/'+encodeURIComponent(p.id)+'/test',{body:{},timeout:60000});
   toast(r.ok?('اتصال موفق · '+(r.model||'model')+' · '+(r.latency_ms!=null?nf(Number(r.latency_ms).toFixed(0))+'ms':'—')):('تست ناموفق: '+(r.error||'—')));
+  await loadProviders();
+ }catch(e){toastError(e)}finally{btn.disabled=false}
+}
+async function giAutoDetectModel(p,btn){
+ if(!confirm('تشخیص خودکار مدل رایگان «'+p.name+'» را اجرا می‌کند: لیست مدل‌ها گرفته می‌شود و تا اولین مدل کارکردنی تست می‌شود. ادامه؟'))return;
+ btn.disabled=true;
+ try{
+  const r=await api('POST','/api/settings/providers/'+encodeURIComponent(p.id)+'/auto-detect-model',{body:{},timeout:120000});
+  toast('مدل رایگان تشخیص داده شد: '+(r.model||'—'));
   await loadProviders();
  }catch(e){toastError(e)}finally{btn.disabled=false}
 }
@@ -2093,6 +2196,7 @@ function bindProvidersPage(){
  const r=document.getElementById('provRefresh');r&&r.addEventListener('click',loadProviders);
  const a=document.getElementById('provAddBtn');a&&a.addEventListener('click',()=>giShowProviderForm(null));
  const i=document.getElementById('provImportEnv');i&&i.addEventListener('click',importProvidersFromEnv);
+ const ta=document.getElementById('provTestAllBtn');ta&&ta.addEventListener('click',giTestAllProviders);
  const live=document.getElementById('providersLive');
  if(live&&!live.__giBound){
   live.__giBound=true;
@@ -2100,6 +2204,7 @@ function bindProvidersPage(){
    const b=e.target.closest('[data-prov-act]');if(!b)return;
    const p=(window.__giProviders||[]).find(x=>String(x.id)===b.dataset.provId);if(!p)return;
    if(b.dataset.provAct==='test')giTestProvider(p,b);
+   else if(b.dataset.provAct==='autodetect')giAutoDetectModel(p,b);
    else if(b.dataset.provAct==='key')giShowProviderKeyForm(p);
    else if(b.dataset.provAct==='edit')giShowProviderForm(p);
   });
@@ -2519,8 +2624,12 @@ async function loadSettings(){
    '<tr><td>ARCHIVE_AUTO_PURGE_ENABLED</td><td><span class="status s-red">غیرفعال</span></td><td>در این نسخه از UI فعال نمی‌شود</td></tr>'+
    '<tr><td>LOCAL_SCREENING_ENABLED</td><td><span class="status s-red">غیرفعال</span></td><td>فقط با تصمیم اپراتور در env</td></tr>'+
    '</tbody></table></div></div></section>';
+   // Alert channel status section
+html += '<section class="panel" style="margin-bottom:10px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">Alert Channels</div><div class="panel-sub">Telegram & Email delivery status</div></div></div><div class="table-wrap"><table><thead><tr><th>Channel</th><th>Active</th><th>Status</th><th>Test</th></tr></thead><tbody>';html += '<tr><td>Telegram</td><td id="gi-tg-active"><span class="s-muted">-</span></td><td><span class="s-muted">check env</span></td><td><button class="btn small" onclick="sendTestAlert(\'telegram\')">Test</button></td></tr>';html += '<tr><td>Email (SMTP)</td><td id="gi-email-active"><span class="s-muted">-</span></td><td><span class="s-muted">check env</span></td><td><button class="btn small" onclick="sendTestAlert(\'email\')">Test</button></td></tr>';html += '</tbody></table></div><div style=font-size:10px;color:#54779d;margin-top:8px>Active status is read from env vars. Telegram requires TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID. Email requires SMTP_HOST + SMTP_TO.</div></div></section>';
+html += '<section class="panel" style="margin-bottom:10px"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">Configuration Control Plane</div><div class="panel-sub">Draft → Validate → Test → Activate → Rollback · /api/configuration</div></div></div><div id="cfgPlane"><p class="muted">در حال دریافت…</p></div></div></section>';
   c.innerHTML=html;
-  const save=document.getElementById('settingsSave');
+  loadConfigurationPlane();
+const save=document.getElementById('settingsSave');
   if(save){
    if(!giIsAdmin()){save.style.display='none';const n=document.getElementById('settingsRoleNote');if(n)n.textContent='ویرایش فقط برای مدیر است.';}
    else{
@@ -2535,6 +2644,142 @@ async function loadSettings(){
    }
   }
  }catch(e){c.innerHTML='<p class="muted">خطا در دریافت تنظیمات: '+esc(e&&e.message?e.message:'نامشخص')+'</p>';}
+}
+const CFG_DEFAULT_PAYLOAD={name:'Demo-Feed',type:'rss',collection_method:'rss',feed_url:'https://example.com/feed.xml',active:true};
+function cfgChip(state){
+ const map={active:['s-green','فعال'],tested:['s-amber','تست‌شده'],validated:['s-amber','اعتبارسنجی‌شده'],draft:['s-muted','Draft'],archived:['s-muted','بایگانی']};
+ const s=map[state]||['s-muted',esc(state||'—')];
+ return '<span class="status '+s[0]+'">'+s[1]+'</span>';
+}
+function cfgAdapterChip(d){
+ if(d.adapter_state==='ready')return '<span class="status s-green">آماده (adapter + runtime)</span>';
+ return '<span class="status s-amber" title="'+esc(d.note||'')+'">NEEDS_ADAPTER</span>';
+}
+async function loadConfigurationPlane(){
+ const box=document.getElementById('cfgPlane');if(!box||!document.getElementById('settingsLive'))return;
+ box.innerHTML=giLoadingHtml('در حال دریافت پیکربندی…');
+ try{
+  const [defs,insts]=await Promise.all([
+   api('GET','/api/configuration/definitions',{timeout:10000}),
+   api('GET','/api/configuration/instances',{timeout:10000})]);
+  if(!document.getElementById('cfgPlane'))return;
+  const list=Array.isArray(defs)?defs:[];
+  const ready=list.filter(d=>d.adapter_state==='ready');
+  const needs=list.filter(d=>d.adapter_state!=='ready');
+  let h='<div class="table-wrap"><table><thead><tr><th>گروه پیکربندی</th><th>وضعیت adapter</th><th>الگو</th><th>قابل ذخیره</th></tr></thead><tbody>';
+  h+=ready.map(d=>'<tr><td><b class="latin">'+esc(d.kind)+'</b> · '+esc(d.label||'')+'</td><td>'+cfgAdapterChip(d)+'</td><td class="latin">v'+esc(d.version||'—')+'</td><td><span class="status s-green">بله</span></td></tr>').join('');
+  h+=needs.map(d=>'<tr><td><b class="latin">'+esc(d.kind)+'</b> · '+esc(d.label||'')+'</td><td>'+cfgAdapterChip(d)+'</td><td class="latin">—</td><td><span class="status s-muted">خیر</span><br><small class="muted">'+esc(d.note||'')+'</small></td></tr>').join('');
+  h+='</tbody></table></div>';
+  if(ready.length){
+   h+='<div class="gi-form-grid" style="margin-top:10px"><label>نوع<input id="cfgKind" value="'+esc(ready[0].kind)+'" readonly aria-readonly="true"></label><label>slug (یکتا)<input id="cfgSlug" placeholder="مثلاً Reuters-World" dir="ltr"></label></div>';
+   h+='<label style="display:block;margin-top:8px">payload (JSON)<textarea id="cfgPayload" rows="6" dir="ltr" style="width:100%;font-family:monospace">'+esc(JSON.stringify(CFG_DEFAULT_PAYLOAD,null,1))+'</textarea></label>';
+   h+='<div class="gi-actions"><button class="btn primary" type="button" data-action="cfgCreate">ایجاد Draft</button><span class="muted">ذخیرهٔ Draft هیچ تغییری در runtime ایجاد نمی‌کند.</span></div>';
+  }
+  h+='<div class="panel-head" style="margin-top:12px"><div><div class="panel-title">نمونه‌های پیکربندی</div><div class="panel-sub">'+nf(Array.isArray(insts)?insts.length:0)+' نمونه · تاریخچه افزودنی است</div></div></div>';
+  h+='<div class="table-wrap"><table><thead><tr><th>kind</th><th>slug</th><th>آخرین نسخه</th><th>نسخهٔ فعال</th><th></th></tr></thead><tbody>';
+  h+=(Array.isArray(insts)&&insts.length)?insts.map(i=>'<tr><td class="latin">'+esc(i.kind)+'</td><td>'+esc(i.slug)+'</td><td>r'+nf(i.latest_revision)+'</td><td>'+(i.active_revision!=null?'r'+nf(i.active_revision):'—')+'</td><td><button class="btn small" type="button" data-action="cfgOpen" data-cfg="'+esc(i.id)+'">تاریخچه و اقدام‌ها</button></td></tr>').join(''):'<tr><td colspan="5" class="muted">هنوز نمونه‌ای ساخته نشده است.</td></tr>';
+  h+='</tbody></table></div>';
+  h+='<div id="cfgDetail" style="margin-top:10px"></div>';
+  box.innerHTML=h;
+  if(window.__cfgOpenId)cfgOpenInstance(window.__cfgOpenId);
+ }catch(e){box.innerHTML=giErrorHtml((e&&e.message)||'','loadConfigurationPlane')}
+}
+async function cfgOpenInstance(id){
+ const d=document.getElementById('cfgDetail');if(!d||!id)return;
+ window.__cfgOpenId=id;
+ d.innerHTML=giLoadingHtml('در حال دریافت تاریخچه…');
+ try{
+  const inst=await api('GET','/api/configuration/instances/'+encodeURIComponent(id),{timeout:10000});
+  if(!document.getElementById('cfgDetail'))return;
+  window.__cfgOpen=inst;
+  const revs=Array.isArray(inst.revisions)?inst.revisions:[];
+  const latest=revs.length?revs[revs.length-1]:null;
+  let h='<div class="panel"><div class="panel-pad"><div class="panel-head"><div><div class="panel-title">'+esc(inst.kind)+' · '+esc(inst.slug)+'</div><div class="panel-sub">latest r'+nf(inst.latest_revision)+' · active '+(inst.active_revision!=null?'r'+nf(inst.active_revision):'—')+'</div></div></div>';
+  h+='<div class="table-wrap"><table><thead><tr><th>نسخه</th><th>وضعیت</th><th>اعتبارسنجی</th><th>تست</th><th>اقدام‌ها</th></tr></thead><tbody>';
+  h+=revs.slice().reverse().map(r=>{
+   const acts=[];
+   if(r.status==='draft'||r.status==='validated')acts.push('<button class="btn small" type="button" data-action="cfgValidate" data-cfg="'+esc(inst.id)+'" data-rev="'+r.revision_number+'">اعتبارسنجی</button>');
+   if(r.status==='validated')acts.push('<button class="btn small" type="button" data-action="cfgTest" data-cfg="'+esc(inst.id)+'" data-rev="'+r.revision_number+'">تست (بدون ingest)</button>');
+   if(r.status==='tested')acts.push('<button class="btn small primary" type="button" data-action="cfgActivate" data-cfg="'+esc(inst.id)+'" data-rev="'+r.revision_number+'">فعال‌سازی</button>');
+   if(r.status!=='active'&&r.status!=='archived')acts.push('<button class="btn small" type="button" data-action="cfgRollback" data-cfg="'+esc(inst.id)+'" data-target="'+r.revision_number+'">بازگردانی</button>');
+   return '<tr><td>r'+nf(r.revision_number)+'</td><td>'+cfgChip(r.status)+'</td><td>'+(r.validation?(r.validation.ok?'<span class="status s-green">ok</span>':'<span class="status s-red">'+nf((r.validation.issues||[]).length)+' ایراد</span>'):'—')+'</td><td>'+(r.test?(r.test.ok?'<span class="status s-green">ok</span>':'<span class="status s-amber">'+esc(r.test.reason||'failed')+'</span>'):'—')+'</td><td><div class="gi-actions">'+(acts.join(' ')||'<span class="muted">—</span>')+'</div></td></tr>';
+  }).join('');
+  h+='</tbody></table></div>';
+  if(latest){
+   h+='<label style="display:block;margin-top:8px">payload نسخهٔ جدید (JSON)<textarea id="cfgNewPayload" rows="6" dir="ltr" style="width:100%;font-family:monospace">'+esc(JSON.stringify(latest.payload||{},null,1))+'</textarea></label>';
+   h+='<div class="gi-actions"><button class="btn" type="button" data-action="cfgRevision" data-cfg="'+esc(inst.id)+'">ثبت نسخهٔ جدید (Draft)</button><span class="muted">حذف/ویرایش نسخهٔ فعال ممنوع است؛ هر تغییر یک revision جدید می‌سازد.</span></div>';
+  }
+  h+='</div></div>';
+  d.innerHTML=h;
+ }catch(e){d.innerHTML=giErrorHtml((e&&e.message)||'','loadConfigurationPlane')}
+}
+async function cfgCreateInstance(btn){
+ const slug=((document.getElementById('cfgSlug')||{}).value||'').trim();
+ const kind=((document.getElementById('cfgKind')||{}).value||'source').trim();
+ let payload=null;
+ try{payload=JSON.parse(((document.getElementById('cfgPayload')||{}).value||'{}'))}
+ catch(e){toast('payload باید JSON معتبر باشد.');return}
+ if(!slug){toast('slug لازم است.');return}
+ if(btn)btn.disabled=true;
+ try{
+  const inst=await api('POST','/api/configuration/instances',{body:{kind:kind,slug:slug,payload:payload},timeout:15000});
+  toast('Draft ثبت شد · '+inst.kind+' / '+inst.slug);
+  await loadConfigurationPlane();
+  await cfgOpenInstance(inst.id);
+ }catch(e){toastError(e);}finally{if(btn)btn.disabled=false;}
+}
+async function cfgAddRevision(btn){
+ const inst=window.__cfgOpen;if(!inst)return;
+ let payload=null;
+ try{payload=JSON.parse(((document.getElementById('cfgNewPayload')||{}).value||'{}'))}
+ catch(e){toast('payload باید JSON معتبر باشد.');return}
+ if(btn)btn.disabled=true;
+ try{
+  const r=await api('POST','/api/configuration/instances/'+encodeURIComponent(inst.id)+'/revisions',{body:{payload:payload,expected_revision:inst.latest_revision},timeout:15000});
+  toast('نسخهٔ r'+r.revision_number+' ثبت شد (Draft).');
+  await loadConfigurationPlane();
+ }catch(e){toastError(e);}finally{if(btn)btn.disabled=false;}
+}
+async function cfgValidate(btn){
+ const id=btn&&btn.dataset.cfg,rev=btn&&btn.dataset.rev;if(!id||!rev)return;
+ btn.disabled=true;
+ try{
+  const r=await api('POST','/api/configuration/instances/'+encodeURIComponent(id)+'/revisions/'+encodeURIComponent(rev)+'/validate',{timeout:15000});
+  const ok=r.result&&r.result.ok;
+  toast(ok?('r'+rev+' معتبر است · adapter: '+((r.result.adapter)||'skip')):('r'+rev+' نامعتبر: '+nf(((r.result&&r.result.issues)||[]).length)+' ایراد'));
+  await loadConfigurationPlane();
+ }catch(e){toastError(e);}finally{btn.disabled=false;}
+}
+async function cfgTest(btn){
+ const id=btn&&btn.dataset.cfg,rev=btn&&btn.dataset.rev;if(!id||!rev)return;
+ btn.disabled=true;
+ try{
+  const r=await api('POST','/api/configuration/instances/'+encodeURIComponent(id)+'/revisions/'+encodeURIComponent(rev)+'/test',{body:{limit:3},timeout:60000});
+  toast('تست r'+rev+' موفق · '+nf((r.result&&r.result.count)||0)+' نمونه (بدون ingest)');
+  await loadConfigurationPlane();
+ }catch(e){toastError(e);}finally{btn.disabled=false;}
+}
+async function cfgActivate(btn){
+ const id=btn&&btn.dataset.cfg,rev=btn&&btn.dataset.rev,inst=window.__cfgOpen;
+ if(!id||!rev||!inst)return;
+ if(!confirm('نسخهٔ r'+rev+' فعال شود؟ از این لحظه runtime همین payload را پین می‌کند.'))return;
+ btn.disabled=true;
+ try{
+  await api('POST','/api/configuration/instances/'+encodeURIComponent(id)+'/revisions/'+encodeURIComponent(rev)+'/activate',{body:{expected_revision:inst.latest_revision},timeout:15000});
+  toast('r'+rev+' فعال شد.');
+  await loadConfigurationPlane();
+ }catch(e){toastError(e);}finally{btn.disabled=false;}
+}
+async function cfgRollback(btn){
+ const id=btn&&btn.dataset.cfg,target=btn&&btn.dataset.target,inst=window.__cfgOpen;
+ if(!id||!target||!inst)return;
+ if(!confirm('بازگردانی به r'+target+' انجام شود؟ یک نسخهٔ جدید ساخته می‌شود و تاریخچه حفظ می‌ماند.'))return;
+ btn.disabled=true;
+ try{
+  const r=await api('POST','/api/configuration/instances/'+encodeURIComponent(id)+'/rollback',{body:{target_revision:Number(target),expected_revision:inst.latest_revision},timeout:15000});
+  toast('بازگردانی انجام شد · نسخهٔ جدید r'+r.revision_number+' فعال است.');
+  await loadConfigurationPlane();
+ }catch(e){toastError(e);}finally{btn.disabled=false;}
 }
 function bindSettingsPage(){const r=document.getElementById('settingsRefresh');r&&r.addEventListener('click',loadSettings);}
 
@@ -3175,10 +3420,103 @@ function labelMissingControls(root){
   el.setAttribute('aria-label',label);
  });
 }
+const GI_EVIDENCE_FILTERS={all:'همهٔ ادعاها',verified:'تأییدشده',pending:'در انتظار بررسی',rejected:'ردشده/متناقض',with_evidence:'دارای شاهد'};
+function giEvidenceFilterLabel(){return GI_EVIDENCE_FILTERS[window.__evidenceFilter||'all']||GI_EVIDENCE_FILTERS.all}
+function giClaimStatusBucket(cl){
+ const s=String((cl&&cl.verification_status)||'').toLowerCase();
+ if(!s)return 'pending';
+ // تطبیق توکنی (نه زیررشته): «unverified» نباید در سبد «تأییدشده» بیفتد.
+ const toks=s.split(/[^a-z]+/).filter(Boolean);
+ const has=function(re){return toks.some(function(t){return re.test(t)})};
+ if(has(/^(rejected|reject|contradicted|contradicts|contradict|refuted|false|invalid|disputed)$/))return 'rejected';
+ if(has(/^(verified|verif|confirmed|confirmed_true|accepted|supported|true)$/))return 'verified';
+ return 'pending';
+}
+function giFilterClaims(claims){
+ const f=window.__evidenceFilter||'all';
+ if(!Array.isArray(claims))return [];
+ if(f==='all')return claims;
+ if(f==='with_evidence')return claims.filter(function(cl){return Array.isArray(cl.evidence)&&cl.evidence.length>0});
+ return claims.filter(function(cl){return giClaimStatusBucket(cl)===f});
+}
+function giSetEvidenceFilter(value){
+ window.__evidenceFilter=value;
+ const c=document.getElementById('evidenceLive');
+ if(c)c.innerHTML='<p class="muted">در حال اعمال فیلتر…</p>';
+ loadEvidence();
+}
+async function fetchMarketData(btn){
+ if(!giNeedRole('analyst'))return;
+ const symbol=((document.getElementById('marketsSymbol')||{}).value||'').trim().toUpperCase();
+ const what=symbol?('نماد '+symbol):'همهٔ نمادهای پیکربندی‌شده';
+ if(!confirm('دریافت دادهٔ بازار برای '+what+' اجرا شود؟ در صورت نبود کلید سرویس، خطای واقعی نمایش داده می‌شود.'))return;
+ if(btn)btn.disabled=true;
+ try{
+  const q={fetcher:'auto'};if(symbol)q.symbol=symbol;
+  const r=await api('POST','/api/markets/fetch',{query:q,timeout:180000});
+  const stored=(r&&(r.stored!=null?r.stored:r.rows_written))!=null?(r.stored!=null?r.stored:r.rows_written):0;
+  toast('دریافت بازار انجام شد · نمادها: '+nf((r&&r.symbols_fetched)||0)+' · ثبت‌شده: '+nf(stored));
+  await loadMarkets();
+ }catch(e){toastError(e);}finally{if(btn)btn.disabled=false;}
+}
+function giNeedRole(role){
+ const rank={viewer:1,analyst:2,admin:3,service:3};
+ const mine=rank[(giCurrentUser&&giCurrentUser.role)||'']||0;
+ if(mine<(rank[role]||99)){toast('نقش شما برای این عملیات کافی نیست؛ '+(role==='admin'?'مدیر':'تحلیل‌گر')+' لازم است.');return false}
+ return true;
+}
+async function runDebate(){
+ const btn=document.querySelector('[data-action="debate"]');
+ if(!giNeedRole('analyst'))return;
+ const target=((document.getElementById('debateTarget')||{}).value||'').trim();
+ if(target.length<3){toast('هدف مناظره را وارد کنید (حداقل ۳ کاراکتر).');return}
+ if(!confirm('مناظره برای «'+target+'» ثبت شود؟ اجرا به‌صورت dry-run و بدون فراخوانی مدل زنده انجام می‌شود.'))return;
+ if(btn)btn.disabled=true;
+ try{
+  const r=await api('POST','/api/debate/run',{body:{target:target,horizon_days:30,dry_run:true,live:false},timeout:60000});
+  toast('مناظره ثبت شد · '+String(r.run_id||'—').slice(0,8)+' · وضعیت '+r.status);
+  await loadDebate();
+ }catch(e){toastError(e);}finally{if(btn)btn.disabled=false;}
+}
+async function requestAnalysisRun(btn){
+ if(!giNeedRole('analyst'))return;
+ if(!confirm('درخواست اجرای تحلیل روی صف dispatch ثبت شود؟ (batch محدود، بدون فراخوانی مستقیم مدل)'))return;
+ if(btn)btn.disabled=true;
+ try{
+  const r=await api('POST','/api/analyses/request',{body:{task:'evidence_collection',limit:20},timeout:90000});
+  toast('درخواست ثبت شد · task='+r.task+' · پردازش‌شده='+(r.processed==null?0:r.processed));
+  await loadAnalyses();
+ }catch(e){toastError(e);}finally{if(btn)btn.disabled=false;}
+}
+async function voidLatestDebateRun(btn){
+ const run=(window.__debateRuns||[])[0];
+ if(!run){toast('اجرای مناظره‌ای برای ابطال موجود نیست.');return}
+ if(!giNeedRole('admin'))return;
+ if(!confirm('اجرای '+String(run.id).slice(0,8)+' ابطال شود؟ رکورد حذف نمی‌شود؛ فقط وضعیت void ثبت می‌گردد.'))return;
+ if(btn)btn.disabled=true;
+ try{
+  await api('POST','/api/settings/debate-runs/'+encodeURIComponent(run.id)+'/void',{body:{reason:'ابطال از رابط کاربری'}});
+  toast('اجرا ابطال شد و در تاریخچه باقی ماند.');
+  await loadDebate();
+ }catch(e){toastError(e);}finally{if(btn)btn.disabled=false;}
+}
+function giPageFromHash(){
+ const m=/^#\/?([a-z][a-z-]*)$/.exec(location.hash||'');
+ return (m&&pages[m[1]])?m[1]:null;
+}
+function giSyncUrl(id){
+ const target='#/'+id;
+ if(location.hash!==target){try{history.pushState({page:id},'','#/'+id);}catch(e){location.hash='/'+id;}}
+}
+let giUrlSyncPaused=false;
+window.addEventListener('popstate',function(){
+ const next=giPageFromHash();
+ if(next&&next!==activePage){giUrlSyncPaused=true;try{renderPage(next);}finally{giUrlSyncPaused=false;}}
+});
 function renderPage(id){
  const next=pages[id]?id:'overview';
  if(window.__giWorldMap||window.__giWorldRefresh)disposeWorldMap();
- activePage=next;const main=document.getElementById('content');
+ activePage=next;const main=document.getElementById('content');if(!giUrlSyncPaused)giSyncUrl(next);
  try{
    let html=pageRenderers[activePage]?pageRenderers[activePage]():`<div class="page-head"><h1>صفحهٔ ناشناخته</h1><p class="muted">این صفحه در registry تعریف نشده است.</p></div>`;
    if(activePage==='world')html=worldMonitorPage();
@@ -3439,6 +3777,17 @@ document.addEventListener('click',e=>{
   if(a==='source'){openFormModal('source');return}
   if(a==='provider'||a==='chatSettings'){openFormModal('provider');return}
   if(a==='sendChat'){aiChatSend();return}
+  if(a==='debate'){runDebate();return}
+  if(a==='analysis'){requestAnalysisRun(act);return}
+  if(a==='void'){voidLatestDebateRun(act);return}
+  if(a==='marketsFetch'){fetchMarketData(act);return}
+  if(a==='cfgCreate'){cfgCreateInstance(act);return}
+  if(a==='cfgOpen'){cfgOpenInstance(act.dataset.cfg);return}
+  if(a==='cfgRevision'){cfgAddRevision(act);return}
+  if(a==='cfgValidate'){cfgValidate(act);return}
+  if(a==='cfgTest'){cfgTest(act);return}
+  if(a==='cfgActivate'){cfgActivate(act);return}
+  if(a==='cfgRollback'){cfgRollback(act);return}
   if(a==='export'){exportChartSvg(act);return}
   if(a==='refresh'){
    if(activePage==='overview'){loadDashboard();return;}
@@ -3539,13 +3888,13 @@ giEnsureNetListeners();
     if (inp) inp.value = token;
     return;
   } else if (giHealthStatus === 'ok') {
-    renderPage('overview');
+    renderPage(giPageFromHash()||'overview');
   } else if (giHealthStatus === 'auth') {
     giEnsureAuthModal(); giOpenAuth(); giApplyAuthGate();
     return;
   } else {
     // Backend unreachable at load: render the shell so the offline banner works.
-    renderPage('overview');
+    renderPage(giPageFromHash()||'overview');
     giUpdateNetBanner();
   }
   giApplyAuthGate();

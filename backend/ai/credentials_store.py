@@ -52,8 +52,15 @@ def is_secret_key(key: str) -> bool:
     return any(token in upper for token in SECRET_LIKE)
 
 
-def resolve_provider_credential(name: str) -> dict[str, Any] | None:
-    """اعتبارنامه‌ی DB برای یک Provider (تطبیق kind و بعد name). None یعنی fallback به .env."""
+def resolve_provider_credential(
+    name: str, *, include_disabled: bool = False,
+) -> dict[str, Any] | None:
+    """اعتبارنامه‌ی DB برای یک Provider (تطبیق kind و بعد name). None یعنی fallback به .env.
+
+    `include_disabled=True` فقط برای مسیر «تست اتصال Provider در Draft» است تا یک
+    Provider غیرفعال هم بتواند با کلید خودش تست شود؛ مسیریابی عادی Gateway هرگز از
+    این حالت استفاده نمی‌کند.
+    """
     from backend.ai.free_policy import is_free_verified as _is_free_verified
     from backend.database.models.ai_settings import AIProviderRow
 
@@ -61,9 +68,10 @@ def resolve_provider_credential(name: str) -> dict[str, Any] | None:
     if db is None:
         return None
     try:
-        rows = db.execute(
-            select(AIProviderRow).where(AIProviderRow.enabled.is_(True))
-        ).scalars().all()
+        stmt = select(AIProviderRow)
+        if not include_disabled:
+            stmt = stmt.where(AIProviderRow.enabled.is_(True))
+        rows = db.execute(stmt).scalars().all()
         match = next((r for r in rows if r.kind == name), None)
         if match is None:
             match = next((r for r in rows if r.name == name), None)

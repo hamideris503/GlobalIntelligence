@@ -52,12 +52,15 @@ def build_provider(name: str, **kwargs: Any) -> AIProvider:
         return cls()
 
 
-def build_provider_with_store(name: str) -> AIProvider:
-    """ساخت با اعتبار DB؛ اگر نبود/نشد، رفتار قبلی (.env). بدون نشت secret در لاگ."""
+def build_provider_with_store(name: str, *, include_disabled: bool = False) -> AIProvider:
+    """ساخت با اعتبار DB؛ اگر نبود/نشد، رفتار قبلی (.env). بدون نشت secret در لاگ.
+
+    `include_disabled` فقط در مسیر تست اتصال Draft استفاده می‌شود.
+    """
     from backend.ai import credentials_store as store
 
     try:
-        cred = store.resolve_provider_credential(name)
+        cred = store.resolve_provider_credential(name, include_disabled=include_disabled)
     except Exception:  # noqa: BLE001
         cred = None
     if cred is None:

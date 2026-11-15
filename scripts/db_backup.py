@@ -1,8 +1,11 @@
-"""PostgreSQL backup/restore/verify (Phase 45).
+"""PostgreSQL/SQLite backup/restore/verify (Phase 45 + اجرای محلی Windows).
 
-- `backup`: pg_dump (custom format) از دیتابیس زنده + manifest (sha256/size) + rotation.
-- `restore`: بازگردانی به دیتابیس هدف (پیش‌فرض temp) با محافظ تأیید.
+- `backup`: pg_dump (custom format) یا backup آنلاین SQLite + manifest (sha256/size) + rotation.
+- `restore`: بازگردانی به هدف (پیش‌فرض temp) با محافظ تأیید.
 - `verify`: مقایسه‌ی شمارش جدول‌های کلیدی مبدأ/مقصد پس از restore.
+
+موتور به‌صورت خودکار از `DATABASE_URL` در `.env` تشخیص داده می‌شود؛
+برای SQLite هیچ Docker/pg_dump لازم نیست (پشتیبانی از نصب محلی Windows).
 
 اجرا:
     python -m scripts.db_backup backup --dir backups --keep 7
@@ -108,7 +111,118 @@ def _db_env() -> dict[str, str]:
     return env
 
 
+def _database_url() -> str:
+    """DATABASE_URL از محیط یا `.env` (مقدار چاپ نمی‌شود)."""
+    import os
+
+    return os.environ.get("DATABASE_URL") or _db_env().get("DATABASE_URL", "")
+
+
+def sqlite_path_from_url(url: str) -> Path | None:
+    """مسیر فایل از DSN SQLite؛ None اگر موتور SQLite نباشد."""
+    if not url.startswith("sqlite"):
+        return None
+    raw = url.split("sqlite:///", 1)[1] if "sqlite:///" in url else url.split("sqlite://", 1)[1]
+    return Path(raw)
+
+
+def _sqlite_backup_filename(now: datetime | None = None) -> str:
+    stamp = (now or datetime.now(UTC)).strftime("%Y%m%d-%H%M%S")
+    return f"gi_backup-{stamp}.sqlite3"
+
+
+def cmd_sqlite_backup(db_path: Path, backup_dir: Path, keep: int) -> int:
+    """backup آنلاین SQLite (بدون توقف سرویس) + manifest + rotation."""
+    import sqlite3
+
+    if not db_path.exists():
+        print(f"sqlite database not found: {db_path}")
+        return 1
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    target = backup_dir / _sqlite_backup_filename()
+    source = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    destination = sqlite3.connect(target)
+    try:
+        source.backup(destination)
+    finally:
+        destination.close()
+        source.close()
+    if target.stat().st_size == 0:
+        print("backup file is empty")
+        return 1
+    manifest = write_manifest(target)
+    print(f"sqlite backup -> {target} sha={sha256_file(target)[:12]}... manifest={manifest}")
+    for old in select_for_rotation(
+        sorted(p.name for p in backup_dir.glob("gi_backup-*.sqlite3")), keep
+    ):
+        (backup_dir / old).unlink(missing_ok=True)
+        (backup_dir / old).with_suffix(".manifest.json").unlink(missing_ok=True)
+        print(f"rotated: {old}")
+    return 0
+
+
+def sqlite_integrity_ok(path: Path) -> bool:
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            return conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001
+        print(f"sqlite integrity check failed: {type(exc).__name__}")
+        return False
+
+
+def cmd_sqlite_restore(backup_file: Path, target_db: str, yes: bool = False) -> int:
+    """بازگردانی فایل SQLite به یک مسیر هدف (پیش‌فرض کنار خود فایل)."""
+    import shutil
+
+    if not backup_file.exists():
+        print("backup file not found")
+        return 1
+    if not verify_manifest(backup_file):
+        print("manifest mismatch; refusing to restore")
+        return 1
+    if not yes:
+        print("refusing without --yes (destructive guard)")
+        return 1
+    if not sqlite_integrity_ok(backup_file):
+        print("backup integrity check failed; refusing to restore")
+        return 1
+    target = Path(target_db)
+    if target.suffix not in (".db", ".sqlite3"):
+        target = target.with_suffix(".sqlite3")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(backup_file, target)
+    if not sqlite_integrity_ok(target):
+        print("restored database failed integrity check")
+        return 1
+    print(f"sqlite restore ok -> {target}")
+    return 0
+
+
+def sqlite_table_counts(path: Path) -> dict[str, int]:
+    import sqlite3
+
+    out: dict[str, int] = {}
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        for table in KEY_TABLES:
+            try:
+                out[table] = int(conn.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0])
+            except Exception:  # noqa: BLE001 — جدول در این schema نیست
+                out[table] = -1
+    finally:
+        conn.close()
+    return out
+
+
 def cmd_backup(backup_dir: Path, keep: int) -> int:
+    db_path = sqlite_path_from_url(_database_url())
+    if db_path is not None:
+        return cmd_sqlite_backup(db_path, backup_dir, keep)
     backup_dir.mkdir(parents=True, exist_ok=True)
     filename = backup_filename()
     target = backup_dir / filename
@@ -143,6 +257,8 @@ def cmd_backup(backup_dir: Path, keep: int) -> int:
 
 
 def cmd_restore(backup_file: Path, target_db: str, yes: bool = False) -> int:
+    if backup_file.suffix == ".sqlite3":
+        return cmd_sqlite_restore(backup_file, target_db, yes)
     if not backup_file.exists():
         print("backup file not found")
         return 1
@@ -203,6 +319,29 @@ def table_counts(target_db: str) -> dict[str, int]:
 
 
 def cmd_verify(target_db: str) -> int:
+    db_path = sqlite_path_from_url(_database_url())
+    if db_path is not None:
+        restored_path = Path(target_db)
+        if restored_path.suffix not in (".db", ".sqlite3"):
+            restored_path = restored_path.with_suffix(".sqlite3")
+        if not db_path.exists():
+            print(f"live sqlite database not found: {db_path}")
+            return 1
+        if not restored_path.exists():
+            print(f"restored sqlite database not found: {restored_path}")
+            return 1
+        live = sqlite_table_counts(db_path)
+        restored = sqlite_table_counts(restored_path)
+        mismatches = {
+            t: (live.get(t), restored.get(t))
+            for t in KEY_TABLES if live.get(t) != restored.get(t)
+        }
+        print(json.dumps({"live": live, "restored": restored}, indent=2))
+        if mismatches:
+            print(f"MISMATCH: {mismatches}")
+            return 1
+        print("verify ok: all counts match")
+        return 0
     env = _db_env()
     live_db = env.get("POSTGRES_DB", "globalintelligence")
     live = table_counts(live_db)
@@ -221,7 +360,7 @@ def cmd_verify(target_db: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="PostgreSQL backup/restore/verify")
+    parser = argparse.ArgumentParser(description="Backup/restore/verify (PostgreSQL یا SQLite)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_backup = sub.add_parser("backup")
