@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import time
+import weakref
 from collections import deque
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -47,6 +48,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+_INSTANCES: weakref.WeakSet[RateLimitMiddleware] = weakref.WeakSet()
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """محدودیت نرخ ساده: N درخواست در هر ۶۰ ثانیه برای هر IP.
 
@@ -65,6 +69,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.per_minute = max(1, per_minute)
         self.exempt_paths = exempt_paths
         self._hits: dict[str, deque[float]] = {}
+        _INSTANCES.add(self)
+
+    def reset(self) -> None:
+        """پاک‌کردن پنجره‌های شمارش (برای ایزوله‌سازی تست‌ها)."""
+        self._hits.clear()
 
     def _client_key(self, request: Request) -> str:
         if request.client is not None:
@@ -112,8 +121,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+def reset_rate_limits() -> None:
+    """همهٔ نمونه‌های فعال محدودکننده را صفر می‌کند.
+
+    در تست‌ها هر تست پنجرهٔ تازه می‌گیرد؛ روی Linux اجرای سریع سوئیت باعث
+    می‌شد صدها درخواست در همان ۶۰ ثانیه جمع شوند و تست‌های بی‌ربط 429 بگیرند.
+    """
+    for middleware in list(_INSTANCES):
+        middleware.reset()
+
+
 __all__ = [
     "SECURITY_HEADERS",
     "RateLimitMiddleware",
     "SecurityHeadersMiddleware",
+    "reset_rate_limits",
 ]

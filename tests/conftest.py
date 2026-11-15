@@ -99,6 +99,19 @@ TEST_PUBLIC_IP = "93.184.216.34"
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+@pytest.fixture(autouse=True)
+def _reset_rate_limits() -> None:
+    """پنجرهٔ محدودکنندهٔ نرخ بین تست‌ها صفر می‌شود.
+
+    در لاین Linux سوئیت آن‌قدر سریع اجرا می‌شد که درخواست‌های چند تست در همان
+    پنجرهٔ ۶۰ ثانیه‌ای جمع می‌شدند و تست‌های بی‌ربط 429 می‌گرفتند.
+    """
+    from backend.core.security import reset_rate_limits
+
+    reset_rate_limits()
+    yield
+    reset_rate_limits()
+
 
 
 @pytest.fixture(autouse=True)
