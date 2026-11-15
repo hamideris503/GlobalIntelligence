@@ -85,7 +85,9 @@ jobs:
               echo '```'
               tail -n 150 pytest-sqlite.log
               echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
+            } >> "$GITHUB_STEP_SUMMARY" || true
+            tail -n 30 pytest-sqlite.log | sed -e 's/%/%25/g' -e 's/\r$//' |
+              while IFS= read -r line; do echo "::error::$line"; done || true
           fi
           exit "$status"
 
