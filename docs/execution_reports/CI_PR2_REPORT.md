@@ -1,37 +1,48 @@
 # CI — Pull Request #2 (step6a-analysis-dashboard → main)
 
 - **تاریخ:** ۱۶ نوامبر ۲۰۲۶
-- **HEAD:** `c8bfdff` · **PR:** #2 · **Run:** 43761925301
-- **trigger:** `pull_request` (چون workflow فقط `push` روی `main` و `pull_request` را اجرا می‌کند)
+- **HEAD نهایی:** `d6ff7a3` · **PR:** #2
+- **trigger:** `pull_request` (workflow فقط `push` روی `main` و `pull_request` را اجرا می‌کند)
 
-## 1. نتیجهٔ اجرای اول
+## 1. نتیجهٔ نهایی — سبز
 
 | Job | نتیجه | زمان |
 |---|---|---|
-| `backend` (PostgreSQL 16 + کل سوئیت) | **succeeded** | — |
-| `docker` (build هر دو image) | **succeeded** | 39s |
-| `backend-sqlite` (`pytest -m "not pg"`) | **failed** | 2m 15s |
+| `backend` (PostgreSQL 16 + کل سوئیت) | **succeeded** | 5m 32s |
+| `backend-sqlite` (`pytest -m "not pg"`) | **succeeded** | 3m 56s |
+| `docker` (build هر دو image) | **succeeded** | 37s |
 
-Annotation موجود برای `backend-sqlite`: `Run SQLite-compatible tests — Process completed with exit code 1`.
-نام تست شکست‌خورده در UI بدون ورود به GitHub قابل مشاهده نیست.
+Run: `43769108819` — **Status: Success** (5m 36s).Annotationها فقط deprecation مربوط به Node 20 و برچسب `ubuntu-latest` هستند.
 
-## 2. بازتولید محلی
+## 2. نقصی که CI کشف کرد و رفع شد
 
-| محیط | دستور | نتیجه |
-|---|---|---|
-| Windows، Python 3.14، همان envهای CI | `pytest ../tests -q -m "not pg" --basetemp=.pytest-sqlite` | **1928 passed / 2 skipped / EXIT=0** (609.83s) |
-| Linux (`python:3.12-slim` container)، همان envها + `requirements*.txt` | همان دستور | **1926 passed / 4 skipped / EXIT=0** (245.33s) |
+**نشانه:** سه اجرای متوالی `backend-sqlite` قرمز، با تست‌های `tests/test_settings.py` که `429 RATE_LIMITED` می‌گرفتند
+(`test_discover_redirect_not_followed`, `test_discover_stale_custom_url_blocked_before_send`,
+`test_discover_ignores_hostile_proxy_and_ca_env`, `test_mock_consumer_unaffected_by_db_state`).
 
-تفاوت ۱۹۲۶ و ۱۹۲۸ مربوط به skipهای وابسته به پلتفرم است (Unix-only tests روی Windows skip می‌شوند).
+**علت ریشه‌ای:** `RateLimitMiddleware` یک پنجرهٔ لغزان ۶۰ ثانیه‌ای برای هر کلاینت نگه می‌دارد (سقف ۶۰۰).
+روی Linux سوئیت سریع‌تر از آن اجرا می‌شد که درخواست‌های چند تست در همان پنجره جمع شوند، پس تست‌های
+بی‌ربط ۴۲۹ می‌گرفتند. روی Windows (کندتر) این آستانه هرگز پر نمی‌شد.
 
-## 3. تفسیر
+**اصلاح (بدون تضعیف تست):**
+- `backend/core/security.py`: رجیستری weakref از نمونه‌های فعال + متد `reset()` + تابع `reset_rate_limits()`.
+- `tests/conftest.py`: fixture خودکار `_reset_rate_limits` که قبل و بعد از هر تست پنجره‌ها را صفر می‌کند؛
+  middleware در تست‌ها **فعال می‌ماند** و تست اختصاصی 429 (`test_api_errors.py`) دست‌نخورده است.
 
-- هر سه job به‌جز یکی سبز است؛ job شکست‌خورده در **دو محیط مستقل** (از جمله exact image و Python 3.12 همانند CI) صفر failure داده است.
-- بنابراین شکست فعلی **قابل بازتولید نیست** و به‌احتمال زیاد flaky/محیطی است (نه نقص کد).
-- برای قطعیت، یک اجرای دوم CI لازم است؛ commit مستندات این گزارش، خودش CI را دوباره trigger می‌کند.
+**تأیید:** `test_settings.py + test_api_errors.py + test_auth_sessions.py` → **79 passed**؛ `ruff` → All checks passed.
 
-## 4. اقدام بعدی
+## 3. ابزار تشخیصی اضافه‌شده به CI
 
-1. نتیجهٔ اجرای دوم را در PR #2 ببینید.
-2. اگر سبز شد → flake تأیید می‌شود (تست مشکوک شناسایی و مقاوم‌سازی می‌شود).
-3. اگر همان job باز هم قرمز شد → با ورود به GitHub، نام تست از log خوانده و همان تست هدف اصلاح قرار می‌گیرد.
+از آنجا که log کامل فقط با ورود به GitHub دیده می‌شود:
+- خروجی pytest با `tee` ذخیره می‌شود و `PIPESTATUS` وضعیت واقعی را حفظ می‌کند.
+- در صورت شکست، ۱۵۰ خط آخر به `$GITHUB_STEP_SUMMARY` و ۳۰ خط آخر به‌صورت `::error::` (annotation)
+  منتشر می‌شود؛ همین مکانیزم نام تست‌های شکست‌خورده را روی صفحهٔ عمومی run نشان داد.
+
+## 4. بازتولیدهای محلی (قبل از رفع)
+
+| محیط | نتیجه |
+|---|---|
+| Windows / Python 3.14 / envهای CI | 1928 passed / 2 skipped / exit 0 |
+| Linux `python:3.12-slim` / envهای CI | 1926 passed / 4 skipped / exit 0 |
+
+این دو اجرا سبز بودند چون پنجرهٔ ۶۰ ثانیه‌ای در آن‌ها پر نمی‌شد؛ بنابراین تشخیص فقط از CI ممکن بود.

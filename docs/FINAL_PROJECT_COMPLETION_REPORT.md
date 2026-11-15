@@ -126,7 +126,7 @@ Credential Encryption · Durable dispatch (idempotent، retry، recovery).
 | نصب دائمی Scheduled Task | تغییر Startup سیستم | **BLOCKED_OWNER_INPUT** |
 | Soak test دو ساعته | نیازمند اجرای طولانی تأییدشده | **NOT_RUN** |
 | ارزیابی Kev/Laya روی ۳۸۲ نمونه | ۴۳ اصلاح اعمال شد → Gold Set v2 | **VERIFIED** — Kev F1 0.6423 / Laya 0.3293 روی v2 (`docs/execution_reports/GOLD_SET_V2_EVALUATION.md`) |
-| CI راه‌دور | نیازمند push مالک | **NOT_VERIFIED** |
+| CI راه‌دور | PR #2 روی `step6a-analysis-dashboard` | **VERIFIED** — run `43769108819` سبز (backend، backend-sqlite، docker) |
 | حذف `apps/web_leftover_locked` | ACL قفل | **BLOCKED_OWNER_INPUT** |
 
 ---
@@ -143,7 +143,7 @@ Credential Encryption · Durable dispatch (idempotent، retry، recovery).
 1. ~~تعیین تکلیف Gold Set~~ — انجام شد: ۴۳ اصلاح اعمال و ارزیابی روی v2 اجرا شد؛ Kev/Laya همچنان Advisory.
 2. تأیید مالک برای Telegram/SMTP و اجرای آزمون‌های آرشیو.
 3. نصب سرویس و اجرای ۷ آزمون WP-16 شامل soak.
-4. push و مشاهدهٔ CI راه‌دور سبز روی SHA نهایی.
+4. ~~push و مشاهدهٔ CI راه‌دور~~ — انجام شد: PR #2 و run سبز `43769108819` روی `d6ff7a3`.
 5. پاک‌سازی بدهی: 746 warning، مسیرهای `/tmp`، کد مردهٔ `metrics()/chartPanel()`، بازبینی `innerHTML`،
    حذف `.tmp-audit-2026/` از working tree.
 
