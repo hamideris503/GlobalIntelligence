@@ -1,0 +1,113 @@
+{
+  "manifest_version": "wp08-v2",
+  "created": "2026-11-16",
+  "dataset_version": "gold-set-v2-2026-11-16",
+  "status": "OWNER_ACCEPTED_CORRECTIONS_APPLIED",
+  "record_count": 382,
+  "label_distribution": {
+    "relevant_true": 257,
+    "relevant_false": 125
+  },
+  "corrections": {
+    "source": "H:\\GIRuntime\\labeling\\reviewed\\all_382_label_audit.csv",
+    "source_sha256": "fcf58dd42d568f2eb575b310a3af493885031278269a7653aa6244ef320e409d",
+    "flagged": 43,
+    "net_label_flips": 42,
+    "owner_decision": "applied per owner instruction (2026-11-16)"
+  },
+  "source": {
+    "merged_file": "data\\labeling\\labeled-merged-stage50-stage53.jsonl",
+    "merged_sha256": "d7802af05dc2197674118defc2d579c1538f96037c8247376acc3f8c1f4fafa4",
+    "v1_manifest": "data/labeling/gold-set-manifest.json"
+  },
+  "held_out_split": {
+    "seed": "wp08-heldout-v1",
+    "frac": 0.2,
+    "rule": "sha256(seed:id) % 100 < 20 (recomputed; v1 split file absent)",
+    "dev_count": 302,
+    "holdout_count": 80,
+    "holdout_label_distribution": {
+      "relevant_true": 57,
+      "relevant_false": 23
+    }
+  },
+  "evaluation": {
+    "kev": {
+      "file": "data\\labeling\\kev_full_results.jsonl",
+      "sha256": "21c8c207870d41b5020c17fdf228fbd86b21e016a486ee679dab90f6092e73d4",
+      "all": {
+        "n": 382,
+        "confusion": {
+          "TP": 123,
+          "TN": 122,
+          "FP": 3,
+          "FN": 134
+        },
+        "accuracy": 0.6414,
+        "precision": 0.9762,
+        "recall": 0.4786,
+        "f1": 0.6423,
+        "macro_f1": 0.6414,
+        "latency_ms_mean": 7543.1,
+        "latency_ms_p95": 11744.6,
+        "abstain": 0
+      },
+      "holdout": {
+        "n": 80,
+        "confusion": {
+          "TP": 26,
+          "TN": 23,
+          "FP": 0,
+          "FN": 31
+        },
+        "accuracy": 0.6125,
+        "precision": 1.0,
+        "recall": 0.4561,
+        "f1": 0.6265,
+        "macro_f1": 0.612,
+        "latency_ms_mean": 7670.6,
+        "latency_ms_p95": 11744.6,
+        "abstain": 0
+      }
+    },
+    "laya": {
+      "file": "data\\labeling\\laya_full_results.jsonl",
+      "sha256": "68dfacd0964ff9d0f9d38baf4c961edc6d06a56e7c1d1210f2126481274608f7",
+      "all": {
+        "n": 382,
+        "confusion": {
+          "TP": 55,
+          "TN": 103,
+          "FP": 22,
+          "FN": 202
+        },
+        "accuracy": 0.4136,
+        "precision": 0.7143,
+        "recall": 0.214,
+        "f1": 0.3293,
+        "macro_f1": 0.4042,
+        "latency_ms_mean": 1877.9,
+        "latency_ms_p95": 3036.0,
+        "abstain": 0
+      },
+      "holdout": {
+        "n": 80,
+        "confusion": {
+          "TP": 10,
+          "TN": 22,
+          "FP": 1,
+          "FN": 47
+        },
+        "accuracy": 0.4,
+        "precision": 0.9091,
+        "recall": 0.1754,
+        "f1": 0.2941,
+        "macro_f1": 0.3862,
+        "latency_ms_mean": 1823.7,
+        "latency_ms_p95": 2767.6,
+        "abstain": 0
+      }
+    }
+  },
+  "promotion_decision": "Kev/Laya remain ADVISORY; Gold Set v2 is the accepted label baseline."
+}

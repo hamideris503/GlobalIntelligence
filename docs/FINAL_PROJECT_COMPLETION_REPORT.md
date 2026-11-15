@@ -125,7 +125,7 @@ Credential Encryption · Durable dispatch (idempotent، retry، recovery).
 | آپلود/دانلود آرشیو در Telegram | **انجام شد** | **VERIFIED** — `message_id=9`، SHA256 یکسان در دو طرف |
 | نصب دائمی Scheduled Task | تغییر Startup سیستم | **BLOCKED_OWNER_INPUT** |
 | Soak test دو ساعته | نیازمند اجرای طولانی تأییدشده | **NOT_RUN** |
-| ارزیابی Kev/Laya روی ۳۸۲ نمونه | Gold Set پذیرش نشده (۴۳ ردیف «تغییر لازم») | **PARTIALLY_VERIFIED** |
+| ارزیابی Kev/Laya روی ۳۸۲ نمونه | ۴۳ اصلاح اعمال شد → Gold Set v2 | **VERIFIED** — Kev F1 0.6423 / Laya 0.3293 روی v2 (`docs/execution_reports/GOLD_SET_V2_EVALUATION.md`) |
 | CI راه‌دور | نیازمند push مالک | **NOT_VERIFIED** |
 | حذف `apps/web_leftover_locked` | ACL قفل | **BLOCKED_OWNER_INPUT** |
 
@@ -140,7 +140,7 @@ Credential Encryption · Durable dispatch (idempotent، retry، recovery).
 
 ## 11. کارهای باقی‌مانده
 
-1. تعیین تکلیف Gold Set و سپس ارزیابی رسمی + تصمیم promotion.
+1. ~~تعیین تکلیف Gold Set~~ — انجام شد: ۴۳ اصلاح اعمال و ارزیابی روی v2 اجرا شد؛ Kev/Laya همچنان Advisory.
 2. تأیید مالک برای Telegram/SMTP و اجرای آزمون‌های آرشیو.
 3. نصب سرویس و اجرای ۷ آزمون WP-16 شامل soak.
 4. push و مشاهدهٔ CI راه‌دور سبز روی SHA نهایی.
